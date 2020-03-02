@@ -2,7 +2,7 @@
 #define __CS_ATMO_H__
 
 /*============================================================================
- * Main for cooling towers related functions
+ * Main for atmospheric related functions
  *============================================================================*/
 
 /*
@@ -67,6 +67,14 @@ enum {
   CS_ATMO_NUC_ABDUL_RAZZAK = 3
 };
 
+/*----------------------------------------------------------------------------
+ * Atmospheric aerosol external library
+ *----------------------------------------------------------------------------*/
+
+typedef enum {
+  CS_ATMO_AEROSOL_OFF = 0,
+  CS_ATMO_AEROSOL_SSH = 1
+} cs_atmo_aerosol_type_t;
 
 /*============================================================================
  * Type definitions
@@ -93,9 +101,13 @@ typedef struct {
   /*! Starting second */
   cs_real_t ssec;
   /*! longitude of the domain origin */
-  cs_real_t longitute;
+  cs_real_t longitude;
   /*! latitude of the domain origin */
   cs_real_t latitude;
+
+  /*! Domain orientation (angle in degree between y direction and north),
+   * 0 by default */
+  cs_real_t domain_orientation;
 
   /* Model options */
   bool compute_z_ground;
@@ -118,12 +130,30 @@ typedef struct {
   int model;
   int n_species;
   int n_reactions;
+  /* Flag to deactivate photolysis */
+  bool chemistry_with_photolysis;
+  /*! Choice of the aerosol model
+       - CS_ATMO_AEROSOL_OFF ---> no aerosol model
+       - CS_ATMO_AEROSOL_SSH ---> external library SSH-aerosol */
+  cs_atmo_aerosol_type_t model_aerosol;
+  /*! Flag to deactivate gaseous chemistry when using aerosols */
+  bool frozen_gas_chem;
+  /*! Flag to initialize gaseous species with the aerosol library */
+  bool init_gas_with_lib;
+  /*! Flag to initialize aerosols species with the aerosol library */
+  bool init_aero_with_lib;
+  /*! Number of layers within each aerosol */
+  int n_layer;
+  /*! Number of aerosols */
+  int n_size;
   char *spack_file_name;
   int *species_to_scalar_id; // used only in fortran
   int *species_to_field_id;
   /*! Molar mass of the chemical species (g/mol) */
   cs_real_t *molar_mass;
   int *chempoint;
+  /*! Name of the file used to initialize the aerosol shared library */
+  char *aero_file_name;
 } cs_atmo_chemistry_t;
 
 /*============================================================================
@@ -150,6 +180,17 @@ extern cs_atmo_chemistry_t *cs_glob_atmo_chemistry;
 
 void
 cs_atmo_chemistry_set_spack_file_name(const char *file_name);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief This function sets the file name to initialize the aerosol library.
+ *
+ * \param[in] file_name  name of the file.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_atmo_chemistry_set_aerosol_file_name(const char *file_name);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -188,6 +229,56 @@ cs_atmo_z_ground_compute(void);
 
 void
 cs_atmo_declare_chem_from_spack(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief 1D Radiative scheme - Solar data + zenithal angle)
+ * Compute:
+ *   - zenithal angle
+ *   - solar contant (with correction for earth - solar length)
+ *   - albedo if above the sea
+ *   (Use analytical formulae of Paltrige and Platt
+ *              dev.in atm. science no 5)
+ * \param[in]   xlat        latitude
+ * \param[in]   xlong       longitude
+ * \param[in]   jour        day in the year
+ * \param[in]   heurtu      Universal time (hour)
+ * \param[in]   imer        sea index
+ * \param[out]  albe        albedo
+ * \param[out]  muzero      cosin of zenithal angle
+ * \param[out]  omega       solar azimut angle
+ * \param[out]  fo          solar constant
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_atmo_compute_solar_angles(cs_real_t xlat,
+                             cs_real_t xlong,
+                             cs_real_t jour,
+                             cs_real_t heurtu,
+                             int       imer,
+                             cs_real_t *albe,
+                             cs_real_t *muzero,
+                             cs_real_t *omega,
+                             cs_real_t *fo);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print the atmospheric chemistry options to setup.log.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_atmo_chemistry_log_setup(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print the atmospheric aerosols options to setup.log.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_atmo_aerosol_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
 

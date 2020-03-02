@@ -44,6 +44,7 @@
 #include "cs_coupling.h"
 #include "cs_defs.h"
 #include "cs_equation_iterative_solve.h"
+#include "cs_ext_neighborhood.h"
 #include "cs_fan.h"
 #include "cs_field.h"
 #include "cs_field_default.h"
@@ -100,17 +101,10 @@
 #include "cs_wall_functions.h"
 #include "cs_zone.h"
 
-#if defined(HAVE_MEDCOUPLING_LOADER)
 #include "cs_medcoupling_remapper.hxx"
-#endif
-
-#if defined(HAVE_PARAMEDMEM)
-#include "cs_paramedmem_coupling.hxx"
-#endif
-
-#if defined(HAVE_PARAMEDMEM) && defined (HAVE_MEDCOUPLING_LOADER)
 #include "cs_paramedmem_remapper.hxx"
-#endif
+#include "cs_paramedmem_coupling.hxx"
+
 
 /*----------------------------------------------------------------------------*/
 

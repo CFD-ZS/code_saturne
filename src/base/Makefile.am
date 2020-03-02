@@ -408,22 +408,14 @@ libcsrenumber_la_LDFLAGS = -no-undefined
 lib_LTLIBRARIES =
 pkglib_LTLIBRARIES =
 
-if HAVE_MEDCOUPLING
-
 pkginclude_HEADERS += \
 cs_medcoupling_utils.hxx
 
-if HAVE_MEDCOUPLING_LOADER
 pkginclude_HEADERS += \
 cs_medcoupling_remapper.hxx
-endif
 
-if HAVE_PARAMEDMEM
 pkginclude_HEADERS += cs_paramedmem_coupling.hxx
-if HAVE_MEDCOUPLING_LOADER
 pkginclude_HEADERS += cs_paramedmem_remapper.hxx
-endif
-endif
 
 if HAVE_PLUGIN_MEDCOUPLING
 
@@ -441,19 +433,10 @@ $(MPI_CPPFLAGS)
 pkglib_LTLIBRARIES += cs_medcoupling.la
 
 cs_medcoupling_la_SOURCES = \
-cs_medcoupling_utils.cxx
-
-if HAVE_MEDCOUPLING_LOADER
-cs_medcoupling_la_SOURCES += \
-cs_medcoupling_remapper.cxx
-endif
-
-if HAVE_PARAMEDMEM
-cs_medcoupling_la_SOURCES += cs_paramedmem_coupling.cxx
-if HAVE_MEDCOUPLING_LOADER
-cs_medcoupling_la_SOURCES += cs_paramedmem_remapper.cxx
-endif
-endif
+cs_medcoupling_utils.cxx \
+cs_medcoupling_remapper.cxx \
+cs_paramedmem_coupling.cxx \
+cs_paramedmem_remapper.cxx
 
 cs_medcoupling_la_LDFLAGS = -module -avoid-version
 cs_medcoupling_la_LIBADD = \
@@ -475,27 +458,16 @@ $(HDF5_CPPFLAGS) \
 $(MPI_CPPFLAGS)
 
 libcs_medcoupling_la_SOURCES = \
-cs_medcoupling_utils.cxx
-
-if HAVE_MEDCOUPLING_LOADER
-libcs_medcoupling_la_SOURCES += \
-cs_medcoupling_remapper.cxx
-endif
-
-if HAVE_PARAMEDMEM
-libcs_medcoupling_la_SOURCES += cs_paramedmem_coupling.cxx
-if HAVE_MEDCOUPLING_LOADER
-libcs_medcoupling_la_SOURCES += cs_paramedmem_remapper.cxx
-endif
-endif
+cs_medcoupling_utils.cxx \
+cs_medcoupling_remapper.cxx \
+cs_paramedmem_coupling.cxx \
+cs_paramedmem_remapper.cxx
 
 libcs_medcoupling_la_LIBADD = \
 $(MEDCOUPLING_LDFLAGS) $(MEDCOUPLING_LIBS) \
 $(MEDCOUPLINGRUNPATH)
 noinst_LTLIBRARIES += libcs_medcoupling.la
 libcsbase_la_LIBADD += libcs_medcoupling.la
-
-endif
 
 endif
 

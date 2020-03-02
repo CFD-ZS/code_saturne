@@ -47,7 +47,7 @@ use mesh
 use field
 use atincl
 use atchem
-use siream
+use cs_c_bindings
 
 implicit none
 
@@ -55,7 +55,7 @@ implicit none
 
 ! Local variables
 
-integer iel,ii
+integer iel,ii,iphotolysis
 double precision temp, dens          ! temperature, density
 double precision press, hspec        ! pressure, specific humidity (kg/kg)
 double precision rk(nrg)             ! kinetic rates
@@ -66,6 +66,7 @@ double precision qureel              ! julian day
 double precision heurtu              ! yime (UTC)
 double precision albe                ! albedo, useless here
 double precision fo                  ! solar constant, useless here
+double precision omega
 
 double precision, dimension(:), pointer :: crom
 double precision, dimension(:), pointer :: cvar_totwt
@@ -77,6 +78,12 @@ temp = t0
 dens = ro0
 press = dens*rair*temp ! ideal gas law
 hspec = 0.0d0
+
+if (photolysis) then
+  iphotolysis = 1
+else
+  iphotolysis = 2
+endif
 
 if (ippmod(iatmos).ge.1) then
   call field_get_val_s(icrom, crom)
@@ -94,7 +101,7 @@ endif
 qureel = float(squant)
 heurtu = float(shour) + float(smin)/60.d0+ssec/3600.d0
 if (idtvar.eq.0 .or. idtvar.eq.1) heurtu = heurtu + ttcabs/3600.d0
-call raysze(xlat,xlon,qureel,heurtu,0,albe,dlmuzero,fo)
+call raysze(xlat,xlon,qureel,heurtu,0,albe,dlmuzero, omega, fo)
 azi = dabs(dacos(dlmuzero)*180.d0/pi)
 
 ! To be sure to cut photolysis (SPACK does not) if azi>90
@@ -152,11 +159,7 @@ do iel = 1, ncel
   else if (ichemistry.eq.2) then
     call kinetic_2(nrg,rk,temp,hspec,press,azi,1.0d0,iphotolysis)
   else if (ichemistry.eq.3) then
-    if (iaerosol.eq.1) then
-      call kinetic_siream(nrg,rk,temp,hspec,press,azi,1.0d0,iphotolysis)
-    else
-      call kinetic_3(nrg,rk,temp,hspec,press,azi,1.0d0,iphotolysis)
-    endif
+    call kinetic_3(nrg,rk,temp,hspec,press,azi,1.0d0,iphotolysis)
   else if (ichemistry.eq.4) then
     call kinetic_4(nrg,rk,temp,hspec,press,azi,1.0d0,iphotolysis)
   endif

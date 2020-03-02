@@ -79,10 +79,8 @@ BEGIN_C_DECLS
 static const char
 cs_navsto_param_coupling_name[CS_NAVSTO_N_COUPLINGS][CS_BASE_STRING_LEN] =
   { N_("Artificial compressibility algorithm"),
-    N_("Artificial compressibility solved with the VPP_eps algorithm"),
     N_("Monolithic"),
     N_("Incremental projection algorithm"),
-    N_("Uzawa-Augmented Lagrangian coupling")
   };
 
 static const char _err_empty_nsp[] =
@@ -166,9 +164,7 @@ _get_momentum_param(cs_navsto_param_t    *nsp)
   switch (nsp->coupling) {
 
   case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY:
-  case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP:
   case CS_NAVSTO_COUPLING_MONOLITHIC:
-  case CS_NAVSTO_COUPLING_UZAWA:
     return cs_equation_param_by_name("momentum");
 
   case CS_NAVSTO_COUPLING_PROJECTION:
@@ -272,8 +268,6 @@ cs_navsto_param_create(const cs_boundary_t             *boundaries,
   switch (algo_coupling) {
 
   case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY:
-  case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP:
-  case CS_NAVSTO_COUPLING_UZAWA:
     param->gd_scale_coef = 1.0;    /* Default value if not set by the user */
 
     param->velocity_ic_is_owner = false;
@@ -494,9 +488,7 @@ cs_navsto_param_set(cs_navsto_param_t    *nsp,
   case CS_NSKEY_GD_SCALE_COEF:
     switch (nsp->coupling) {
     case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY:
-    case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP:
     case CS_NAVSTO_COUPLING_MONOLITHIC:
-    case CS_NAVSTO_COUPLING_UZAWA:
       nsp->gd_scale_coef = atof(val);
       break;
 
@@ -916,8 +908,6 @@ cs_navsto_param_get_velocity_param(const cs_navsto_param_t    *nsp)
 
   case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY:
   case CS_NAVSTO_COUPLING_MONOLITHIC:
-  case CS_NAVSTO_COUPLING_UZAWA:
-  case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP:
     eqp = cs_equation_param_by_name("momentum");
     break;
 
@@ -951,10 +941,8 @@ cs_navsto_param_get_coupling_name(cs_navsto_param_coupling_t  coupling)
   switch (coupling) {
 
   case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY:
-  case CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP:
   case CS_NAVSTO_COUPLING_MONOLITHIC:
   case CS_NAVSTO_COUPLING_PROJECTION:
-  case CS_NAVSTO_COUPLING_UZAWA:
     return cs_navsto_param_coupling_name[coupling];
 
   default:

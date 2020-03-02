@@ -173,8 +173,9 @@ typedef enum {
  * \var CS_NAVSTO_SLES_BY_BLOCKS
  * Associated keyword: "blocks"
  *
- * The Navier-Stokes system is split into a 3x3 block matrix for the velocity unknows
- * and in a non-assembly way for the divergence/pressure gradient operators.
+ * The Navier-Stokes system is split into a 3x3 block matrix for the velocity
+ * unknows and in a non-assembly way for the divergence/pressure gradient
+ * operators.
  *
  *
  * \var CS_NAVSTO_SLES_BLOCK_MULTIGRID_CG
@@ -185,9 +186,9 @@ typedef enum {
  * solver. Use this strategy when the saddle-point problem has been reformulated
  * into a "classical" linear system. For instance when a Uzawa or an Artificial
  * Compressibility coupling algorithm is used. (i.e. with the parameter
- * \ref CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY or
- * \ref CS_NAVSTO_COUPLING_UZAWA is set as coupling algorithm). This option is
- * only available with the support to the PETSc library up to now.
+ * \ref CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY is set as coupling
+ * algorithm). This option is only available with the support to the PETSc
+ * library up to now.
  *
  *
  * \var CS_NAVSTO_SLES_DIAG_SCHUR_GMRES
@@ -354,30 +355,18 @@ typedef struct {
  * The system is solved using an artificial compressibility algorithm.
  * One vectorial equation is solved followed by a pressure update.
  *
- * \var CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP
- * The system is solved using an artificial compressibility algorithm with a
- * Vector Penalty Projection splitting.
- * Two vectorial equations are solved: a momentum-like one and another one
- * involving a grad-div operator.
- *
  * \var CS_NAVSTO_COUPLING_MONOLITHIC
  * The system is treated as a "monolithic" matrix
  *
  * \var CS_NAVSTO_COUPLING_PROJECTION
  * The system is solved using an incremental projection algorithm
- *
- * \var CS_NAVSTO_COUPLING_UZAWA
- * The system is solved without decoupling the equations using a Uzawa algorithm
- * and an Augmented Lagrangian approach inside each sub-iteration.
  */
 
 typedef enum {
 
   CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY,
-  CS_NAVSTO_COUPLING_ARTIFICIAL_COMPRESSIBILITY_VPP,
   CS_NAVSTO_COUPLING_MONOLITHIC,
   CS_NAVSTO_COUPLING_PROJECTION,
-  CS_NAVSTO_COUPLING_UZAWA,
 
   CS_NAVSTO_N_COUPLINGS
 
@@ -675,7 +664,7 @@ typedef struct {
  *
  * \var CS_NSKEY_GD_SCALE_COEF
  * Set the scaling of the grad-div term when an artificial compressibility
- * algorithm or an Uzawa - Augmented Lagrangian method is used
+ * algorithm or an Uzawa-Augmented Lagrangian method is used
  *
  * \var CS_NSKEY_MAX_ALGO_ITER
  * Set the maximal number of iteration for solving the coupled system.

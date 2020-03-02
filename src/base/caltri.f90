@@ -66,7 +66,6 @@ use field
 use post
 use atchem
 use atimbr
-use siream
 use ptrglo
 use turbomachinery
 use cs_c_bindings
@@ -367,21 +366,6 @@ if (nftcdt.eq.0) deallocate(izftcd)
 if (nfpt1t.eq.0) call cs_1d_wall_thermal_finalize
 
 ! Formats
-#if defined(_CS_LANG_FR)
- 2001 format(                                                   &
- /,/,'TRAITEMENT DES PERTES DE CHARGES ACTIVE ',/,              &
- '                 SUR  UN TOTAL DE NCEPDC = ',I10,' CELLULES',/)
- 2002 format(                                          &
- /,/,'TRAITEMENT DES SOURCES DE MASSE ACTIVE ',/,      &
-   '                 SUR  UN TOTAL DE ',I10,' CELLULES')
- 2003 format(                                           &
- /,/,'TRAITEMENT DES SOURCES DE CONDENSATION ACTIVE ',/,&
-   '                 SUR  UN TOTAL DE ',I10,' CELLULES')
- 2004 format(                                                     &
-    /,'MODULE THERMIQUE 1D EN PAROI ACTIVE     ',/,&
-      '   SUR UN TOTAL DE ',I10,' FACES DE BORD',/,               &
-      '   (',I10,' FACES DE BORD EN LOCAL)',/)
-#else
  2001 format(                                               &
  /,/,'HEAD LOSS TERMS TREATMENT ACTIVATED ',/,              &
  '                 ON   A TOTAL OF NCEPDC = ',I10,' CELLS',/)
@@ -395,8 +379,6 @@ if (nfpt1t.eq.0) call cs_1d_wall_thermal_finalize
  /,'1D-WALL THERMAL MODULE ACTIVATED ',/,     &
    '   ON A TOTAL OF ',I10,' BOUNDARY FACES',/,             &
    '   (',I10,' LOCAL BOUNDARY FACES)',/)
-#endif
-
 
 !===============================================================================
 ! Memory management
@@ -420,10 +402,6 @@ if (ippmod(iatmos).ge.0) then
 
   if (ifilechemistry.ge.1) then
     call init_chemistry
-  endif
-
-  if (iaerosol.eq.1) then
-    call init_aerosols
   endif
 
 endif
@@ -1065,6 +1043,9 @@ if (iisuit.eq.1) then
 
   call stusui
 
+  ! Remove all unnecessary previous dumps of checkpoint files
+  call restart_clean_multiwriters_history
+
   call timer_stats_stop(restart_stats_id)
 
 endif ! iisuit = 1
@@ -1275,64 +1256,6 @@ write(nfecra,7000)
 ! Formats
 !----
 
-#if defined(_CS_LANG_FR)
-
- 2000 format(/,/,                                                 &
-'===============================================================',&
-                                                              /,/,&
-                                                                /,&
-                                                                /,&
-'                       CORPS DU CALCUL                       ',/,&
-'                       ===============                       ',/,&
-                                                                /,&
-                                                                /,&
-'===============================================================',&
-                                                              /,/,&
-                                                                /)
- 3000 format(/,                                                   &
-'===============================================================',&
- /)
- 3001 format(/,' INSTANT ',E18.9,        '   ITERATION NUMERO ',I15,/,  &
-' ============================================================= ',&
- /,/)
- 3002 format(/,' INSTANT ',E18.9,        '   INITIALISATION ALE ',/,    &
-' ============================================================= ',&
- /,/)
- 3012 format(/,' TEMPS POUR L''INITIALISATION ALE :    ',E14.5,/,/,     &
-'===============================================================',&
- /)
- 3020 format(/,/,                                                 &
- ' Sortie intermediaire de fichiers suite',/,                     &
- '   Sauvegarde a l''iteration ', I10, ', Temps physique ',E14.5,/,/)
- 3021 format(/,/,                                                 &
- ' Sortie finale de fichiers suite',/,                     &
- '   Sauvegarde a l''iteration ', I10, ', Temps physique ',E14.5,/,/)
-
- 4000 format(/,/,                                                 &
-'===============================================================',&
-                                                              /,/,&
-                                                                /,&
-                                                                /,&
-'                   ETAPES FINALES DU CALCUL                  ',/,&
-'                   ========================                  ',/,&
-                                                                /,&
-                                                                /,&
-' =========================================================== ',/,&
-                                                                /,&
-                                                                /)
- 7000 format(/,/,                                                 &
-' =========================================================== ',/,&
-                                                              /,/,&
-                                                                /,&
-                                                                /,&
-'                 FIN DE L''EXECUTION DU CALCUL               ',/,&
-'                 ============================                ',/,&
-                                                                /,&
-                                                                /,&
-'===============================================================')
-
-#else
-
  2000 format(/,/,                                                 &
 '===============================================================',&
                                                               /,/,&
@@ -1386,8 +1309,6 @@ write(nfecra,7000)
                                                                 /,&
                                                                 /,&
 '===============================================================')
-
-#endif
 
 !----
 ! End

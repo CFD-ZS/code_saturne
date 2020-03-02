@@ -2314,6 +2314,11 @@ class OutputControlView(QWidget, Ui_OutputControlForm):
             self.modelFormatH.hide()
             self.labelFormatH.hide()
 
+        if format in ("catalyst", "histogram", "melissa"):
+            self.checkBoxSeparateMeshes.hide()
+        else:
+            self.checkBoxSeparateMeshes.show()
+
 
     def __insertMesh(self, name, mesh_id, mesh_type, selection):
         """
@@ -2723,13 +2728,14 @@ class OutputControlView(QWidget, Ui_OutputControlForm):
         The number of the monitoring point is added at the precedent one
         """
         self.mdl.addMonitoringPoint(x=0.0, y=0.0, z=0.0)
-        n = self.mdl.getNumberOfMonitoringPoints()
-        self.__insertMonitoringPoint(n, str('0'), str('0'), str('0'))
+        num = self.mdl.getNumberOfMonitoringPoints()
+        name = self.mdl.getMonitoringPointName(num)
+        self.__insertMonitoringPoint(num, name, str('0'), str('0'), str('0'))
 
         self.toolButtonDuplicate.setEnabled(True)
 
         if self.case['salome']:
-            self.__salomeHandlerAddMonitoringPoint(n, 0., 0., 0.)
+            self.__salomeHandlerAddMonitoringPoint(num, 0., 0., 0.)
 
 
     @pyqtSlot()
@@ -2753,9 +2759,10 @@ class OutputControlView(QWidget, Ui_OutputControlForm):
 
         self.modelMonitoring.deleteAllData()
         for n in range(self.mdl.getNumberOfMonitoringPoints()):
-            name = str(n + 1)
-            X, Y, Z = self.mdl.getMonitoringPointCoordinates(name)
-            self.__insertMonitoringPoint(name, X, Y, Z)
+            num = str(n + 1)
+            name = self.mdl.getMonitoringPointName(num)
+            X, Y, Z = self.mdl.getMonitoringPointCoordinates(num)
+            self.__insertMonitoringPoint(num, name, X, Y, Z)
 
         if self.case['salome']:
             self.__salomeHandlerDeleteMonitoringPoint(l2)
@@ -2780,11 +2787,12 @@ class OutputControlView(QWidget, Ui_OutputControlForm):
         idx = 1
 
         for index in selectionModel.selectedRows():
-            name = str(index.row() + 1)
-            X, Y, Z = self.mdl.getMonitoringPointCoordinates(name)
-            new_name = str(probe_number + idx)
+            num = str(index.row() + 1)
+            X, Y, Z = self.mdl.getMonitoringPointCoordinates(num)
+            new_num = str(probe_number + idx)
+            new_name = str(new_num) + " (" + self.mdl.getMonitoringPointName(num) + ")"
             self.mdl.addMonitoringPoint(x=X, y=Y, z=Z)
-            self.__insertMonitoringPoint(new_name, X, Y, Z)
+            self.__insertMonitoringPoint(new_num, new_name, X, Y, Z)
 
             if self.case['salome']:
                 self.__salomeHandlerAddMonitoringPoint(probe_number + idx, X, Y, Z)
@@ -2813,9 +2821,10 @@ class OutputControlView(QWidget, Ui_OutputControlForm):
         lst = self.mdl.ImportProbesFromCSV(fle)
 
         for idx in range(lst):
-            new_name = str(probe_number + idx + 1)
-            X, Y, Z = self.mdl.getMonitoringPointCoordinates(new_name)
-            self.__insertMonitoringPoint(new_name, X, Y, Z)
+            num = str(probe_number + idx + 1)
+            X, Y, Z = self.mdl.getMonitoringPointCoordinates(num)
+            name = self.mdl.getMonitoringPointName(num)
+            self.__insertMonitoringPoint(num, name, X, Y, Z)
 
             if self.case['salome']:
                 self.__salomeHandlerAddMonitoringPoint(probe_number + idx, X, Y, Z)

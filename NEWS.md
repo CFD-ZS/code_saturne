@@ -3,6 +3,11 @@ Master (not on release branches yet)
 
 User changes:
 
+- Add the possibility of adding partial mesh modifications after the
+  main mesh preprocessing stage (cs_user_mesh_modify_partial).
+  This allows separating selected boundary faces (such as symmetry faces)
+  from others, so as to ignore them in the main finite volume scheme.
+
 - Add the possibility to keep more than just the last checkpoint file.
 
 - Modify the GUI mathematical expressions syntax to allow only for C syntax for
@@ -31,6 +36,14 @@ User changes:
   variable when performing an LES simulation.
 
 Numerics and physical modelling:
+
+- Atmospheric model: add 3D radiative transfer for solar wave (shortwaves),
+  with direct and diffuse components.
+  The 1D atmospheric model is solved first to get boundary conditions at
+  the top of the CFD domain. It is also used for the absorption
+  coefficients.
+  This is based on the PhD work of M. Millez and Y. Qu PhD and on
+  the internship of Y. Maanane.
 
 - The GMRES solver may now also be used for vector or tensor fields.
   The maximum number of restarts is set at 40 instead of 75
@@ -78,6 +91,14 @@ Numerics and physical modelling:
 
 Architectural changes:
 
+- Remove support for atmospheric aerosol library SIREAM. Replaced by the
+  aerosol library SSH-aerosol (EDF - ENPC - INRIA). The latter is released
+  under GNU GPL v3, see https://sshaerosol.wordpress.com/ and
+  https://github.com/sshaerosol/ssh-aerosol/
+
+- Removed localization (French or English), as it was very incomplete
+  and limited to a log file.
+
 - Change the writing process of checkpoint files: when a checkpoint
   already exists, the previous one is renamed before writing the new one.
   The old one is then removed if the writing of the new file is
@@ -123,6 +144,8 @@ Architectural changes:
   no compute kernels are added yet.
 
 Default option changes:
+
+- Set clipping at zero for atmospheric chemical species
 
 - Set k-epsilon turbulence models to uncoupled option by default
   (it was already uncoupled by default for all models except standard k-epsilon)

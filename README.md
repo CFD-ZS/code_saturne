@@ -16,7 +16,7 @@ Presentation
 
 _Code_Saturne_ is portable on all Linux flavors and UNIX platforms tested so far.
 It runs in parallel with MPI on distributed memory machines (Intel, Cray X series,
-IBM Blue Gene, IBM Power, ...).
+IBM Power, ...).
 Developed since 1997 at EDF R&D, it is based on a co-located Finite Volume
 approach that accepts meshes with any type of cell (tetrahedral, hexahedral,
 prismatic, pyramidal, polyhedral...) and any type of grid structure
@@ -34,6 +34,8 @@ _Code_Saturne_ can be coupled in parallel to EDF's thermal software
 analysis software [code_aster](https://code-aster.org), in particular in the
 [SALOME platform](https://www.salome-platform.org/). SYRTHES and
 code_aster are developed by EDF and distributed under a GNU GPL licence.
+The atmospheric model can include chemistry modeling based on the
+[SSH-aerosol](https://sshaerosol.wordpress.com/) library.
 
 Copying
 =======
@@ -68,8 +70,8 @@ properly. If this behaviour is not wanted, set the "download" variable
 to "no" in the setup script.
 
 Lastly, the possibility is given to compile _Code_Saturne_ with debugging symbols
-("debug" variable), to disable the Graphical User Interface ("disable_gui"
-variable), and to specify the language (between English and French).
+("debug" variable), and to disable the Graphical User Interface ("disable_gui"
+variable).
 
 * install_saturne.py:
   This python script will install the different elements of _Code_Saturne_ and

@@ -129,8 +129,6 @@ integer          ipass
 data             ipass /0/
 save             ipass
 
-integer :: verbosity
-
 integer, pointer, dimension(:,:) :: icodcl
 integer, allocatable, dimension(:) :: isostd
 
@@ -258,12 +256,6 @@ call field_get_key_struct_var_cal_opt(ivarfl(ipr), vcopt_p)
 !===============================================================================
 ! 1. Initialisation
 !===============================================================================
-
-if (cs_log_default_is_active()) then
-  verbosity = 1
-else
-  verbosity = 0
-endif
 
 allocate(isostd(nfabor+1))
 
@@ -1428,7 +1420,7 @@ if (nscal.ge.1 .and. iirayo.gt.0) then
     call atr1vf()
   endif
 
-  call cs_rad_transfer_solve(verbosity, itypfb, cp2fol, cp2ch, ichcor)
+  call cs_rad_transfer_solve(itypfb, cp2fol, cp2ch, ichcor)
 endif
 
 if (nscal.ge.1) then
@@ -1484,51 +1476,6 @@ endif
 ! Formats
 !--------
 
-#if defined(_CS_LANG_FR)
-
- 1000 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  INITIALISATIONS                                            ',/,&
-'  ===============                                            ',/)
- 1010 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  CALCUL DES GRANDEURS PHYSIQUES                             ',/,&
-'  ==============================                             ',/)
- 1020 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  CALCUL DU CFL, DU FOURIER ET DU DT VARIABLE                ',/,&
-'  ===========================================                ',/)
- 1030 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  MISE EN PLACE DES CONDITIONS AUX LIMITES                   ',/,&
-'  ========================================                   ',/)
- 1040 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  RESOLUTION DES EQUATIONS DE NAVIER-STOKES (sub iter: ',i3,')',/,&
-'  =========================================                  ',/)
- 1050 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  RESOLUTION DES EQUATIONS DES VARIABLES TURBULENTES         ',/,&
-'  ==================================================         ',/)
- 1060 format(/,                                                   &
-' ------------------------------------------------------------',/,&
-                                                              /,/,&
-'  RESOLUTION DES EQUATIONS SUR L''ENERGIE ET LES SCALAIRES   ',/,&
-'  ========================================================   ',/)
- 1070 format(/,                                                   &
- '------------------------------------------------------------',/,&
-                                                              /,/,&
- ' RESOLUTION DES TRANSFERTS THERMIQUES RADIATIFS             ',/,&
-'  ==============================================             ',/)
-
-#else
-
  1000 format(/,                                                   &
 ' ------------------------------------------------------------',/,&
                                                               /,/,&
@@ -1569,8 +1516,6 @@ endif
                                                               /,/,&
  ' SOLVING THERMAL RADIATIVE TRANSFER                         ',/,&
 '  ==================================                         ',/)
-
-#endif
 
 !----
 ! End

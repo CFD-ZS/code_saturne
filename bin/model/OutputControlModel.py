@@ -1110,13 +1110,20 @@ class OutputControlModel(Model):
         num = 0
 
         for line in lines:
-            tmp = line.split(',')
+            tmp = line.strip().split(',')
             if len(tmp) != 3:
-                pass
-            self.addMonitoringPoint(float(tmp[0]), float(tmp[1]), float(tmp[2]))
-            num = num + 1
-        return num
+                continue
+            try:
+               xp, yp, zp = float(tmp[0]), float(tmp[1]), float(tmp[2])
+               self.addMonitoringPoint(xp, yp, zp)
+               num = num + 1
+            except Exception:
+               if num != 0:
+                   print("Probes import error for line: " + str(line))
+                   print(tmp)
+                   print(len(tmp))
 
+        return num
 
         propFile.close()
 
@@ -1232,13 +1239,12 @@ class OutputControlModel(Model):
     @Variables.noUndo
     def getMonitoringPointName(self, num):
 
-        self.isStr(num)
-        self.isGreater(float(num), 0.0)
-        self.isLowerOrEqual(float(num), self.getNumberOfMonitoringPoints())
+        self.isGreater(int(num), 0.0)
+        self.isLowerOrEqual(int(num), self.getNumberOfMonitoringPoints())
         val = self.node_out.xmlGetNode('probe', id=num)['name']
         if val == None:
-            val = num
-            self.setMonitoringPointName(self, num, name)
+            val = str(num)
+            self.setMonitoringPointName(self, num, val)
 
         return val
 
