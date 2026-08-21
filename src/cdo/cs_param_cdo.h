@@ -1,14 +1,14 @@
-#ifndef __CS_PARAM_CDO_H__
-#define __CS_PARAM_CDO_H__
+#ifndef CS_PARAM_CDO_H
+#define CS_PARAM_CDO_H
 
 /*============================================================================
- * Manage the definition/setting of a computation
+ * High-level metadata related to CDO/HHO schemes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,26 +28,28 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
 
-/* Specifications for OpenMP loops */
-#define CS_CDO_OMP_CHUNK_SIZE     128
-#define CS_CDO_OMP_SCHEDULE       schedule(static, CS_CDO_OMP_CHUNK_SIZE)
-#define CS_CDO_OMP_SYNC_SECTIONS  0 /* > 0 --> critical sections
-                                       otherwise atomic sections */
+/* Same mechanism as the one used in PETSC_DEFAULT */
+
+#define CS_CDO_KEEP_DEFAULT  -2
+
+/* Specifications for OpenMP loops/sections */
+
+#define CS_CDO_OMP_CHUNK_SIZE   128
+#define CS_CDO_OMP_SCHEDULE     schedule(static, CS_CDO_OMP_CHUNK_SIZE)
+#define CS_CDO_OMP_SYNC_MODE    0 /* > 0 --> critical sections otherwise
+                                   *         atomic sections is used */
 
 /* Avoid issues with assert in some OpenMp contructs using gcc 9 */
+
 #if defined(HAVE_OPENMP) && defined(__GNUC__)
   #if __GNUC__ == 9
     #define CS_CDO_OMP_ASSERT(e)
@@ -58,102 +60,50 @@ BEGIN_C_DECLS
   #define CS_CDO_OMP_ASSERT(e)  assert(e)
 #endif
 
-/* Size of the buffer used to collect global ids for rows and columns
-   when assembling the values in the global matrix from the local cellwise
-   matrices */
-#define CS_CDO_ASSEMBLE_BUF_SIZE  99
-
 /* The following limitation only results from an optimization in the size of
    the bit mask (can be changed if needed by changing the definition of
    the type cs_mask_t)
    Here is the max. number of reaction terms allowed in an equation */
+
 #define CS_CDO_N_MAX_REACTIONS  8
 
 #define CS_ALL_FACES   0        /* All faces: interior + border */
 #define CS_BND_FACES   1        /* Boundary faces */
 #define CS_INT_FACES   2        /* Interior faces */
 
-/* Number of DoFs on faces and cells according to the polynomial space */
-#define CS_N_FACE_DOFS_0TH  1
-#define CS_N_FACE_DOFS_1ST  3
-#define CS_N_FACE_DOFS_2ND  6
+/* HHO specific part:
+ *
+ * Number of DoFs on faces and cells according to the polynomial space
+ */
 
-#define CS_N_CELL_DOFS_0TH  1
-#define CS_N_CELL_DOFS_1ST  4
-#define CS_N_CELL_DOFS_2ND  10
+#define CS_N_DOFS_FACE_0TH  1
+#define CS_N_DOFS_FACE_1ST  3
+#define CS_N_DOFS_FACE_2ND  6
+
+#define CS_N_DOFS_CELL_0TH  1
+#define CS_N_DOFS_CELL_1ST  4
+#define CS_N_DOFS_CELL_2ND  10
 
 /*============================================================================
  * Type definitions
  *============================================================================*/
 
-/* OpenMP STRATEGY FOR THE ASSEMBLY STEP */
-/* ===================================== */
-
 typedef enum {
 
-  CS_PARAM_ASSEMBLE_OMP_ATOMIC,
-  CS_PARAM_ASSEMBLE_OMP_CRITICAL,
-  CS_PARAM_ASSEMBLE_OMP_N_STRATEGIES
+  CS_PARAM_CDO_MODE_OFF        = -1, /* CDO schemes are not used */
+  CS_PARAM_CDO_MODE_WITH_FV    =  1, /* CDO and legacy FV schemes are used */
+  CS_PARAM_CDO_MODE_NS_WITH_FV =  2, /* CDO schemes activated for NSE and
+                                        legacy FV schemes for other
+                                        equations */
+  CS_PARAM_CDO_MODE_ONLY       =  3  /* Only CDO schemes are used */
 
-} cs_param_assemble_omp_strategy_t;
-
-/* DISCRETE HODGE OPERATORS */
-/* ======================== */
-
-typedef enum {
-
-  /* Hodge operator between dual spaces */
-  CS_PARAM_HODGE_TYPE_VPCD, /* from primal vertices to dual cells */
-  CS_PARAM_HODGE_TYPE_EPFD, /* from primal edges to dual faces */
-  CS_PARAM_HODGE_TYPE_FPED, /* from primal faces to dual edges */
-  CS_PARAM_HODGE_TYPE_EDFP, /* from dual edges to primal faces */
-  CS_PARAM_HODGE_TYPE_CPVD, /* from primal cells to dual vertices */
-
-  /* Hodge operator for hybrid spaces */
-  CS_PARAM_HODGE_TYPE_FB,   /* primal face + primal cells */
-  CS_PARAM_HODGE_TYPE_VC,   /* primal vertices + primal cells */
-  CS_PARAM_N_HODGE_TYPES
-
-} cs_param_hodge_type_t;
-
-typedef enum {
-
-  CS_PARAM_HODGE_ALGO_VORONOI, // Under othogonality condition gives a diag. op.
-  CS_PARAM_HODGE_ALGO_WBS,     // WBS: Whitney Barycentric Subdivision
-  CS_PARAM_HODGE_ALGO_COST,    // COST: COnsistency & STabilization splitting
-  CS_PARAM_HODGE_ALGO_OCS2,    // Orthogonal Consistancy/Sub-Stabilization
-  CS_PARAM_HODGE_ALGO_BUBBLE,  // Orthogonal Consistancy/Bubble-Stabilization
-  CS_PARAM_HODGE_ALGO_AUTO,    /* Switch between the previous algo. according to
-                                  the type of cell and its property */
-  CS_PARAM_N_HODGE_ALGOS
-
-} cs_param_hodge_algo_t;
-
-typedef struct {
-
-  bool   is_unity; /* No associated property. Property is equal to the unity */
-  bool   is_iso;   /* Associated property is isotropic ? */
-  bool   inv_pty;  /* Definition based on the property or its inverse */
-
-  cs_param_hodge_type_t   type;  /* type of discrete Hodge operator */
-  cs_param_hodge_algo_t   algo;  /* type of algorithm used to build this op. */
-  double                  coef;  /* Value of the stabilization parameter
-                                    if the COST algo. is used, otherwise 0. */
-
-} cs_param_hodge_t;
+} cs_param_cdo_mode_t;
 
 /*============================================================================
  * Global variables
  *============================================================================*/
 
-/* Separation lines: header1, header2 (compatible with markdown), other */
-extern const char h1_sep[80];
-extern const char h2_sep[80];
-extern const char sepline[80];
-extern const char msepline[50];
-
-/* Activation of the CDO/HHO module */
-extern int  cs_param_cdo_mode;
+extern cs_param_cdo_mode_t  cs_glob_param_cdo_mode;
 
 /*============================================================================
  * Public function prototypes
@@ -161,45 +111,104 @@ extern int  cs_param_cdo_mode;
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief   Get the name of algorithm related to a discrete Hdoge operator
- *
- * \param[in] hodgep     cs_param_hodge_t structure
- *
- * \return the name of the algorithm
- */
-/*----------------------------------------------------------------------------*/
-
-const char *
-cs_param_hodge_get_algo_name(const cs_param_hodge_t   hodgep);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief   Get the type of discrete Hodge operator
- *
- * \param[in] hodgep     cs_param_hodge_t structure
- *
- * \return the name of the type
- */
-/*----------------------------------------------------------------------------*/
-
-const char *
-cs_param_hodge_get_type_name(const cs_param_hodge_t   hodgep);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Output the settings related to a cs_param_hodge_t structure
- *
- * \param[in] prefix    optional string
- * \param[in] hp        a cs_param_hodge_t structure
+ * \brief Set the global variable storing the mode of activation to apply to
+ *        CDO/HHO schemes.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_param_hodge_log(const char               *prefix,
-                   const cs_param_hodge_t    hp);
+cs_param_cdo_mode_set(cs_param_cdo_mode_t   mode);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get the mode of activation for the CDO/HHO schemes.
+ *
+ * \return the mode of activation for the CDO/HHO module
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+cs_param_cdo_mode_t
+cs_param_cdo_mode_get(void);
 
-#endif /* __CS_PARAM_CDO_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print a welcome message indicating what is the current CDO status
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_param_cdo_log(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print generic parameters used with CDO/HHO schemes
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_param_cdo_setup_log(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if FVM is used to solve main equations
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_fv_main(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if CDO is used to solve main equations
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_cdo_main(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if FVM and CDO are used
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_cdo_and_fv(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if CDO is only used
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_cdo_only(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if FVM is oly used
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_fv_only(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if CDO is used
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_cdo(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Tell if CDO is only used
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_param_cdo_has_NS_with_fv(void);
+
+#endif /* CS_PARAM_CDO_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_VOF_H__
-#define __CS_VOF_H__
+#ifndef CS_VOF_H
+#define CS_VOF_H
 
 /*============================================================================
  * Functions associated to VOF model
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_domain.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*=============================================================================
  * Macro definitions
@@ -48,12 +45,10 @@ BEGIN_C_DECLS
 
 /*!
    @addtogroup vof
-
-   \defgroup vof_masks Masks used to specify Volume of Fluid models
-
-   @addtogroup vof_masks
    @{
 
+   \defgroup vof_masks Masks used to specify Volume of Fluid models
+   @{
  */
 
 /*! Volume of Fluid model */
@@ -67,7 +62,6 @@ BEGIN_C_DECLS
 
 /*!
     @}
-
     @}
 */
 
@@ -91,6 +85,14 @@ typedef struct {
 
   double        mu2;
 
+  double        sigma_s;     /* surface tension */
+
+  int           idrift;      /* drift velocity model */
+
+  double        cdrift;      /* C_gamma constant (drift flux factor)*/
+
+  double        kdrift;
+
 } cs_vof_parameters_t;
 
 /* Cavitation parameters */
@@ -109,6 +111,15 @@ typedef struct {
 
 } cs_cavitation_parameters_t;
 
+/*! Enum definition of contact angle model. */
+
+typedef enum {
+  CS_VOF_CONTACT_ANGLE_OFF,    /*!< No contact angle model. */
+  CS_VOF_CONTACT_ANGLE_STATIC, /*!< Static contact angle model. */
+  CS_VOF_CONTACT_ANGLE_DYN,    /*!< Dynamic contact angle model. */
+  CS_VOF_N_CONTACT_ANGLE_TYPES /*!< Number of possible values. */
+} cs_vof_contact_angle_t;
+
 /*=============================================================================
  * Global variables
  *============================================================================*/
@@ -117,13 +128,17 @@ typedef struct {
 
 extern const cs_vof_parameters_t *cs_glob_vof_parameters;
 
+/* pointer to cavitation model parameters structure */
+
+extern const cs_cavitation_parameters_t *cs_glob_cavitation_parameters;
+
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------
- *!
- * \brief Provide access to VOF structure.
+ *
+ * \brief Provide write access to VOF structure.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -131,7 +146,25 @@ cs_vof_parameters_t *
 cs_get_glob_vof_parameters(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief  Create VoF fields
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_field_create(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Log setup of VoF model.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_log_setup(void);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief  Compute the mixture density, mixture dynamic viscosity given fluid
  *         volume fractions and the reference density and dynamic viscosity
  *         \f$ \rho_l, \mu_l \f$ (liquid), \f$ \rho_v, \mu_v \f$ (gas).
@@ -146,14 +179,16 @@ cs_get_glob_vof_parameters(void);
  *
  * A similar linear formula is followed on boundary using fluid volume fraction
  * value on the boundary.
+ *
+ * \param[in]  m  pointer to mesh structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_vof_compute_linear_rho_mu(const cs_domain_t *domain);
+cs_vof_compute_linear_rho_mu(const cs_mesh_t  *m);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Compute the mixture density, mixture dynamic viscosity and mixture
  *        mass flux given the volumetric flux, the volume fraction and the
  *        reference density and dynamic viscosity \f$ \rho_l, \mu_l \f$
@@ -181,14 +216,32 @@ cs_vof_compute_linear_rho_mu(const cs_domain_t *domain);
  *  &\text{ otherwise }.
  * \end{array} \right.
  * \f]
+ *
+ * \param[in]  m  pointer to mesh structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_vof_update_phys_prop(const cs_domain_t *domain);
+cs_vof_update_phys_prop(const cs_mesh_t  *m);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Compute the surface tension momentum source term following the CSF
+ * model of Brackbill et al. (1992).
+ *
+ * \param[in]   m    pointer to mesh structure
+ * \param[in]   mq   pointer to mesh quantities structure
+ * \param[out]  stf  surface tension momentum source term
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_surface_tension(const cs_mesh_t             *m,
+                       const cs_mesh_quantities_t  *mq,
+                       cs_real_3_t                  stf[]);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Write in main log the global mixture mass budget:
  * \f[
  * \sum_i\left(
@@ -196,15 +249,135 @@ cs_vof_update_phys_prop(const cs_domain_t *domain);
  * \sum_{j\in\Face{\celli}}\left(\rho\vect{u}\vect{S}\right)_{ij}^n
  * \right).
  * \f]
+ *
+ * \param[in]  m   pointer to mesh structure
+ * \param[in]  mq  pointer to mesh quantities structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_vof_log_mass_budget(const cs_domain_t *domain);
+cs_vof_log_mass_budget(const cs_mesh_t             *m,
+                       const cs_mesh_quantities_t  *mq);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Compute the flux of the drift velocity \f$ \vect u _d \f$,
+ *        by using the flux of the standard velocity \f$ \vect u \f$
+ *        following the approach described by
+ *        Suraj S Deshpande et al 2012 Comput. Sci. Disc. 5 014016.
+ *        It is activated with the option idrift = 1
+ *
+ * Using the notation:
+ * \f[
+ * \begin{cases}
+ * \left ( \vect u ^{n+1} . \vect S \right ) _{\face} = \Dot{m}_{\face}\\
+ * \left ( \vect u _d^{n+1} . \vect S \right ) _{\face} = \Dot{m^d}_{\face}
+ * \end{cases}
+ * \f]
+ * The drift flux is computed as:
+ * \f[
+ * \Dot{m^d}_{\face} = min \left ( C_{\gamma} \dfrac{\Dot{m}_{\face}}
+ * {\vect S_{\face}}, \underset{\face'}{max} \left [ \dfrac{\Dot{m}_{\face'}}
+ * {\vect S_{\face'}} \right ] \right ) \left ( \vect n . \vect S \right )
+ * _{\face}
+ * \f]
+ * Where \f$ C_{\gamma} \f$ is the drift flux factor defined with the variable
+ * \ref cdrift, \f$ \vect n _{\face} \f$ the normal vector to the interface.
+ * The gradient is computed using a centered scheme:
+ * \f[
+ * {\vect n _{\face}} = \dfrac{\left ( \grad \alpha \right ) _{\face}}
+ * {\norm {\left ( \grad \alpha \right ) _{\face} + \delta}},
+ * \text{ with: }
+ * \left ( \grad \alpha \right ) _{\face _{\celli \cellj}} = \dfrac{\left (
+ * \grad \alpha \right ) _\celli + \left ( \grad \alpha \right ) _\cellj}{2},
+ * \text{ and: }
+ * \delta = 10^{-8} / \overline{\vol \celli} ^{1/3}
+ * \f]
+ *
+ * \param[in]   m    pointer to mesh structure
+ * \param[in]   mq   pointer to mesh quantities structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_deshpande_drift_flux(const cs_mesh_t             *m,
+                            const cs_mesh_quantities_t  *mq);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Add the explicit part of the convection/diffusion terms of a
+ * standard transport equation of a scalar field \f$ \varia \f$.
+ *
+ * More precisely, the right hand side \f$ Rhs \f$ is updated as follows:
+ * \f[
+ * Rhs = Rhs - \sum_{\fij \in \Facei{\celli}}      \left(
+ *        \alpha_\celli^{n+1} \left( 1 - \alpha_\cellj^{n+1} \right) \left(
+ *        \dot{m}_\fij^{d} \right)^{+} + \alpha_\cellj^{n+1} \left( 1 -
+ *        \alpha_\celli^{n+1} \right) \left( \dot{m}_\fij^{d} \right)^{-}
+ *       \right)
+ * \f]
+ *
+ * \param[in]     imrgra        indicator
+ *                               - 0 iterative gradient
+ *                               - 1 least squares gradient
+ * \param[in]     nswrgp        number of reconstruction sweeps for the
+ *                               gradients
+ * \param[in]     imligp        clipping gradient method
+ *                               - < 0 no clipping
+ *                               - = 0 by neighboring gradients
+ *                               - = 1 by the mean gradient
+ * \param[in]     iwarnp        verbosity
+ * \param[in]     epsrgp        relative precision for the gradient
+ *                               reconstruction
+ * \param[in]     climgp        clipping coefficient for the computation of
+ *                               the gradient
+ * \param[in]     pvar          solved variable (current time step)
+ * \param[in]     pvara         solved variable (previous time step)
+ * \param[in,out] rhs           right hand side \f$ \vect{Rhs} \f$
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_drift_term(int               imrgra,
+                  int               nswrgp,
+                  int               imligp,
+                  int               iwarnp,
+                  cs_real_t         epsrgp,
+                  cs_real_t         climgp,
+                  cs_real_t        *pvar,
+                  const cs_real_t  *pvara,
+                  cs_real_t        *rhs);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \param[in]     iterns        Navier-Stokes iteration number
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_solve_void_fraction(int  iterns);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Smoothe a variable after several double-projections
+ * cells->faces->cells.
+ *
+ * \param[in]      m          pointer to mesh structure
+ * \param[in]      mq         pointer to mesh quantities structure
+ * \param[in]      bc_coeffs  boundary condition structure for the variable
+ * \param[in, out] pvar       diffused variable
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_smoothe(const cs_mesh_t              *m,
+               const cs_mesh_quantities_t   *mq,
+               cs_field_bc_coeffs_t         *bc_coeffs,
+               cs_real_t                    *pvar);
 
 /*----------------------------------------------------------------------------
- *!
- * \brief Provide access to cavitation parameters structure.
+ *
+ * \brief Provide write access to cavitation parameters structure.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -212,7 +385,47 @@ cs_cavitation_parameters_t *
 cs_get_glob_cavitation_parameters(void);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Compute the vaporization source term
+ * \f$ \Gamma_V \left(\alpha, p\right) = m^+ + m^- \f$ using the
+ * Merkle model:
+ *
+ * \f[
+ * m^+ = -\dfrac{C_{prod} \rho_l \min \left( p-p_V,0 \right)\alpha(1-\alpha)}
+ *              {0.5\rho_lu_\infty^2t_\infty},
+ * \f]
+ * \f[
+ * m^- = -\dfrac{C_{dest} \rho_v \max \left( p-p_V,0 \right)\alpha(1-\alpha)}
+ *              {0.5\rho_lu_\infty^2t_\infty},
+ * \f]
+ * with \f$ C_{prod}, C_{dest} \f$ empirical constants,
+ * \f$ t_\infty=l_\infty/u_\infty \f$ a reference time scale and \f$p_V\f$
+ * the reference saturation pressure.
+ * \f$ l_\infty \f$, \f$ u_\infty \f$ and \f$p_V\f$ may be provided by
+ * the user (user function).
+ *
+ * Note that the r.h.s. of the void fraction transport equation is
+ * \f$ \Gamma_V/\rho_v \f$.
+ *
+ * \param[in]  pressure  Pressure array
+ * \param[in]  voidf     Void fraction array
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_cavitation_compute_source_term(const cs_real_t  pressure[],
+                                  const cs_real_t  voidf[]);
 
-#endif /* __CS_VOF_H__ */
+/*----------------------------------------------------------------------------*/
+/* Set the contact angle mode */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_vof_contact_angle_set
+(
+  const cs_vof_contact_angle_t choice
+);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_VOF_H */

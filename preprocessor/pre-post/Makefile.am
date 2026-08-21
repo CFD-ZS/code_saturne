@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,14 +22,17 @@
 
 #-------------------------------------------------------------------------------
 
+# Files not built through classical Automake rules need to be explicitely
+# added to distribution.
+
+EXTRA_DIST = ecs_pre_ccm.c
+
 # Main part
 
 AM_CPPFLAGS = -I$(top_srcdir)/preprocessor/base -I$(top_srcdir)/preprocessor/util \
 $(HDF5_CPPFLAGS) $(HDF5_CPPFLAGS_MPI) \
 $(MED_CPPFLAGS) $(CGNS_CPPFLAGS)
 AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
-AM_LDFLAGS = \
-$(MED_LDFLAGS) $(CGNS_LDFLAGS) $(HDF5_LDFLAGS) $(HDF5_LDFLAGS_MPI)
 
 # Headers
 
@@ -62,16 +65,14 @@ ecs_pre_nopo.h
 
 # Library source files
 
-lib_LTLIBRARIES =
-pkglib_LTLIBRARIES = 
-noinst_LTLIBRARIES = libprepostecs.la
-libprepostecs_la_LIBADD =
+noinst_LIBRARIES = libprepostecs.a
+libprepostecs_a_LIBADD =
 
-libprepostecs_la_CPPFLAGS = \
+libprepostecs_a_CPPFLAGS = \
 -DPKGLIBDIR=\"'$(pkglibdir)'\" \
 $(AM_CPPFLAGS)
 
-libprepostecs_la_SOURCES = \
+libprepostecs_a_SOURCES = \
 ecs_table_comm.c \
 ecs_table_post.c \
 ecs_table_post_cgns.c \
@@ -94,33 +95,71 @@ ecs_pre_ideas.c \
 ecs_pre_med.c \
 ecs_pre_nopo.c
 
+local_libraries_add =
+
 # CCMIO (plugin or linked)
 
 if HAVE_CCM
 
-if HAVE_PLUGINS
-
-ecs_ccm_la_CPPFLAGS = \
+ecs_pre_ccm_CPPFLAGS = \
 -I$(top_srcdir)/preprocessor/base -I$(top_srcdir)/preprocessor/util \
 $(CCM_CPPFLAGS) $(CCM_CXXFLAGS) $(MPI_CPPFLAGS)
-ecs_ccm_la_LIBADD = $(CCM_LDFLAGS) $(CCM_LIBS) $(CCMRUNPATH)
-ecs_ccm_la_SOURCES = ecs_pre_ccm.c
-pkglib_LTLIBRARIES += ecs_ccm.la
-ecs_ccm_la_LDFLAGS = -module -avoid-version
+ecs_pre_ccm_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT) $(CFLAGS_SHARED)
+
+ecs_pre_ccm = $(top_srcdir)/preprocessor/pre-post/ecs_pre_ccm.c
+ecs_pre_ccm.o: $(ecs_pre_ccm)
+	$(CC) -c $(DEFS) $(DEFAULT_INCLUDES) $(ecs_pre_ccm_CPPFLAGS) $(ecs_pre_ccm_CFLAGS) $(CFLAGS) $(ecs_pre_ccm)
+
+if HAVE_PLUGINS
+
+ecs_ccm.${SHARED_LIB_EXT}: ecs_pre_ccm.o
+	@echo "Building ecs_ccm plugin..."
+	rm -f $@
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py --echo --linker ${CC} --std-search-paths='no' -o $@ ${LDFLAGS_SHARED} ${CFLAGS_SHARED} ecs_pre_ccm.o ${LDFLAGS} $(CCM_LDFLAGS) $(CCM_LIBS) $(CCMRUNPATH)
+
+local_libraries_add += ecs_ccm.${SHARED_LIB_EXT}
 
 else
 
-libecs_ccm_la_CPPFLAGS = \
--I$(top_srcdir)/preprocessor/base -I$(top_srcdir)/preprocessor/util \
-$(CCM_CPPFLAGS) $(CCM_CXXFLAGS) $(MPI_CPPFLAGS)
-libecs_ccm_la_LIBADD = $(CCM_LDFLAGS) $(CCM_LIBS) $(CCMRUNPATH)
-libecs_ccm_la_SOURCES = ecs_pre_ccm.c
-noinst_LTLIBRARIES += libecs_ccm.la
-libprepostecs_la_LIBADD += libecs_ccm.la
+libprepostecs_a_LIBADD += ecs_pre_ccm.o
 
 endif
 
 endif
 
-libprepostecs_la_LDFLAGS = -no-undefined
+# Local targets
 
+all-local: ${local_libraries_add}
+
+clean-local:
+	@list=; for p in ${local_libraries_add}; do \
+	  if test -f $$p; then \
+	    echo "rm -f $$p"; \
+	    rm -f $$p; \
+	  else :; fi; \
+	done
+
+install-exec-local: ${local_libraries_add}
+	@list=; for p in ${local_libraries_add}; do \
+	  if test -f $$p; then \
+	    list="$$list $$p"; \
+	  else :; fi; \
+	done; \
+	test -z "$$list" -a -n "$(pkglibdir)" || { \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(pkglibdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(pkglibdir)" || exit 1; \
+	  echo " cp -fp $$list '$(DESTDIR)$(pkglibdir)'"; \
+	  cp -fpP $$list "$(DESTDIR)$(pkglibdir)"; \
+	}
+
+uninstall-local:
+	@list=; for p in ${local_libraries_add}; do \
+	  if test -f $$p; then \
+	    list="$$list $$p"; \
+	  else :; fi; \
+	done; \
+	for p in $$list; do \
+	  echo " rm -f '$(DESTDIR)$(pkglibdir)/$$p'"; \
+	  rm -f "$(DESTDIR)$(pkglibdir)/$$p"; \
+	done; \
+	rmdir "$(DESTDIR)$(pkglibdir)" || exit 0

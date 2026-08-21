@@ -1,14 +1,14 @@
-#ifndef __FVM_HILBERT_H__
-#define __FVM_HILBERT_H__
+#ifndef FVM_HILBERT_H
+#define FVM_HILBERT_H
 
 /*============================================================================
  * Hilbert space-filling curve construction for coordinates.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -175,6 +171,4 @@ fvm_hilbert_compare(const void  *elt1,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_HILBERT_H__ */
+#endif /* FVM_HILBERT_H */

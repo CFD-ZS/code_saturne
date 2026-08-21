@@ -1,14 +1,14 @@
-#ifndef __CS_PROBE_H__
-#define __CS_PROBE_H__
+#ifndef CS_PROBE_H
+#define CS_PROBE_H
 
 /*============================================================================
  * Set of structures and functions to handle probes and profiles
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_nodal.h"
+#include "fvm/fvm_nodal.h"
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-#include "cs_mesh_location.h"
-#include "fvm_nodal.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_location.h"
+#include "fvm/fvm_nodal.h"
 
 /*============================================================================
  * Macro definitions
@@ -70,11 +66,11 @@ typedef enum {
  *
  * If non-empty and not containing all elements, a list of coordinates
  * as well as a list of curvilinear coordinates should be allocated
- * (using BFT_MALLOC) and defined by this function when called.
+ * (using CS_MALLOC) and defined by this function when called.
  * Those list's lifecycle is then managed automatically by the
  * probe set object.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -92,11 +88,14 @@ typedef void
                                cs_real_t    **s);
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
-/*=============================================================================
- * Public function prototypes for Fortran API
+/*============================================================================
+ * Semi-private function prototypes
+ *
+ * The following functions are intended to be used by the postprocessing layer
+ * (cs_post.c), not directly by the user.
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
@@ -107,6 +106,29 @@ typedef void
 
 void
 cs_probe_finalize(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Transfer info on associated fields to the caller.
+ *
+ * This function transfers the property of the associated arrays to the caller
+ * and removes it from the probe set info.
+ *
+ * \param[in]   pset        pointer to a cs_probe_set_t structure
+ * \param[out]  n_fields    number of associated fields
+ * \param[out]  field_info  associated field info (array of tuples with
+ *                          writer id, field id, component id)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_probe_set_transfer_associated_field_info(cs_probe_set_t   *pset,
+                                            int              *n_fields,
+                                            int             **field_info);
+
+/*=============================================================================
+ * Public function prototypes.
+ *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -125,7 +147,7 @@ cs_probe_get_n_sets(void);
  *
  * \param[in]   name        name of the set of probes to find
  *
- * \return a pointer to a cs_probes_t structure or NULL if not found
+ * \return a pointer to a cs_probes_t structure or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -138,7 +160,7 @@ cs_probe_set_get(const char    *name);
  *
  * \param[in]   pset_id       id related to the set of probes to find
  *
- * \return a pointer to a cs_probes_t structure or NULL if not found
+ * \return a pointer to a cs_probes_t structure or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -151,24 +173,26 @@ cs_probe_set_get_by_id(int   pset_id);
  *
  * \param[in]   pset       pointer to a cs_probe_set_t structure
  *
- * \return the name of the cs_probes_t structure or NULL if not found
+ * \return the name of the cs_probes_t structure or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
 const char *
-cs_probe_set_get_name(cs_probe_set_t   *pset);
+cs_probe_set_get_name(const cs_probe_set_t   *pset);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Retrieve information useful for the postprocessing step.
  *
- * Output arguments may be set to NULL if we do not need to query them.
+ * Output arguments may be set to null if we do not need to query them.
  *
  * \param[in]  pset            pointer to a cs_probe_set_t structure
  * \param[out] time_varying    true if probe locations may change with time
  * \param[out] on_boundary     true if probes are located on boundary
  * \param[out] on_curve        true if the probe set has cuvilinear coordinates
  * \param[out] auto_variables  true if set of variables to output is predefined
+ * \param[out] auto_curve_coo  true if curvilinear coordinates should be output
+ * \param[out] auto_cart_coo   true if cartesian coordinates should be output
  * \param[out] n_writers       number of associated  user-defined writers,
  *                             or -1 if default unchanged
  * \param[out] writer_ids      pointer to a list of writer ids
@@ -181,6 +205,8 @@ cs_probe_set_get_post_info(const cs_probe_set_t   *pset,
                            bool                   *on_boundary,
                            bool                   *on_curve,
                            bool                   *auto_variables,
+                           bool                   *auto_curve_coo,
+                           bool                   *auto_cart_coo,
                            int                    *n_writers,
                            int                    *writer_ids[]);
 
@@ -191,12 +217,27 @@ cs_probe_set_get_post_info(const cs_probe_set_t   *pset,
  *
  * \param[in]   pset       pointer to a cs_probe_set_t structure
  *
- * \return selection criteria string, or NULL if no filter defined
+ * \return selection criteria string, or null if no filter defined
  */
 /*----------------------------------------------------------------------------*/
 
 const char *
 cs_probe_set_get_location_criteria(cs_probe_set_t   *pset);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Return the interpolation option for a given probe set
+ *
+ * Interpolation will be applied only where possible.
+ *
+ * \param[in]   pset       pointer to a cs_probe_set_t structure
+ *
+ * \return interpolation option value
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_probe_set_get_interpolation(cs_probe_set_t   *pset);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -219,7 +260,7 @@ cs_probe_set_create(const char    *name);
  * \param[in]       x       x coordinate  of the point to add
  * \param[in]       y       y coordinate  of the point to add
  * \param[in]       z       z coordinate  of the point to add
- * \param[in]       label   NULL or the name of the point (optional)
+ * \param[in]       label   null or the name of the point (optional)
  */
 /*----------------------------------------------------------------------------*/
 
@@ -253,6 +294,15 @@ cs_probe_set_create_from_array(const char          *name,
 /*!
  * \brief Define a new set of probes from the segment spanned by two points.
  *
+ * If n_probes > 0, the given number of probes will be used for sampling, and
+ * will be evenly distributed along the segment.
+ *
+ * If n_probes <= 0, one probe will be defined for each cell intersected by
+ * the line segment, and its position based on the projection of those cell
+ * centers on the given segment.
+ *
+ * In both cases, using cs_probe_set_snap_mode can further modify this behavior.
+ *
  * \param[in]  name          name of the set of probes
  * \param[in]  n_probes      number of probes
  * \param[in]  start_coords  coordinates of the starting point
@@ -276,7 +326,7 @@ cs_probe_set_create_from_segment(const char        *name,
  * is called just before locating probes on the parent mesh, so this allows
  * building probe sets based on subsets of the computational mesh.
  *
- * Note: if the p_define_input pointer is non-NULL, it must point to valid data
+ * Note: if the p_define_input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -308,6 +358,31 @@ cs_probe_set_allow_overwrite(const char  *name);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Assign curvilinear abscissa for the given probe set
+ *
+ * This is effective only when using probe sets to which curvilinear
+ * coordinates have not already been assigned.
+ *
+ * So this may be used following \ref cs_probe_set_create (and probe additions)
+ * or \ref cs_probe_set_create_from_array, but will be ignored for probe sets
+ * defined using \ref cs_probe_set_create_from_segment and
+ * \ref cs_probe_set_create_from_local.
+ *
+ * If provided, the array of curvilinear absicssa must match the size of the
+ * probe set. If set to null, it is assumed a uniform spacing is provided
+ * between points.
+ *
+ * \param[in]  pset  pointer to a cs_probe_set_t structure
+ * \param[in]  s     array of curvilinear abscissa, or null
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_probe_set_assign_curvilinear_abscissa(cs_probe_set_t   *pset,
+                                         const cs_real_t  *s);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Associate a list of writers to a probe set.
  *
  * \param[in, out] pset        pointer to a cs_probe_set_t structure to set
@@ -323,7 +398,31 @@ cs_probe_set_associate_writers(cs_probe_set_t   *pset,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Set to true or false the automatic post-processing of variables
+ * \brief Associate a field to a probe set.
+ *
+ * This function must be called during the postprocessing output definition
+ * stage, before any output actually occurs.
+ *
+ * If the field should already be output automatically based on the mesh
+ * category and field output keywords, it will be filtered at a later stage.
+ *
+ * \param[in]  pset       pointer to a cs_probe_set_t structure
+ * \param[in]  writer_id  id of specified associated writer,
+ *                        or 0 (\ref CS_POST_WRITER_ALL_ASSOCIATED) for all
+ * \param[in]  field_id   id of field to attach
+ * \param[in]  comp_id    id of field component (-1 for all)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_probe_set_associate_field(cs_probe_set_t   *pset,
+                             int               writer_id,
+                             int               field_id,
+                             int               comp_id);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Set automatic output of variables behavior.
  *
  * \param[in, out] pset     pointer to a cs_probe_set_t structure
  * \param[in]      mode     true or false
@@ -333,6 +432,32 @@ cs_probe_set_associate_writers(cs_probe_set_t   *pset,
 void
 cs_probe_set_auto_var(cs_probe_set_t   *pset,
                       bool              mode);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Set automatic output of curvilinear coordinates.
+ *
+ * \param[in, out] pset     pointer to a cs_probe_set_t structure
+ * \param[in]      mode     true or false
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_probe_set_auto_curvilinear_coords(cs_probe_set_t   *pset,
+                                     bool              mode);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Set automatic output of cartesian coordinates.
+ *
+ * \param[in, out] pset     pointer to a cs_probe_set_t structure
+ * \param[in]      mode     true or false
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_probe_set_auto_cartesian_coords(cs_probe_set_t   *pset,
+                                   bool              mode);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -362,6 +487,10 @@ cs_probe_set_snap_mode(cs_probe_set_t   *pset,
  *
  * - \c \b selection_criteria where keyval is selection criteria string
  * - \c \b tolerance  where keyval is for instance "0.05" (default "0.10")
+ * - \c \b interpolation if \ c 0, P0 interpolation (default); if \c 1,
+ *         simple gradient-based interpolation for volume probes (ignored
+ *         for boundaries). Other interpolation options might be added
+ *         in the future.
  *
  * \param[in, out] pset     pointer to a cs_probe_set_t structure to set
  * \param[in]      keyname  name of the keyword related to the parameter to set
@@ -386,7 +515,7 @@ cs_probe_set_option(cs_probe_set_t   *pset,
  *
  * \param[in, out]  pset           pointer to a cs_probe_set_t structure
  * \param[in]       location_mesh  optional pointer to mesh relative to which
- *                                 probe set should be located, or NULL
+ *                                 probe set should be located, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -471,12 +600,45 @@ cs_probe_set_get_n_local(const cs_probe_set_t   *pset);
  *
  * \param[in]  pset              pointer to a cs_probe_set_t structure
  *
- * \return NULL or the pointer to the array of abscissa
+ * \return null or the pointer to the array of abscissa
  */
 /*----------------------------------------------------------------------------*/
 
 const cs_real_t *
 cs_probe_set_get_curvilinear_abscissa(const cs_probe_set_t   *pset);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Return the list of curvilinear abscissa of probes located
+ *         on the local ranks for the given probe set
+ *
+ * The caller is responsible for freeing the returned array.
+ *
+ * \param[in]  pset              pointer to a cs_probe_set_t structure
+ *
+ * \return null or the pointer to the array of abscissa
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t *
+cs_probe_set_get_loc_curvilinear_abscissa(const cs_probe_set_t   *pset);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Return the list of labels of probes located on the local ranks
+ *         for the given probe set.
+ *
+ * The caller is responsible for freeing the returned array
+ * (simply the array of pointers, not the labels themselves).
+ *
+ * \param[in]  pset  pointer to a cs_probe_set_t structure
+ *
+ * \return null or the pointer to the array of labels
+ */
+/*----------------------------------------------------------------------------*/
+
+const char **
+cs_probe_get_labels(const cs_probe_set_t  *pset);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -497,6 +659,4 @@ cs_probe_set_get_elt_ids(const cs_probe_set_t  *pset,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PROBE_H__ */
+#endif /* CS_PROBE_H */

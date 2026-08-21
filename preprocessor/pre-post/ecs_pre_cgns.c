@@ -4,9 +4,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -241,6 +241,20 @@ ecs_loc_pre_cgns__cree(const char  *nom_fichier,
   ECS_MALLOC(base->nom_fic, strlen(nom_fichier) + 1, char);
   strcpy(base->nom_fic, nom_fichier);
 
+  /* Detect CGNS file type */
+
+  int filetype = CG_FILE_NONE;
+  ret = cg_is_cgns(base->nom_fic, &filetype);
+
+  if (ret != CG_OK)
+    ecs_error(__FILE__, __LINE__, 0,
+              _("CGNS: error checking file type \"%s\":\n%s"),
+              nom_fichier, cg_get_error());
+
+  cg_set_file_type(filetype);
+
+  /* Now open it */
+
   ret = cg_open(base->nom_fic, CG_MODE_READ, &(base->num_fic));
 
   if (ret < 0)
@@ -256,7 +270,7 @@ ecs_loc_pre_cgns__cree(const char  *nom_fichier,
       (__FILE__, __LINE__, 0,
        _("CGNS error:\n%s\n\n"
          "This may be due to a CGNS library supporting only ADF (legacy)\n"
-         "or HDF5 (future default) and the file not matching. In this case,\n"
+         "or HDF5 (default) and the file not matching. In this case,\n"
          "running the adf2hdf of hdf2adf converters may solve the issue."),
        cg_get_error());
 
@@ -1372,19 +1386,18 @@ ecs_loc_pre_cgns__marque_som(const ecs_loc_cgns_base_t  *base_maillage,
  *----------------------------------------------------------------------------*/
 
 static void
-ecs_loc_pre__cgns__cree_ent_inf_som(const ecs_loc_cgns_base_t  *base_maillage,
-                                    size_t                 nbr_elt_ent[],
-                                    ecs_size_t            *elt_pos_som_ent[],
-                                    ecs_int_t             *elt_val_som_ent[],
-                                    int                    nzones,
-                                    ecs_loc_cgns_zone_t   *tab_zone,
-                                    int                    nbr_boco_tot,
-                                    ecs_loc_cgns_boco_t   *tab_boco,
-                                    ecs_int_t             *nbr_boco_som,
-                                    ecs_int_t            **ind_nom_boco_som,
-                                    ecs_int_t            **nbr_sselt_boco_som,
-                                    ecs_int_t           ***tab_sselt_boco_som
-)
+ecs_loc_pre_cgns__cree_ent_inf_som(const ecs_loc_cgns_base_t  *base_maillage,
+                                   size_t                 nbr_elt_ent[],
+                                   ecs_size_t            *elt_pos_som_ent[],
+                                   ecs_int_t             *elt_val_som_ent[],
+                                   int                    nzones,
+                                   ecs_loc_cgns_zone_t   *tab_zone,
+                                   int                    nbr_boco_tot,
+                                   ecs_loc_cgns_boco_t   *tab_boco,
+                                   ecs_int_t             *nbr_boco_som,
+                                   ecs_int_t            **ind_nom_boco_som,
+                                   ecs_int_t            **nbr_sselt_boco_som,
+                                   ecs_int_t           ***tab_sselt_boco_som)
 {
 
   size_t       cpt_sselt;
@@ -1539,6 +1552,48 @@ ecs_loc_pre__cgns__cree_ent_inf_som(const ecs_loc_cgns_base_t  *base_maillage,
 
     nbr_som_elt = pos_som_elt[ind_elt + 1] - pos_som_elt[ind_elt];
 
+    /* Cas spécifique pour les polyèdres */
+
+    if (nbr_som_elt > 8) {
+
+      ecs_int_t ind_val = pos_som_elt[ind_elt]-1;
+      ecs_int_t ind_val_e = pos_som_elt[ind_elt + 1] - 1;
+
+      while (ind_val < ind_val_e) {
+        ecs_int_t ind_sub_s = ind_val;
+        ecs_int_t ind_sub_e = ind_val;
+        ecs_int_t val_s = val_som_elt[ind_val];
+        ind_val++;
+        while (ind_val < ind_val_e) {
+          if (val_som_elt[ind_val] == val_s) {
+            ind_sub_e = ind_val;
+            ind_val++;
+            break;
+          }
+          else
+            ind_val++;
+        }
+        if (ind_val == ind_val_e)
+          ind_sub_e = ind_val;
+
+        bool_cree = true;
+        for (ecs_int_t i = ind_sub_s; i < ind_sub_e; i++) {
+          if (indic_som[val_som_elt[i] - 1] == 0)
+            bool_cree = false;
+        }
+
+        if (bool_cree == true) {
+          cpt_sselt     += 1;
+          cpt_val_sselt += ind_sub_e - ind_sub_s;
+        }
+
+      }
+
+      continue;
+    }
+
+    /* Cas pour les cellules usuelles */
+
     typ_elt = typ_geo_base[nbr_som_elt];
 
     ind_pos_elt = pos_som_elt[ind_elt] - 1;
@@ -1616,6 +1671,59 @@ ecs_loc_pre__cgns__cree_ent_inf_som(const ecs_loc_cgns_base_t  *base_maillage,
 
     nbr_som_elt = pos_som_elt[ind_elt + 1] - pos_som_elt[ind_elt];
 
+    /* Cas spécifique pour les polyèdres */
+
+    if (nbr_som_elt > 8) {
+
+      ecs_int_t ind_val = pos_som_elt[ind_elt]-1;
+      ecs_int_t ind_val_e = pos_som_elt[ind_elt + 1] - 1;
+
+      while (ind_val < ind_val_e) {
+        ecs_int_t ind_sub_s = ind_val;
+        ecs_int_t ind_sub_e = ind_val;
+        ecs_int_t val_s = val_som_elt[ind_val];
+        ind_val++;
+        while (ind_val < ind_val_e) {
+          if (val_som_elt[ind_val] == val_s) {
+            ind_sub_e = ind_val;
+            ind_val++;
+            break;
+          }
+          else
+            ind_val++;
+        }
+        if (ind_val == ind_val_e)
+          ind_sub_e = ind_val;
+
+        bool_cree = true;
+        for (ecs_int_t i = ind_sub_s; i < ind_sub_e; i++) {
+          if (indic_som[val_som_elt[i] - 1] == 0)
+            bool_cree = false;
+        }
+
+        /* Si l'on crée une face */
+
+        if (bool_cree == true) {
+
+          /* Définition de la face en fonction des sommets */
+
+          for (ecs_int_t i = ind_sub_s; i < ind_sub_e; i++)
+            val_som_sselt[cpt_val_sselt++] = val_som_elt[i];
+
+          /* Position de la face dans sa définition en fonction des sommets */
+
+          pos_som_sselt[cpt_sselt + 1] =   pos_som_sselt[cpt_sselt]
+                                         + ind_sub_e - ind_sub_s;
+
+          cpt_sselt     += 1;
+
+        } /* Fin création face */
+
+      }
+
+      continue;
+    }
+
     typ_elt = typ_geo_base[nbr_som_elt];
 
     ind_pos_elt = pos_som_elt[ind_elt] - 1;
@@ -1652,7 +1760,6 @@ ecs_loc_pre__cgns__cree_ent_inf_som(const ecs_loc_cgns_base_t  *base_maillage,
         ind_som = 0;
 
         while(   ind_som < ECS_CGNS_SSELT_NBR_MAX_SOM
-              && bool_cree == true
               && (num_def
                   = ecs_fic_elt_typ_liste_c
                       [typ_elt].sous_elt[ind_sselt].som[ind_som]) != 0) {
@@ -1940,7 +2047,7 @@ ecs_loc_pre_cgns__init_elt_type(ecs_cgns_elt_t elt_type[NofValidElementTypes])
 #endif
 
   /* Elements vertices in current CGNS versions have the same
-     local numbering as that of Code_Saturne. */
+     local numbering as that of code_saturne. */
 
   for (i = 0; i < NofValidElementTypes; i++) {
     int nbr_som = ecs_fic_elt_typ_liste_c[elt_type[i].ecs_type].nbr_som;
@@ -1948,6 +2055,44 @@ ecs_loc_pre_cgns__init_elt_type(ecs_cgns_elt_t elt_type[NofValidElementTypes])
       elt_type[i].num_som[j] = j+1;
   }
 
+}
+
+/*----------------------------------------------------------------------------
+ * Extract zone face shifts
+ *----------------------------------------------------------------------------*/
+
+static ecs_int_t *
+ecs_loc_pre_cgns__face_num_b(const ecs_loc_cgns_zone_t  *ptr_zone,
+                             const ecs_cgns_elt_t        ecs_cgns_elt_liste_c[])
+{
+  ecs_int_t   face_id_shift = 0;
+
+  ecs_int_t *face_num_b = NULL;
+  ECS_MALLOC(face_num_b, ptr_zone->nbr_sections*3, ecs_int_t);
+
+  for (int ind_section = 0;
+       ind_section < ptr_zone->nbr_sections;
+       ind_section++) {
+
+    ecs_loc_cgns_section_t  *ptr_section = ptr_zone->tab_sections + ind_section;
+
+    face_num_b[ind_section*3] = -1;
+    face_num_b[ind_section*3+1] = -1;
+    face_num_b[ind_section*3+2] = -1;
+
+    if (ptr_section->type == CS_CG_ENUM(MIXED))
+      continue;
+
+    ecs_elt_typ_t  ecs_typ = ecs_cgns_elt_liste_c[ptr_section->type].ecs_type;
+    if (ecs_maillage_pre__ret_typ_geo(ecs_typ) == ECS_ENTMAIL_FAC) {
+      face_num_b[ind_section*3] = ptr_section->num_elt_deb;
+      face_num_b[ind_section*3+1] = ptr_section->num_elt_fin;
+      face_num_b[ind_section*3+2] = face_id_shift - ptr_section->num_elt_deb + 1;
+      face_id_shift += ptr_section->num_elt_fin - ptr_section->num_elt_deb + 1;
+    }
+  }
+
+  return face_num_b;
 }
 
 /*----------------------------------------------------------------------------
@@ -2027,6 +2172,12 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
   cgsize_t   *parentdata;
 
   int         ret = 0;
+
+#if (CGNS_VERSION == 3400 || CGNS_VERSION >= 4000)
+  bool        indexed_poly = true;
+#else
+  bool        indexed_poly = false;
+#endif
 
   /*xxxxxxxxxxxxxxxxxxxxxxxxxxx Instructions xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
 
@@ -2110,16 +2261,19 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
         else
           parentdata = NULL;
 
-#if CGNS_VERSION >= 3400
+#if (CGNS_VERSION == 3400 || CGNS_VERSION >= 4000)
 
         if (   ptr_section->type == CS_CG_ENUM(MIXED)
             || ptr_section->type == CS_CG_ENUM(NFACE_n)
             || ptr_section->type == CS_CG_ENUM(NGON_n)) {
           nbr_elt_loc = ptr_section->num_elt_fin - ptr_section->num_elt_deb + 1;
           ECS_MALLOC(ptr_section->offsets, nbr_elt_loc + 1, cgsize_t);
+          ptr_section->offsets[0] = -1;
           ret = cg_poly_elements_read(num_fic, num_base, num_zone, num_section,
                                       ptr_section->elems, ptr_section->offsets,
                                       parentdata);
+          if (ret == CG_OK && ptr_section->offsets[0] == -1)
+            indexed_poly = false;
         }
         else
           ret = cg_elements_read(num_fic, num_base, num_zone, num_section,
@@ -2265,29 +2419,31 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
         else if (ptr_section->type == CS_CG_ENUM(NGON_n)) {
 
-#if CGNS_VERSION >= 3400
+          if (indexed_poly) {
 
-          cpt_elt_ent[ient] += nbr_elt_loc;
-          cpt_val_ent[ient] += ptr_section->offsets[nbr_elt_loc];
+            cpt_elt_ent[ient] += nbr_elt_loc;
 
-#else
-
-          cpt_elt_loc = 0;
-          ptr_ele = ptr_section->elems;
-
-          while (cpt_elt_loc < nbr_elt_loc) {
-
-            nbr_som_elt = *ptr_ele;
-            ptr_ele += nbr_som_elt + 1;
-
-            cpt_elt_loc++;
-
-            cpt_elt_ent[ient] += 1;
-            cpt_val_ent[ient] += nbr_som_elt;
+            cpt_val_ent[ient] += ptr_section->offsets[nbr_elt_loc];
 
           }
+          else {
 
-#endif
+            cpt_elt_loc = 0;
+            ptr_ele = ptr_section->elems;
+
+            while (cpt_elt_loc < nbr_elt_loc) {
+
+              nbr_som_elt = *ptr_ele;
+              ptr_ele += nbr_som_elt + 1;
+
+              cpt_elt_loc++;
+
+              cpt_elt_ent[ient] += 1;
+              cpt_val_ent[ient] += nbr_som_elt;
+
+            }
+
+          }
 
         }
 
@@ -2295,29 +2451,30 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
         else if (ptr_section->type == CS_CG_ENUM(NFACE_n)) {
 
-#if CGNS_VERSION >= 3400
+          if (indexed_poly) {
 
-          cpt_elt_ent[ient] += nbr_elt_loc;
-
-#else
-
-          cpt_elt_loc = 0;
-          ptr_ele = ptr_section->elems;
-
-          while (cpt_elt_loc < nbr_elt_loc) {
-
-            ecs_int_t nbr_fac_elt = *ptr_ele;
-            ptr_ele += nbr_fac_elt + 1;
-
-            cpt_elt_loc++;
-
-            cpt_elt_ent[ient] += 1;
-
-            /* cpt_val_ent[ient] handled later */
+            cpt_elt_ent[ient] += nbr_elt_loc;
 
           }
+          else {
 
-#endif
+            cpt_elt_loc = 0;
+            ptr_ele = ptr_section->elems;
+
+            while (cpt_elt_loc < nbr_elt_loc) {
+
+              ecs_int_t nbr_fac_elt = *ptr_ele;
+              ptr_ele += nbr_fac_elt + 1;
+
+              cpt_elt_loc++;
+
+              cpt_elt_ent[ient] += 1;
+
+              /* cpt_val_ent[ient] handled later */
+
+            }
+
+          }
 
         }
 
@@ -2494,6 +2651,9 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
     else if (ptr_zone->type == CS_CG_ENUM(Unstructured)) {
 
+      ecs_int_t *face_num_b
+        = ecs_loc_pre_cgns__face_num_b(ptr_zone, ecs_cgns_elt_liste_c);
+
       for (ind_section = 0;
            ind_section < ptr_zone->nbr_sections;
            ind_section++) {
@@ -2512,9 +2672,12 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
           ient = ECS_ENTMAIL_CEL;
 
-#if CGNS_VERSION >= 3400
-          cgsize_t *elt_idx = ptr_section->offsets;
+          cgsize_t *elt_idx = NULL;
+#if (CGNS_VERSION == 3400 || CGNS_VERSION >= 4000)
+          if (indexed_poly)
+            elt_idx = ptr_section->offsets;
 #endif
+
           ptr_ele = ptr_section->elems;
 
           size_t   connect_size = 0;
@@ -2525,17 +2688,25 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
           for (ecs_int_t ielt = 0; ielt < n_elts_loc; ielt++) {
 
-#if CGNS_VERSION >= 3400
-            ecs_int_t nbr_fac_elt = elt_idx[ielt+1] - elt_idx[ielt];
-#else
-            ecs_int_t nbr_fac_elt = *ptr_ele;
-            ptr_ele += 1;
-#endif
+            ecs_int_t nbr_fac_elt;
+            if (indexed_poly)
+              nbr_fac_elt = elt_idx[ielt+1] - elt_idx[ielt];
+            else {
+              nbr_fac_elt = *ptr_ele;
+              ptr_ele += 1;
+            }
 
             for (ecs_int_t ind_fac = 0; ind_fac < nbr_fac_elt; ind_fac++) {
               ecs_int_t num_fac = *(ptr_ele + ind_fac);
               if (num_fac < 0)
                 num_fac = -num_fac;
+              for (int l = 0; l < ptr_zone->nbr_sections; l++) {
+                if (   num_fac >= face_num_b[l*3]
+                    && num_fac <= face_num_b[l*3+1]) {
+                  num_fac += face_num_b[l*3+2];
+                  break;
+                }
+              }
               num_fac += face_id_shift;
               connect_size +=   pos_som_fac[num_fac]
                               - pos_som_fac[num_fac - 1] + 1;
@@ -2645,12 +2816,12 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
           else if (ptr_section->type == CS_CG_ENUM(NGON_n)) {
 
-#if CGNS_VERSION >= 3400
-            nbr_som_elt = elt_idx[cpt_elt_loc + 1] - elt_idx[cpt_elt_loc];
-#else
-            nbr_som_elt = *ptr_ele;
-            ptr_ele += 1;
-#endif
+            if (indexed_poly)
+              nbr_som_elt = elt_idx[cpt_elt_loc + 1] - elt_idx[cpt_elt_loc];
+            else {
+              nbr_som_elt = *ptr_ele;
+              ptr_ele += 1;
+            }
 
             ind_pos = cpt_elt_ent[ient];
             ind_val = elt_pos_som_ent[ient][ind_pos] - 1;
@@ -2670,13 +2841,14 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
           else if (ptr_section->type == CS_CG_ENUM(NFACE_n)) {
 
-#if CGNS_VERSION >= 3400
-            ecs_int_t nbr_fac_elt =    elt_idx[cpt_elt_loc + 1]
-                                     - elt_idx[cpt_elt_loc];
-#else
-            ecs_int_t nbr_fac_elt = *ptr_ele;
-            ptr_ele += 1;
-#endif
+            ecs_int_t nbr_fac_elt;
+            if (indexed_poly)
+              nbr_fac_elt =   elt_idx[cpt_elt_loc + 1]
+                            - elt_idx[cpt_elt_loc];
+            else {
+              nbr_fac_elt = *ptr_ele;
+              ptr_ele += 1;
+            }
 
             ind_pos = cpt_elt_ent[ient];
             ind_val = elt_pos_som_ent[ient][ind_pos] - 1;
@@ -2687,7 +2859,17 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
             for (ecs_int_t i = 0; i < nbr_fac_elt; i++) {
 
               ecs_int_t num_fac = *(ptr_ele + i);
-              ecs_int_t ind_fac = ECS_ABS(num_fac) - 1 + face_id_shift;
+              ecs_int_t _num_fac = ECS_ABS(num_fac);
+              ecs_int_t ind_fac = _num_fac - 1;
+
+              for (int l = 0; l < ptr_zone->nbr_sections; l++) {
+                if (   _num_fac >= face_num_b[l*3]
+                    && _num_fac <= face_num_b[l*3+1]) {
+                  ind_fac = _num_fac + face_num_b[l*3+2] - 1;
+                  break;
+                }
+              }
+              ind_fac += face_id_shift;
 
               size_t s_id = pos_som_fac[ind_fac] - 1;
               size_t e_id = pos_som_fac[ind_fac + 1] - 1;
@@ -2760,11 +2942,14 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
 
         /* On libère la mémoire */
 
+        ECS_FREE(ptr_section->offsets);
         ECS_FREE(ptr_section->elems);
 
         cpt_section += 1;
 
       } /* Fin boucle sur les sections */
+
+      ECS_FREE(face_num_b);
 
     } /* Fin traitement structuré/non structuré */
 
@@ -2794,18 +2979,18 @@ ecs_loc_pre_cgns__lit_ele(ecs_maillage_t             *maillage,
   /* Création des entités supplémentaires pour porter les C.L. aux sommets */
   /*-----------------------------------------------------------------------*/
 
-  ecs_loc_pre__cgns__cree_ent_inf_som(base_maillage,
-                                      cpt_elt_ent,
-                                      elt_pos_som_ent,
-                                      elt_val_som_ent,
-                                      nzones,
-                                      tab_zone,
-                                      nbr_boco_tot,
-                                      tab_boco,
-                                      nbr_boco_som,
-                                      ind_nom_boco_som,
-                                      nbr_sselt_boco_som,
-                                      tab_sselt_boco_som);
+  ecs_loc_pre_cgns__cree_ent_inf_som(base_maillage,
+                                     cpt_elt_ent,
+                                     elt_pos_som_ent,
+                                     elt_val_som_ent,
+                                     nzones,
+                                     tab_zone,
+                                     nbr_boco_tot,
+                                     tab_boco,
+                                     nbr_boco_som,
+                                     ind_nom_boco_som,
+                                     nbr_sselt_boco_som,
+                                     tab_sselt_boco_som);
 
   /* Transfert des valeurs lues dans les structures d'entité de maillage */
   /*=====================================================================*/
@@ -3029,7 +3214,7 @@ ecs_loc_pre_cgns__cree_grps_boco(const ecs_loc_cgns_base_t  *base_maillage,
             /* If boundary condition references elements not present,
                ignore it (workaround for bug in ICEM Meshing 13 output). */
 
-            if (ind_ent >= ptr_zone->renum_size)
+            if (ind_ent < 0 || ind_ent >= ptr_zone->renum_size)
               continue;
 
             /* Stockage des valeurs lues avant transfert dans maillage */

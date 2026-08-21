@@ -1,14 +1,14 @@
-#ifndef __CS_TREE_H__
-#define __CS_TREE_H__
+#ifndef CS_TREE_H
+#define CS_TREE_H
 
 /*============================================================================
  * Tree structure used to store data and settings.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,18 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_log.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_log.h"
 
 /*============================================================================
  * Macro definitions
@@ -65,7 +61,7 @@ typedef struct _cs_tree_node_t  cs_tree_node_t;
 struct _cs_tree_node_t {
 
   char       *name;   /* name of the node */
-  char       *desc;   /* NULL or short description/help about this node */
+  char       *desc;   /* null or short description/help about this node */
   int         flag;   /* metadata used to specify the node behavior */
 
   void       *value;  /* value related to this node. Cast on-the-fly */
@@ -73,12 +69,12 @@ struct _cs_tree_node_t {
 
   /* Pointers to other nodes to allow an easy navigation among the tree */
 
-  cs_tree_node_t  *parent;    /* Pointer to the parent node or NULL if root */
-  cs_tree_node_t  *children;  /* Pointer to the first child or NULL */
+  cs_tree_node_t  *parent;    /* Pointer to the parent node or null if root */
+  cs_tree_node_t  *children;  /* Pointer to the first child or null */
   cs_tree_node_t  *prev;      /* Pointer to a previous node sharing the same
-                                 parent or NULL if this is the first child */
+                                 parent or null if this is the first child */
   cs_tree_node_t  *next;      /* Pointer to a next node sharing the same parent
-                                 or NULL if there is no next node */
+                                 or null if there is no next node */
 
 };
 
@@ -87,12 +83,12 @@ struct _cs_tree_node_t {
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create an empty node.
  *
  * Only the name is assigned if given
  *
- * \param[in]  name  name of the node, or NULL
+ * \param[in]  name  name of the node, or null
  *
  * \return  pointer to a new allocated cs_tree_node_t structure
  */
@@ -102,7 +98,7 @@ cs_tree_node_t *
 cs_tree_node_create(const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Free a branch in a tree starting from a node.
  *
  *  If the node is the root of the tree, the whole tree is freed.
@@ -115,7 +111,7 @@ void
 cs_tree_node_free(cs_tree_node_t  **pnode);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Name or rename a node.
  *
  * \param[in, out]  node    pointer to a cs_tree_node_t to modify
@@ -128,7 +124,7 @@ cs_tree_node_set_name(cs_tree_node_t  *node,
                       const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return a child node with a given name.
 *
  * The child node must be located directly under the given node (i.e. it is
@@ -144,7 +140,7 @@ cs_tree_node_set_name(cs_tree_node_t  *node,
  * \param[in]  node  pointer to the given node
  * \param[in]  name  name of child node
  *
- * \return string value associated to tag if found, or NULL
+ * \return string value associated to tag if found, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -153,7 +149,7 @@ cs_tree_node_get_child(cs_tree_node_t  *node,
                        const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return the next sibling node with the same name (type)
  *         as a given node.
  *
@@ -161,7 +157,7 @@ cs_tree_node_get_child(cs_tree_node_t  *node,
  *
  * \param[in]  node  pointer to the starting node
  *
- * \return pointer to next sibling node with same name, or NULL
+ * \return pointer to next sibling node with same name, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -169,14 +165,14 @@ cs_tree_node_t *
 cs_tree_node_get_next_of_name(cs_tree_node_t  *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Search for a child node (used as a tag) with a given name,
  *         and return its associated string value.
  *
  * The child node must be located directly under the given node (i.e. it is
  * a child, not a grand-child or beyond).
  *
- * If the child "tag" node does not exist, NULL is returned.
+ * If the child "tag" node does not exist, a null pointer is returned.
  *
  * The CS_TREE_NODE_TAG flag is set for child nodes accessed by this function.
  * It is currently only relevant for possible mapping to XML.
@@ -184,7 +180,7 @@ cs_tree_node_get_next_of_name(cs_tree_node_t  *node);
  * \param[in]  node  pointer to the given node
  * \param[in]  tag   name of child node used as tag
  *
- * \return string value associated to tag if found, or NULL
+ * \return string value associated to tag if found, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -193,7 +189,7 @@ cs_tree_node_get_tag(cs_tree_node_t  *node,
                      const char      *tag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign a tag to a given node.
  *
  * A tag is simply a string-valued child node.
@@ -213,16 +209,16 @@ cs_tree_node_set_tag(cs_tree_node_t  *node,
                      const char      *tag_str);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return a character string value associated to a node if present.
  *
  * If the node was never accessed before and the value type was not defined,
  * it is set to CS_TREE_NODE_CHAR. If it was previously converted to
  * a different type, an error is returned.
  *
- * \param[in]  node  pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node  pointer to a cs_tree_node_t to access, or null
  *
- * \return  associated string, or NULL
+ * \return  associated string, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -230,7 +226,7 @@ const char *
 cs_tree_node_get_value_str(cs_tree_node_t  *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign a character string value to a node.
  *
  * The assigned value is copied to the node.
@@ -245,7 +241,7 @@ cs_tree_node_set_value_str(cs_tree_node_t  *node,
                            const char      *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return array of boolean values associated to a node if present.
  *
  * If the value type was not defined, or defined as a string, values are
@@ -256,9 +252,9 @@ cs_tree_node_set_value_str(cs_tree_node_t  *node,
  *   "true", "yes", "on", "1".
  * All other strings are converted to "false".
  *
- * \param[in]  node  pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node  pointer to a cs_tree_node_t to access, or null
  *
- * \return  pointer to associated values, or NULL
+ * \return  pointer to associated values, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -266,7 +262,7 @@ const bool *
 cs_tree_node_get_values_bool(cs_tree_node_t  *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign an array of boolean values to node.
  *
  * The assigned array is copied to the node.
@@ -283,7 +279,7 @@ cs_tree_node_set_values_bool(cs_tree_node_t  *node,
                              const bool      *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign a single boolean value to a node.
  *
  * \param[in, out]  node  pointer to a cs_tree_node_t to modify
@@ -291,7 +287,7 @@ cs_tree_node_set_values_bool(cs_tree_node_t  *node,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline void
+inline void
 cs_tree_node_set_value_bool(cs_tree_node_t  *node,
                             bool             val)
 {
@@ -299,16 +295,16 @@ cs_tree_node_set_value_bool(cs_tree_node_t  *node,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return an array of integer values associated to a node if present.
  *
  * If the value type was not defined, or defined as a string, values are
  * converted and the type flag set to CS_TREE_NODE_INT. If it was previously
  * accessed (and converted) using  a different type, an error is returned.
  *
- * \param[in]  node  pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node  pointer to a cs_tree_node_t to access, or null
  *
- * \return  pointer to associated array, or NULL
+ * \return  pointer to associated array, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -316,7 +312,7 @@ const int *
 cs_tree_node_get_values_int(cs_tree_node_t  *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign an array of integer values to a node.
  *
  * The array values are copied to the node.
@@ -333,7 +329,7 @@ cs_tree_node_set_values_int(cs_tree_node_t  *node,
                             const int       *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign a single integer value to a node.
  *
  * \param[in, out]  node  pointer to a cs_tree_node_t to modify
@@ -341,7 +337,7 @@ cs_tree_node_set_values_int(cs_tree_node_t  *node,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline void
+inline void
 cs_tree_node_set_value_int(cs_tree_node_t  *node,
                            int              val)
 {
@@ -349,16 +345,16 @@ cs_tree_node_set_value_int(cs_tree_node_t  *node,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return an array of real values associated to a node if present.
  *
  * If the value type was not defined, or defined as a string, values are
  * converted and the type flag set to CS_TREE_NODE_REAL. If it was previously
  * accessed (and converted) using  a different type, an error is returned.
  *
- * \param[in]  node  pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node  pointer to a cs_tree_node_t to access, or null
  *
- * \return  pointer to associated array, or NULL
+ * \return  pointer to associated array, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -366,7 +362,7 @@ const cs_real_t *
 cs_tree_node_get_values_real(cs_tree_node_t  *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign an array of real values to a node.
  *
  * The array values are copied to the node.
@@ -383,7 +379,7 @@ cs_tree_node_set_values_real(cs_tree_node_t   *node,
                              const cs_real_t  *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Assign a single real value to a node.
  *
  * \param[in, out]  node  pointer to a cs_tree_node_t to modify
@@ -391,7 +387,7 @@ cs_tree_node_set_values_real(cs_tree_node_t   *node,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline void
+inline void
 cs_tree_node_set_value_real(cs_tree_node_t  *node,
                             cs_real_t        val)
 {
@@ -399,15 +395,15 @@ cs_tree_node_set_value_real(cs_tree_node_t  *node,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return a string value associated to a child node if present.
  *
  * The behavior is similar to that of \ref cs_tree_node_get_value_str.
 
- * \param[in]  node        pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node        pointer to a cs_tree_node_t to access, or null
  * \param[in]  child_name  name of child node
  *
- * \return  pointer to associated values, or NULL
+ * \return  pointer to associated values, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -416,15 +412,15 @@ cs_tree_node_get_child_value_str(cs_tree_node_t  *node,
                                  const char      *child_name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return array of boolean values associated to a child node if present.
  *
  * The behavior is similar to that of \ref cs_tree_node_get_values_bool.
  *
- * \param[in]  node        pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node        pointer to a cs_tree_node_t to access, or null
  * \param[in]  child_name  name of child node
  *
- * \return  pointer to associated values, or NULL
+ * \return  pointer to associated values, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -433,16 +429,16 @@ cs_tree_node_get_child_values_bool(cs_tree_node_t  *node,
                                    const char      *child_name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return an array of integer values associated to a child node
  *         if present.
  *
  * The behavior is similar to that of \ref cs_tree_node_get_values_int.
  *
- * \param[in]  node        pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node        pointer to a cs_tree_node_t to access, or null
  * \param[in]  child_name  name of child node
  *
- * \return  pointer to associated array, or NULL
+ * \return  pointer to associated array, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -451,15 +447,15 @@ cs_tree_node_get_child_values_int(cs_tree_node_t  *node,
                                   const char      *child_name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Return an array of real values associated to a child node if present.
  *
  * The behavior is similar to that of \ref cs_tree_node_get_values_real.
  *
- * \param[in]  node        pointer to a cs_tree_node_t to access, or NULL
+ * \param[in]  node        pointer to a cs_tree_node_t to access, or null
  * \param[in]  child_name  name of child node
  *
- * \return  pointer to associated array, or NULL
+ * \return  pointer to associated array, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -468,7 +464,7 @@ cs_tree_node_get_child_values_real(cs_tree_node_t  *node,
                                    const char      *child_name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node with a child having a given
  *         (character string) tag value.
  *
@@ -503,7 +499,7 @@ cs_tree_node_get_child_values_real(cs_tree_node_t  *node,
  * \param[in]  tag        name of the required "tag" child
  * \param[in]  tag_value  value of the required "tag" child
  *
- * \return  pointer to the node, or NULL if not found
+ * \return  pointer to the node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -513,7 +509,7 @@ cs_tree_node_get_sibling_with_tag(cs_tree_node_t  *node,
                                   const char      *tag_value);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Dump a cs_tree_node_t structure.
  *
  * \param[in]  log    indicate which log file to use
@@ -528,7 +524,7 @@ cs_tree_node_dump(cs_log_t                log,
                   const cs_tree_node_t   *node);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Add a node to a tree.
  *
  * This node is located at "path" from the given node, with the path
@@ -548,7 +544,7 @@ cs_tree_add_node(cs_tree_node_t  *node,
                  const char      *path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node matching a given path.
  *
  * This node is located at "path" from the given node, with the path
@@ -560,7 +556,7 @@ cs_tree_add_node(cs_tree_node_t  *node,
  * \param[in]  node  pointer to the node where we start searching
  * \param[in]  path  string describing the path access
  *
- * \return  pointer to the node, or NULL if not found
+ * \return  pointer to the node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -569,7 +565,7 @@ cs_tree_get_node(cs_tree_node_t   *node,
                  const char       *path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Count number of nodes sharing a given path.
  *
  * \param[in]  node  pointer to the node where we start searching
@@ -584,7 +580,7 @@ cs_tree_get_node_count(cs_tree_node_t  *node,
                        const char      *path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node with a child having a given
  *         (character string) tag value.
  *
@@ -596,11 +592,11 @@ cs_tree_get_node_count(cs_tree_node_t  *node,
  * \param[in]  tag        name of the required "tag" child
  * \param[in]  tag_value  value of the required "tag" child
  *
- * \return  pointer to the node, or NULL if not found
+ * \return  pointer to the node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_get_node_with_tag(cs_tree_node_t   *node,
                           const char       *path,
                           const char       *tag,
@@ -614,7 +610,7 @@ cs_tree_get_node_with_tag(cs_tree_node_t   *node,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node, adding it if not present.
  *
  * This node is located at "path" from the given node, with the path
@@ -626,11 +622,11 @@ cs_tree_get_node_with_tag(cs_tree_node_t   *node,
  * \param[in]  node  pointer to the node where we start searching
  * \param[in]  path  string describing the path access
  *
- * \return  pointer to the node, or NULL if not found
+ * \return  pointer to the node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_get_or_add_node(cs_tree_node_t   *node,
                         const char       *path)
 {
@@ -642,7 +638,7 @@ cs_tree_get_or_add_node(cs_tree_node_t   *node,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add a node in a tree below the given node.
  *
  * \param[in, out]  parent  pointer to the parent node
@@ -657,7 +653,7 @@ cs_tree_add_child(cs_tree_node_t  *parent,
                   const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add a string-valued node in a tree below the given node.
  *
  * This node has a string value set to val_str.
@@ -670,7 +666,7 @@ cs_tree_add_child(cs_tree_node_t  *parent,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_add_child_str(cs_tree_node_t  *parent,
                       const char      *name,
                       const char      *val_str)
@@ -682,7 +678,7 @@ cs_tree_add_child_str(cs_tree_node_t  *parent,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add a boolean-valued node in a tree below the given node.
  *
  * \param[in, out]  parent  pointer to the parent node
@@ -693,7 +689,7 @@ cs_tree_add_child_str(cs_tree_node_t  *parent,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_add_child_bool(cs_tree_node_t  *parent,
                        const char      *name,
                        bool             val)
@@ -705,7 +701,7 @@ cs_tree_add_child_bool(cs_tree_node_t  *parent,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add an integer-valued node in a tree below the given node.
  *
  * \param[in, out]  parent  pointer to the parent node
@@ -716,7 +712,7 @@ cs_tree_add_child_bool(cs_tree_node_t  *parent,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_add_child_int(cs_tree_node_t  *parent,
                       const char      *name,
                       int              val)
@@ -728,7 +724,7 @@ cs_tree_add_child_int(cs_tree_node_t  *parent,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add an real-valued node in a tree below the given node.
  *
  * \param[in, out]  parent  pointer to the parent node
@@ -739,7 +735,7 @@ cs_tree_add_child_int(cs_tree_node_t  *parent,
  */
 /*----------------------------------------------------------------------------*/
 
-static inline cs_tree_node_t *
+inline cs_tree_node_t *
 cs_tree_add_child_real(cs_tree_node_t  *parent,
                        const char      *name,
                        cs_real_t        val)
@@ -751,7 +747,7 @@ cs_tree_add_child_real(cs_tree_node_t  *parent,
 }
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create and add a node in a tree at the right of the given  node.
  *
  * \param[in, out]  sibling  pointer to the sibling node to handle
@@ -766,7 +762,7 @@ cs_tree_add_sibling(cs_tree_node_t  *sibling,
                     const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node matching a given sub-path.
  *
  * This node is located at "path" from the given node or one of its
@@ -778,7 +774,7 @@ cs_tree_add_sibling(cs_tree_node_t  *sibling,
  * \param[in]  root      pointer to the root node where we start searching
  * \param[in]  sub_path  string describing the path access
  *
- * \return  pointer to the first matching node, or NULL if not found
+ * \return  pointer to the first matching node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -787,20 +783,20 @@ cs_tree_find_node(cs_tree_node_t  *root,
                   const char      *sub_path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to the next node matching a given sub-path
  *         and following a given node in a depth-first order.
  *
  * This node is located at "path" from the given node or one of its
  * descendants, with the path separator indicated by a "/".
  *
- * If current is NULL, this function behaves as \ref cs_tree_find_node.
+ * If current is null, this function behaves as \ref cs_tree_find_node.
  *
  * \param[in]  root      pointer to the root node where we start searching
  * \param[in]  current   pointer to the current node
  * \param[in]  sub_path  string describing the path access
  *
- * \return  pointer to the next matching node, or NULL if not found
+ * \return  pointer to the next matching node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -810,7 +806,7 @@ cs_tree_find_node_next(cs_tree_node_t  *root,
                        const char      *sub_path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to a node's descendants matching a given name.
  *
  * This function is similar to \ref cs_tree_find_node,
@@ -823,7 +819,7 @@ cs_tree_find_node_next(cs_tree_node_t  *root,
  * \param[in]  root  pointer to the root node where we start searching
  * \param[in]  name      node name searched for
  *
- * \return  pointer to the first matching node, or NULL if not found
+ * \return  pointer to the first matching node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -832,7 +828,7 @@ cs_tree_find_node_simple(cs_tree_node_t  *root,
                          const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Retrieve the pointer to the next node with a given name
  *         and following a given node in a depth-first order.
  *
@@ -840,13 +836,13 @@ cs_tree_find_node_simple(cs_tree_node_t  *root,
  * but is simpler (as it assumes a simple name instead of a more general path)
  * and should thus be faster.
  *
- * If current is NULL, this function behaves as \ref cs_tree_find_node.
+ * If current is null, this function behaves as \ref cs_tree_find_node.
  *
  * \param[in]  root      pointer to the root node where we start searching
  * \param[in]  current   pointer to the current node
  * \param[in]  name      node name searched for
  *
- * \return  pointer to the next matching node, or NULL if not found
+ * \return  pointer to the next matching node, or null if not found
  */
 /*----------------------------------------------------------------------------*/
 
@@ -856,7 +852,7 @@ cs_tree_find_node_next_simple(cs_tree_node_t  *root,
                               const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Count a node's descendants matching a given sub-path.
  *
  * These nodes are located at "path" from the given node or one of its
@@ -874,7 +870,7 @@ cs_tree_get_sub_node_count(cs_tree_node_t  *root,
                            const char      *sub_path);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Count a node's descendants with a given name
  *
  * This function is similar to \ref cs_tree_get_sub_node_count,
@@ -893,7 +889,7 @@ cs_tree_get_sub_node_count_simple(cs_tree_node_t  *root,
                                   const char      *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Dump a cs_tree_node_t structure starting from a given node
  *
  * \param[in] log    indicate which log file to use
@@ -909,6 +905,4 @@ cs_tree_dump(cs_log_t                log,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_TREE_H__ */
+#endif /* CS_TREE_H */

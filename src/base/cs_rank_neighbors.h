@@ -1,14 +1,14 @@
-#ifndef __CS_RANK_NEIGHBORS_H__
-#define __CS_RANK_NEIGHBORS_H__
+#ifndef CS_RANK_NEIGHBORS_H
+#define CS_RANK_NEIGHBORS_H
 
 /*============================================================================
  * Management of parallel rank neighbors.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,15 +32,11 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_block_dist.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_block_dist.h"
 
 /*=============================================================================
  * Macro definitions
@@ -130,7 +126,7 @@ cs_rank_neighbors_destroy(cs_rank_neighbors_t  **n);
 void
 cs_rank_neighbors_to_index(const cs_rank_neighbors_t  *n,
                            size_t                      n_elts,
-                           int                        *elt_rank,
+                           const int                   elt_rank[],
                            int                        *elt_rank_index);
 
 /*----------------------------------------------------------------------------*/
@@ -191,6 +187,31 @@ cs_rank_neighbors_sync_count(const cs_rank_neighbors_t   *n_send,
                              cs_lnum_t                  **recv_count,
                              MPI_Comm                     comm);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Exchange send and receive counts for rank neighborhoods,
+ *        using a given method.
+ *
+ * This allocates the n_recv ranks neighborhood structure and the
+ * recv_count counts array, which the caller is responsible for freeing.
+ *
+ * \param[in]   n_send         pointer to rank neighborhood used for sending
+ * \param[out]  n_recv         pointer to rank neighborhood used for receiving
+ * \param[in]   send_count     pointer to rank neighborhood used for sending
+ * \param[in]   recv_count     pointer to rank neighborhood used for sending
+ * \param[in]   exchange_type  exchange type
+ * \param[in]   comm           associated communicator
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_rank_neighbors_sync_count_m(const cs_rank_neighbors_t      *n_send,
+                               cs_rank_neighbors_t           **n_recv,
+                               const cs_lnum_t                *send_count,
+                               cs_lnum_t                     **recv_count,
+                               cs_rank_neighbors_exchange_t    exchange_type,
+                               MPI_Comm                        comm);
+
 #endif /* defined(HAVE_MPI) */
 
 /*----------------------------------------------------------------------------*/
@@ -217,6 +238,4 @@ cs_rank_neighbors_set_exchange_type(cs_rank_neighbors_exchange_t  t);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RANK_NEIGHBORS_H__ */
+#endif /* CS_RANK_NEIGHBORS_H */

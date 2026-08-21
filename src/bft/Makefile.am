@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,15 @@
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/base \
-$(MPI_CPPFLAGS)
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(MPI_CPPFLAGS)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+csbft_includedir=$(pkgincludedir)/bft
+csbft_include_HEADERS = \
 bft_backtrace.h \
 bft_error.h \
 bft_mem.h \
@@ -42,13 +43,24 @@ cs_bft_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libbft.la
-libbft_la_SOURCES  = \
-bft_backtrace.c \
-bft_error.c \
-bft_mem.c \
-bft_mem_usage.c \
-bft_printf.c
+noinst_LIBRARIES = libbft.a
+libbft_a_SOURCES  = \
+bft_backtrace.cpp \
+bft_error.cpp \
+bft_mem_usage.cpp \
+bft_printf.cpp
 
-libbft_la_LIBADD = $(LTLIBINTL)
-libbft_la_LDFLAGS = -no-undefined
+libbft_a_LIBADD =
+
+clean-local:
+	-rm -rf .deps
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif

@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -49,6 +49,12 @@ AC_ARG_WITH(coolprop,
                             [specify prefix directory for COOLPROP])],
             [if test "x$withval" = "x"; then
                with_coolprop=yes
+             elif test "x$withval" = "xsalome"; then
+               if test -z "$COOLPROPHOME"; then
+                 AC_MSG_FAILURE([no SALOME path information for COOLPROP (needed by --with-coolprop=salome)!])
+               else
+                 with_coolprop=$COOLPROPHOME
+               fi
              fi],
             [with_coolprop=check])
 
@@ -61,14 +67,14 @@ AC_ARG_WITH(coolprop-include,
              COOLPROP_CPPFLAGS="-I$with_coolprop_include"],
             [if test "x$with_coolprop" != "xno" -a "x$with_coolprop" != "xyes" \
 	          -a "x$with_coolprop" != "xcheck"; then
-               if test -f "$with_coolprop/include/CoolProp.h"; then
+               if test -f "$with_coolprop/include/CoolPropLib.h"; then
                  COOLPROP_CPPFLAGS="-I$with_coolprop/include"
-               elif test -f "$with_coolprop/CoolProp.h"; then
+               elif test -f "$with_coolprop/CoolPropLib.h"; then
                  COOLPROP_CPPFLAGS="-I$with_coolprop"
                else
-                 find $with_coolprop | grep CoolProp.h > /dev/null 2>&1;
+                 find $with_coolprop | grep CoolPropLib.h > /dev/null 2>&1;
                  if test $? == "0"; then
-                   cs_coolprop_tmp=`find $with_coolprop -name CoolProp.h | head -1`
+                   cs_coolprop_tmp=`find $with_coolprop -name CoolPropLib.h | head -1`
                    COOLPROP_CPPFLAGS="-I`dirname $cs_coolprop_tmp`"
                    unset cs_coolprop_tmp
                  fi
@@ -82,8 +88,8 @@ AC_ARG_WITH(coolprop-lib,
                with_coolprop=yes
              fi
              COOLPROP_LDFLAGS="-L$with_coolprop_lib"
-             # Add the libdir to the runpath as CoolProp is not libtoolized
-             COOLPROPRUNPATH="-R$with_coolprop_lib"],
+             # Add the libdir to the runpath for the plugin build
+             COOLPROPRUNPATH="${LDRPATH}${with_coolprop_lib}"],
             [if test "x$with_coolprop" != "xno" -a "x$with_coolprop" != "xyes" \
 	          -a "x$with_coolprop" != "xcheck"; then
                case `uname -m` in
@@ -98,13 +104,13 @@ AC_ARG_WITH(coolprop-lib,
                  cp_d_name=`dirname ${cp_l_name}`
                  unset cp_l_name
                  COOLPROP_LDFLAGS="-L$cp_d_name"
-                 # Add the libdir to the runpath as CoolProp is not libtoolized
-                 COOLPROPRUNPATH="-R$cp_d_name"
+                 # Add the libdir to the runpath for the plugin build
+                 COOLPROPRUNPATH="${LDRPATH}${cp_d_name}"
                  unset cp_d_name
                else
                  COOLPROP_LDFLAGS="-L$with_coolprop/lib"
-                 # Add the libdir to the runpath as CoolProp is not libtoolized
-                 COOLPROPRUNPATH="-R$with_coolprop/lib"
+                 # Add the libdir to the runpath for the plugin build
+                 COOLPROPRUNPATH="${LDRPATH}${with_coolprop}/lib"
                fi
              fi])
 
@@ -140,22 +146,15 @@ if test "x$with_coolprop" != "xno" ; then
 
   # Check that CoolProp files exist
 
-  # CoolProp is in C++, though it also provides a C wrapper.
-  AC_LANG_PUSH([C++])
-
   AC_MSG_CHECKING([for CoolProp library)])
 
   for coolprop_ldadd in "" "-ldl"
   do
     if test "x$cs_have_coolprop" != "xyes"; then
       LDFLAGS="${saved_LDFLAGS} ${COOLPROP_LDFLAGS} ${coolprop_ldadd}"
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "CoolProp.h"]],
-                                      [[std::vector<double> t;
-                                        std::vector<double> p;
-                                        std::vector<double> z;
-                                        std::vector<std::string> f;
-                                        std::vector<std::string> o;
-                                        CoolProp::PropsSImulti(o, "T", t, "P", p, "", f, z);]])],
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdbool.h>
+                                        #include "CoolPropLib.h"]],
+                                      [[double v = PropsSI("o", "n1", 1., "n2", 1., "r");]])],
                                       [ AC_DEFINE([HAVE_COOLPROP], 1, [CoolProp support])
                                         cs_have_coolprop=yes],
                                        [cs_have_coolprop=no])
@@ -163,8 +162,6 @@ if test "x$with_coolprop" != "xno" ; then
   done
 
   AC_MSG_RESULT($cs_have_coolprop)
-
-  AC_LANG_POP
 
   if test "x$cs_have_coolprop" != "xyes"; then
     if test "x$with_coolprop" != "xcheck"; then

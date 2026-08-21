@@ -1,14 +1,14 @@
-#ifndef __CS_COOLPROP_HXX__
-#define __CS_COOLPROP_HXX__
+#ifndef CS_COOLPROP_HXX
+#define CS_COOLPROP_HXX
 
 /*============================================================================
  * Equation of state
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_physical_properties.h"
+#include "base/cs_physical_properties.h"
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
+#include "base/cs_base.h"
 
 /*=============================================================================
  * Local Macro Definitions
@@ -50,7 +48,7 @@
  *============================================================================*/
 
 /*============================================================================
- *  Global variables definition
+ * Global variables definition
  *============================================================================*/
 
 /*============================================================================
@@ -61,22 +59,23 @@
 /*!
  * Computes physical properties in (P,h,Yi) for compressible flow.
  *
- * parameters:
- * CoolPropMaterial <--  type of material
- * thermo_plane     <--  type of thermal plane
- * property         <--  type of property to compute
- * n_vals           <--  size of properties arrays
- * var1             <--  array of pressure
- * var2             <--  array of thermal properties
- * val              -->  array of property
+ * \param[in]   coolprop_material  CoolProp material
+ * \param[in]   coolprop_backend   CoolProp backend ("HEOS" by default,
+ *                                 "SRK" for cubic, "TTSE&HEOS" or
+ *                                 "BICUBIC&HEOS" for tabulated)
+ * \param[in]   thermo_plane       type of thermal plane
+ * \param[in]   property           type of property to compute
+ * \param(in]   n_vals             size of variable and property arrays
+ * \param[in]   var1               first variable of thermodynamic plane
+ *                                 (pressure)
+ * \param[in]   var2               second variable of thermodynamic plane
+ * \param[out]  val                computed property values
  */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
-cs_phys_prop_coolprop(char                              *CoolPropMaterial,
+extern "C" void
+cs_phys_prop_coolprop(char                              *coolprop_material,
+                      const char                        *coolprop_backend,
                       cs_phys_prop_thermo_plane_type_t   thermo_plane,
                       cs_phys_prop_type_t                property,
                       const cs_lnum_t                    n_vals,
@@ -84,5 +83,16 @@ cs_phys_prop_coolprop(char                              *CoolPropMaterial,
                       const cs_real_t                    var2[],
                       cs_real_t                          val[]);
 
-#endif /* __CS_COOLPROP_HXX__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Free state for Coolprop plugin.
+ */
+/*----------------------------------------------------------------------------*/
+
+extern "C" void
+cs_coolprop_finalize(void);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_COOLPROP_HXX */
 

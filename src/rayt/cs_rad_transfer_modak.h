@@ -1,14 +1,14 @@
-#ifndef __CS_RAD_TRANSFER_MODAK_H__
-#define __CS_RAD_TRANSFER_MODAK_H__
+#ifndef CS_RAD_TRANSFER_MODAK_H
+#define CS_RAD_TRANSFER_MODAK_H
 
 /*============================================================================
- * Radiation solver operations.
+ * Radiation solver Grey Body library (Modak's model).
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,12 +28,8 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Local Macro definitions
@@ -44,7 +40,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*============================================================================
@@ -61,9 +57,9 @@ BEGIN_C_DECLS
  *        composition of products in co2, h2o and soot
  *        using linear regressions established by Modak.
  *
- * \param[out] ck     medium's absorption coefficient (zero if transparent)
- * \param[in]  pco2   co2 partial pressure
- * \param[in]  pco2   h2o partial pressure
+ * \param[out] ck     medium's absorbtion coefficient (0 if transparent)
+ * \param[in]  pco2   CO2 partial pressure
+ * \param[in]  ph2o   H2O partial pressure
  * \param[in]  fv     soot volume fraction
  * \param[in]  temp   temperature
  */
@@ -78,6 +74,4 @@ cs_rad_transfer_modak(cs_real_t        ck[],
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RAD_TRANSFER_MODAK_H__ */
+#endif /* CS_RAD_TRANSFER_MODAK_H */

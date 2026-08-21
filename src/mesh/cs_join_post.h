@@ -1,14 +1,14 @@
-#ifndef __CS_JOIN_POST_H__
-#define __CS_JOIN_POST_H__
+#ifndef CS_JOIN_POST_H
+#define CS_JOIN_POST_H
 
 /*============================================================================
  * Subroutines to manage post-treatment for joining operation
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,23 +28,19 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
-#include "cs_join_mesh.h"
-#include "cs_join_util.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_join_mesh.h"
+#include "mesh/cs_join_util.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -127,9 +123,9 @@ cs_join_post_after_split(cs_lnum_t         n_old_i_faces,
  *
  * parameters:
  *   n_i_clean_faces <-- number of interior faces cleaned
- *   i_clean_faces   <-> list of interior face numbers (ordered on exit)
+ *   i_clean_faces   <-> list of interior face ids (ordered on exit)
  *   n_b_clean_faces <-- number of border faces cleaned
- *   b_clean_faces   <-> list of border face numbers (ordered on exit)
+ *   b_clean_faces   <-> list of border face ids (ordered on exit)
  *   param           <-- set of parameters for the joining operation
  *---------------------------------------------------------------------------*/
 
@@ -156,6 +152,4 @@ cs_join_post_dump_mesh(const char            *basename,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_JOIN_POST_H__ */
+#endif /* CS_JOIN_POST_H */

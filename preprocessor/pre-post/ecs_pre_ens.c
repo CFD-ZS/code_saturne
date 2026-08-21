@@ -4,9 +4,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -1022,7 +1022,7 @@ ecs_loc_pre_ens__lit_elem_gold(ecs_file_t                   *fic,
 
     if (noeuds->id_noeud != NULL) {
 
-      for (ind = 0; ind < taille_connect; ind++){
+      for (ind = 0; ind < taille_connect; ind++) {
         assert(   (connect_loc[ind]-1) >= 0
                && (connect_loc[ind]-1) < noeuds->nbr_noeuds);
         connect_loc[ind] = noeuds->id_noeud[connect_loc[ind]-1];
@@ -2307,7 +2307,6 @@ ecs_loc_pre_ens__lit_geo_6(const char       *nom_fic_geo,
   while (fin_lecture == false)  {
 
     int32_t  num_part_lu;
-    int32_t  cpt_part_lu = 0;
 
     /* Numéro de part */
 
@@ -2364,8 +2363,6 @@ ecs_loc_pre_ens__lit_geo_6(const char       *nom_fic_geo,
     printf("\n");
 
     /* Autres parts ? */
-
-    cpt_part_lu++;
 
     if (num_part > 0 && num_part == num_part_lu)
       fin_lecture = true;

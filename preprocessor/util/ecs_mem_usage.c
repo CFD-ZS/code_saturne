@@ -3,9 +3,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,23 +31,10 @@
 #if defined(__linux__) || defined(__linux) || defined(linux)
 #define ECS_OS_Linux
 
-#elif defined(__sun__) || defined(__sun) || defined(sun)
-#define ECS_OS_Solaris
-
-#endif
-
-/* On Solaris, procfs may not be compiled in a largefile environment,
- * so we redefine macros before including any system header file. */
-
-#if defined(ECS_OS_Solaris) && defined(HAVE_UNISTD_H) \
- && defined(HAVE_SYS_PROCFS_H) && !defined(__cplusplus)
-#define _STRUCTURED_PROC 1
-#undef _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 32
 #endif
 
 /*
- * Standard C library headers
+ * Standard library headers
  */
 
 #include <stdio.h>
@@ -62,16 +49,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#elif defined(ECS_OS_Solaris) && defined(HAVE_UNISTD_H) \
-   && defined(HAVE_SYS_PROCFS_H) && !defined(__cplusplus)
-#include <sys/types.h>
-#include <sys/procfs.h>
-#include <unistd.h>
-
-#elif defined (ECS_OS_AIX) && defined(HAVE_GETRUSAGE)
-#include <sys/times.h>
-#include <sys/resource.h>
-
 #elif defined(HAVE_GETRUSAGE)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -79,9 +56,7 @@
 #endif
 
 #if defined(HAVE_UNISTD_H) && defined(HAVE_SBRK)
-#if defined(__blrts__) || defined(__bgp_)
-#define USE_SBRK 1
-#elif defined (ECS_OS_Linux)
+#if defined (ECS_OS_Linux)
 #define __USE_MISC 1
 #endif
 #include <unistd.h>
@@ -330,44 +305,6 @@ ecs_mem_usage_pr_size(void)
     }
 
     _ecs_mem_usage_pr_size_end();
-  }
-
-  if (sys_mem_usage > _ecs_mem_usage_global_max_pr)
-    _ecs_mem_usage_global_max_pr = sys_mem_usage;
-
-  return sys_mem_usage;
-}
-
-#elif defined(ECS_OS_Solaris) && defined(HAVE_UNISTD_H) \
-   && defined(HAVE_SYS_PROCFS_H) && !defined(__cplusplus)
-
-size_t
-ecs_mem_usage_pr_size(void)
-{
-  size_t sys_mem_usage = 0;
-
-  {
-    /* We have binary pseudo-files /proc/pid/status and /proc/pid/psinfo */
-
-    char   buf[81];     /* should be large enough for "/proc/%lu/status" */
-    const  unsigned long  pid = getpid ();
-
-    FILE     *fp;
-    int       val;
-    char     *s ;
-    size_t    ret;
-    psinfo_t  pid_info;
-
-    sprintf (buf, "/proc/%lu/psinfo", pid);
-
-    fp = fopen (buf, "r");
-    if (fp != NULL) {
-      ret = fread(&pid_info, sizeof(pid_info), 1, fp);
-      if (ret == 1)
-        sys_mem_usage = pid_info.pr_size;
-      fclose (fp);
-    }
-
   }
 
   if (sys_mem_usage > _ecs_mem_usage_global_max_pr)

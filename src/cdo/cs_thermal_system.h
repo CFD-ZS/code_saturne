@@ -1,14 +1,14 @@
-#ifndef __CS_THERMAL_SYSTEM_H__
-#define __CS_THERMAL_SYSTEM_H__
+#ifndef CS_THERMAL_SYSTEM_H
+#define CS_THERMAL_SYSTEM_H
 
 /*============================================================================
- * Routines to handle cs_thermal_system_t structure
+ * Functions to handle cs_thermal_system_t structure
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,36 +26,17 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_advection_field.h"
-#include "cs_equation.h"
-#include "cs_field.h"
-#include "cs_param.h"
-#include "cs_property.h"
-#include "cs_mesh.h"
-#include "cs_source_term.h"
-#include "cs_time_step.h"
-#include "cs_xdef.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
-
-/*!
- *  \file cs_thermal_system.h
- *
- *  \brief  Routines to handle the cs_thermal_system_t structure.
- *  The temperature field is automatically defined when this module
- *  is activated.
- *
- *  Moreover, one considers according to the modelling
- *  rho    the volumetric mass (mass density)
- *  Cp     the heat capacity
- *  lambda the heat conductivity
- *  kappa  the thermal diffusivity (= lambda/(rho.Cp))
- */
+#include "base/cs_field.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_advection_field.h"
+#include "cdo/cs_equation.h"
+#include "cdo/cs_property.h"
+#include "cdo/cs_source_term.h"
+#include "cdo/cs_xdef.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -66,7 +47,6 @@ BEGIN_C_DECLS
 #define CS_THERMAL_EQNAME           "thermal_equation"
 #define CS_THERMAL_CP_NAME          "thermal_capacity"
 #define CS_THERMAL_LAMBDA_NAME      "thermal_conductivity"
-#define CS_THERMAL_DIFF_NAME        "thermal_diffusivity"
 
 /*!
  * @name Flags specifying automatic post-processing for the thermal module
@@ -89,8 +69,6 @@ BEGIN_C_DECLS
  * Structure and type definitions
  *============================================================================*/
 
-typedef struct _thermal_system_t  cs_thermal_system_t;
-
 typedef cs_flag_t  cs_thermal_model_type_t;
 
 /*! \enum cs_thermal_model_type_bit_t
@@ -99,15 +77,22 @@ typedef cs_flag_t  cs_thermal_model_type_t;
  * \def CS_THERMAL_MODEL_STEADY
  * \brief Disable the unsteady term of the thermal equation
  *
- * \def CS_THERMAL_MODEL_NAVSTO_VELOCITY
- * \brief Add an advection term arising from the velocity field solution
- *        of the Navier-Stokes equations
+ * \def CS_THERMAL_MODEL_ADVECTION
+ * \brief Add an advection term to the thermal model
  *
- * \def CS_THERMAL_MODEL_WITH_ENTHALPY
+ * \def CS_THERMAL_MODEL_NAVSTO
+ * \brief The thermal model is associated with the Navier-Stokes equations
+ *  (for instance the mass flux is the advection field)
+ *
+ * \def CS_THERMAL_MODEL_USE_TEMPERATURE
+ * \brief The thermal equation solved using the temperature variable
+ *        (the default choice)
+ *
+ * \def CS_THERMAL_MODEL_USE_ENTHALPY
  * \brief The thermal equation solved using the enthalpy variable
  *        instead of the temperature (the default choice)
  *
- * \def CS_THERMAL_MODEL_WITH_TOTAL_ENERGY
+ * \def CS_THERMAL_MODEL_USE_TOTAL_ENERGY
  * \brief The thermal equation solved using the total energy variable
  *        instead of the temperature (the default choice)
  *
@@ -115,46 +100,129 @@ typedef cs_flag_t  cs_thermal_model_type_t;
  * \brief The thermal equation solved using an anisotropic conductivity
  *        instead of an isotropic one (the default choice)
  *
- * \def CS_THERMAL_MODEL_WITH_THERMAL_DIFFUSIVITY
- * \brief The heat equation considered writes in this case as follows:
- *
- *        \partial_t T + div(velocity.T) - div( lamda/(rho.Cp) T) = s/(rho.Cp)
- *
- * the thermal diffusivity is lambda/(rho.Cp). One assumes in this case that
- * Cp and rho are constants while lambda may be variable. According to the
- * modelling, the advection or the unsteady term may be dropped.
- * This formulation is typically used with a Boussinesq approximation for the
- * Navier-Stokes equations.
- *
  */
 
-typedef enum {
+enum cs_thermal_model_type_bit_t {
 
   CS_THERMAL_MODEL_STEADY                     = 1<<0,  /* =  1 */
-  CS_THERMAL_MODEL_NAVSTO_VELOCITY            = 1<<1,  /* =  2 */
+  CS_THERMAL_MODEL_ADVECTION                  = 1<<1,  /* =  2 */
+
+  /* Physical model associated with the thermal system */
+
+  CS_THERMAL_MODEL_NAVSTO                     = 1<<2,  /* =  4 */
 
   /* Main variable to consider (by default the temperature in Kelvin)
-     ------------- */
+     ---------------------------------------------------------------- */
 
-  CS_THERMAL_MODEL_WITH_ENTHALPY              = 1<<2,  /* =  4 */
-  CS_THERMAL_MODEL_WITH_TOTAL_ENERGY          = 1<<3,  /* =  8 */
+  CS_THERMAL_MODEL_USE_TEMPERATURE            = 1<<3,  /* =  8 */
+  CS_THERMAL_MODEL_USE_ENTHALPY               = 1<<4,  /* = 16 */
+  CS_THERMAL_MODEL_USE_TOTAL_ENERGY           = 1<<5,  /* = 32 */
 
   /* Treatment of the diffusion term
      ------------------------------- */
 
-  CS_THERMAL_MODEL_ANISOTROPIC_CONDUCTIVITY   = 1<<4,  /* = 16 */
-  CS_THERMAL_MODEL_WITH_THERMAL_DIFFUSIVITY   = 1<<5,  /* = 32 */
+  CS_THERMAL_MODEL_ANISOTROPIC_CONDUCTIVITY   = 1<<6,  /* = 64 */
 
   /* Additional bit settings
      ----------------------- */
 
-  CS_THERMAL_MODEL_IN_CELSIUS                 = 1<<6   /* = 64 */
+  CS_THERMAL_MODEL_IN_CELSIUS                 = 1<<7   /* = 128 */
 
-} cs_thermal_model_type_bit_t;
+};
+
+/* Set of parameters related to the thermal module */
+
+struct cs_thermal_system_t {
+
+  cs_flag_t   model;                  /* Choice of modelling */
+  cs_flag_t   numeric;                /* General numerical options */
+  cs_flag_t   post;                   /* Post-processing options */
+
+  /* Equation associated to this module */
+  /* ---------------------------------- */
+
+  cs_equation_t  *thermal_eq;
+
+  /* Properties associated to this module */
+  /* ------------------------------------ */
+
+  cs_property_t  *unsteady_property; /* Property of the unsteady term: rho.cp */
+  cs_property_t  *lambda;            /* Thermal conductivity */
+  cs_property_t  *cp;                /* Heat capacity */
+  cs_property_t  *rho;               /* Mass density (may be shared) */
+  cs_property_t  *kappa;             /* lambda/cp may be null*/
+
+  /* value of lambda/cp in each cell (allocated if the related property kappa
+   * is non-null and defined by array) */
+  cs_real_t      *kappa_array;
+
+  /* Fields associated to this module */
+  /* -------------------------------- */
+
+  cs_field_t     *temperature;
+  cs_field_t     *enthalpy;
+  cs_field_t     *total_energy;
+
+  /* Additional members */
+  /* ------------------ */
+
+  cs_real_t       ref_temperature;
+
+  /* N.B.: Other reference values for properties are stored within each
+   * property structure */
+
+};
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Retrieve the value of the reference temperature associated to a
+ *        thermal system.
+ *
+ * \return the value of the reference temperature
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t
+cs_thermal_system_get_reference_temperature(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set the value of the reference temperature associated to the
+ *        thermal system.
+ *
+ * \param[in]  ref     value of the reference temperature
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_thermal_system_set_reference_temperature(cs_real_t    ref);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Retrieve the model flag related to a thermal system
+ *
+ * \return a flag
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_flag_t
+cs_thermal_system_get_model(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Does the thermal system rely on the advection field associated to
+ *        the Navier-Stokes equations ?
+ *
+ * \return true or false
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_thermal_system_needs_navsto(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -195,40 +263,23 @@ cs_thermal_system_destroy(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Set a reference temperature
- *
- * \param[in]  temp0     reference temperature
+ * \brief  Retrieve the main equation related to the thermal system
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_thermal_system_set_reference_temperature(cs_real_t  temp0);
+cs_equation_t *
+cs_thermal_system_get_equation(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Set the thermal dilatation coefficient
+ * \brief  Retrieve the current temperature at face values
  *
- * \param[in]  beta0     reference value of the thermal dilatation coefficient
+ * \return the pointer to the array of face values.
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_thermal_system_set_thermal_dilatation_coef(cs_real_t   beta0);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Define a structure to compute the Boussinesq source term
- *
- * \param[in]  gravity    gravity vector
- * \param[in]  rho0       reference value for the mass density
- *
- * \return a pointer to a new allocated \ref cs_source_term_boussinesq_t
- */
-/*----------------------------------------------------------------------------*/
-
-cs_source_term_boussinesq_t *
-cs_thermal_system_add_boussinesq_source_term(const cs_real_t   *gravity,
-                                             cs_real_t          rho0);
+cs_real_t *
+cs_thermal_system_get_face_temperature(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -261,38 +312,58 @@ cs_thermal_system_finalize_setup(const cs_cdo_connect_t     *connect,
  * \brief  Build and solve a steady-state thermal system
  *
  * \param[in]  mesh       pointer to a cs_mesh_t structure
- * \param[in]  time_step  pointer to a cs_time_step_t structure
  * \param[in]  connect    pointer to a cs_cdo_connect_t structure
  * \param[in]  quant      pointer to a cs_cdo_quantities_t structure
+ * \param[in]  time_step  pointer to a cs_time_step_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_thermal_system_compute_steady_state(const cs_mesh_t              *mesh,
-                                       const cs_time_step_t         *time_step,
                                        const cs_cdo_connect_t       *connect,
-                                       const cs_cdo_quantities_t    *quant);
+                                       const cs_cdo_quantities_t    *quant,
+                                       const cs_time_step_t         *time_step);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Build and solve the thermal system
  *
+ * \param[in]  cur2prev   true="current to previous" operation is performed
  * \param[in]  mesh       pointer to a cs_mesh_t structure
- * \param[in]  time_step  pointer to a cs_time_step_t structure
  * \param[in]  connect    pointer to a cs_cdo_connect_t structure
  * \param[in]  quant      pointer to a cs_cdo_quantities_t structure
+ * \param[in]  time_step  pointer to a cs_time_step_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_thermal_system_compute(const cs_mesh_t              *mesh,
-                          const cs_time_step_t         *time_step,
+cs_thermal_system_compute(bool                          cur2prev,
+                          const cs_mesh_t              *mesh,
                           const cs_cdo_connect_t       *connect,
-                          const cs_cdo_quantities_t    *quant);
+                          const cs_cdo_quantities_t    *quant,
+                          const cs_time_step_t         *time_step);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Update/initialize the thermal module according to the settings
+ * \brief  Set an initial values for all quantities related to this module
+ *         This is done after the setup step.
+ *
+ * \param[in]  mesh       pointer to a cs_mesh_t structure
+ * \param[in]  connect    pointer to a cs_cdo_connect_t structure
+ * \param[in]  quant      pointer to a cs_cdo_quantities_t structure
+ * \param[in]  ts         pointer to a cs_time_step_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_thermal_system_init_values(const cs_mesh_t             *mesh,
+                              const cs_cdo_connect_t      *connect,
+                              const cs_cdo_quantities_t   *quant,
+                              const cs_time_step_t        *ts);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Update the quantities related to the thermal module
  *
  * \param[in]  mesh       pointer to a cs_mesh_t structure
  * \param[in]  connect    pointer to a cs_cdo_connect_t structure
@@ -369,7 +440,12 @@ void
 cs_thermal_system_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Initialize structures and/or boundary conditions used for CHT coupling
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_thermal_system_cht_boundary_conditions_setup(void);
 
-#endif /* __CS_THERMAL_SYSTEM_H__ */
+#endif /* CS_THERMAL_SYSTEM_H */

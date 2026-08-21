@@ -8,9 +8,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -161,6 +161,14 @@ ecs_table_def__nettoie_som_fac(size_t        *n_vertices,
 
 ecs_tab_int_t
 ecs_table_def__nettoie_fac(ecs_table_t  *table_def_fac);
+
+/*----------------------------------------------------------------------------
+ * Remove degenerate cells based on provided list.
+ *----------------------------------------------------------------------------*/
+
+ecs_tab_int_t
+ecs_table_def__suppr_cel(ecs_table_t     *table_def_cel,
+                         ecs_tab_int_t    liste_cel_err);
 
 /*----------------------------------------------------------------------------
  *  Fonction qui renvoie un tableau associant un type à chaque face, sous

@@ -1,24 +1,20 @@
-#ifndef __CS_MATRIX_UTIL_H__
-#define __CS_MATRIX_UTIL_H__
+#ifndef CS_MATRIX_UTIL_H
+#define CS_MATRIX_UTIL_H
 
 /*============================================================================
  * Utilitary functions for sparse matrixes.
  *============================================================================*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-#include "cs_numbering.h"
+#include "base/cs_halo.h"
+#include "base/cs_numbering.h"
 
-#include "cs_matrix.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "alge/cs_matrix.h"
 
 /*============================================================================
  * Macro definitions
@@ -29,7 +25,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -52,7 +48,7 @@ cs_matrix_diag_dominance(const cs_matrix_t  *matrix,
  * Dump a linear system matrix and right-hand side to file.
  *
  * parameters:
- *   matrix <-- pointer to matrix structure
+ *   matrix <-- pointer to mat$rix structure
  *   rhs    <-- right hand side vector
  *   name   <-- identifier string used in file name
  *----------------------------------------------------------------------------*/
@@ -61,6 +57,34 @@ void
 cs_matrix_dump_linear_system(const cs_matrix_t  *matrix,
                              const cs_real_t     rhs[],
                              const char         *name);
+
+/*----------------------------------------------------------------------------
+ * Dump a vector to file.
+ *
+ * parameters:
+ *   n_rows <-- number of local rows
+ *   stride <-- associated stride
+ *   x      <-- associated vector
+ *   name   <-- identifier string used in file name
+ *----------------------------------------------------------------------------*/
+
+void
+cs_matrix_dump_vector(const cs_lnum_t     n_rows,
+                      const cs_lnum_t     stride,
+                      const cs_real_t     x[],
+                      const char         *name);
+
+/*----------------------------------------------------------------------------
+ * Dump a matrix to file.
+ *
+ * parameters:
+ *   matrix <-- pointer to matrix structure
+ *   name   <-- identifier string used in file name
+ *----------------------------------------------------------------------------*/
+
+void
+cs_matrix_dump(const cs_matrix_t  *matrix,
+               const char         *name);
 
 /*----------------------------------------------------------------------------
  * Log general info relative to matrix.
@@ -83,7 +107,7 @@ cs_matrix_log_info(const cs_matrix_t  *matrix,
  *   n_edges    <-- local number of graph edges
  *   edges      <-- graph edges connectivity
  *   halo       <-- cell halo structure
- *   numbering  <-- vectorization or thread-related numbering info, or NULL
+ *   numbering  <-- vectorization or thread-related numbering info, or nullptr
  *----------------------------------------------------------------------------*/
 
 void
@@ -96,6 +120,4 @@ cs_matrix_dump_test(cs_lnum_t              n_rows,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_UTIL_H__ */
+#endif /* CS_MATRIX_UTIL_H */

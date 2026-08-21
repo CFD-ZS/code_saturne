@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_PRIV_H__
-#define __CS_MATRIX_PRIV_H__
+#ifndef CS_MATRIX_PRIV_H
+#define CS_MATRIX_PRIV_H
 
 /*============================================================================
  * Private types for sparse matrix representation and operations.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,18 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_matrix.h"
+#include "alge/cs_matrix.h"
 
 /*----------------------------------------------------------------------------*/
 
-BEGIN_C_DECLS
-
 /*! \cond DOXYGEN_SHOULD_SKIP_THIS */
 
-/*=============================================================================
+/*============================================================================
  * Macro definitions
  *============================================================================*/
 
@@ -54,7 +52,6 @@ BEGIN_C_DECLS
  *  - Native
  *  - Compressed Sparse Row (CSR)
  *  - Modified Compressed Sparse Row (MSR), with separate diagonal
- *  - Symmetric Compressed Sparse Row (CSR_SYM)
  */
 
 /*----------------------------------------------------------------------------
@@ -66,22 +63,51 @@ typedef void
                           bool                symmetric,
                           bool                copy,
                           cs_lnum_t           n_edges,
-                          const cs_lnum_2_t  *restrict edges,
-                          const cs_real_t    *restrict da,
-                          const cs_real_t    *restrict xa);
+                          const cs_lnum_2_t  *edges,
+                          const cs_real_t    *da,
+                          const cs_real_t    *xa);
 
 typedef void
 (cs_matrix_release_coeffs_t) (cs_matrix_t  *matrix);
 
 typedef void
-(cs_matrix_copy_diagonal_t) (const cs_matrix_t  *matrix,
-                             cs_real_t          *restrict da);
+(cs_matrix_destroy_struct_t) (void  **ms);
 
 typedef void
-(cs_matrix_vector_product_t) (bool                exclude_diag,
-                              const cs_matrix_t  *matrix,
-                              const cs_real_t    *restrict x,
-                              cs_real_t          *restrict y);
+(cs_matrix_destroy_coeffs_t) (cs_matrix_t  *matrix);
+
+typedef void
+(cs_matrix_destroy_adaptor_t) (cs_matrix_t  *matrix);
+
+typedef void
+(cs_matrix_copy_diagonal_t) (const cs_matrix_t  *matrix,
+                             cs_real_t          *da);
+
+typedef const cs_real_t *
+(cs_matrix_get_diagonal_t)(const cs_matrix_t  *matrix);
+
+typedef cs_matrix_assembler_values_t *
+(cs_matrix_assembler_values_create_t) (cs_matrix_t  *matrix,
+                                       cs_lnum_t     diag_block_size,
+                                       cs_lnum_t     extra_diag_block_size);
+
+/*----------------------------------------------------------------------------
+ * Function pointer for matrix-veector product (y = A.x).
+ *
+ * parameters:
+ *   matrix       <-> pointer to matrix structure
+ *   exclude_diag <-- if true, compute (A-D).x instead of A.x
+ *   sync         <-- if true, synchronize ghost values
+ *   x            <-- x input vector (may be synchronized by this function)
+ *   y            <-- y output vector
+ *----------------------------------------------------------------------------*/
+
+typedef void
+(cs_matrix_vector_product_t) (cs_matrix_t  *matrix,
+                              bool          exclude_diag,
+                              bool          sync,
+                              cs_real_t    *x,
+                              cs_real_t    *y);
 
 /*----------------------------------------------------------------------------
  * Matrix types
@@ -109,27 +135,6 @@ typedef struct _cs_matrix_struct_native_t {
 
 } cs_matrix_struct_native_t;
 
-/* Native matrix coefficients */
-/*----------------------------*/
-
-typedef struct _cs_matrix_coeff_native_t {
-
-  bool              symmetric;       /* Symmetry indicator */
-  int               max_db_size;     /* Current max allocated diag block size */
-  int               max_eb_size;     /* Current max allocated extradiag block size */
-
-  /* Pointers to possibly shared arrays */
-
-  const cs_real_t   *da;            /* Diagonal terms */
-  const cs_real_t   *xa;            /* Extra-diagonal terms */
-
-  /* Pointers to private arrays (NULL if shared) */
-
-  cs_real_t         *_da;           /* Diagonal terms */
-  cs_real_t         *_xa;           /* Extra-diagonal terms */
-
-} cs_matrix_coeff_native_t;
-
 /* CSR (Compressed Sparse Row) matrix structure representation */
 /*-------------------------------------------------------------*/
 
@@ -137,12 +142,13 @@ typedef struct _cs_matrix_struct_csr_t {
 
   cs_lnum_t         n_rows;           /* Local number of rows */
   cs_lnum_t         n_cols_ext;       /* Local number of columns + ghosts */
+  cs_lnum_t         nnz;              /* Size of col_id array */
 
   /* Pointers to structure arrays and info (row_index, col_id) */
 
   bool              have_diag;        /* Has non-zero diagonal */
   bool              direct_assembly;  /* True if each value corresponds to
-                                         a unique face ; false if multiple
+                                         a unique face; false if multiple
                                          faces contribute to the same
                                          value (i.e. we have split faces) */
 
@@ -154,86 +160,87 @@ typedef struct _cs_matrix_struct_csr_t {
 
 } cs_matrix_struct_csr_t;
 
-/* CSR matrix coefficients representation */
-/*----------------------------------------*/
+/* Distributed matrix structure representation */
+/*---------------------------------------------*/
 
-typedef struct _cs_matrix_coeff_csr_t {
+/* This storage assumes a representation in the following form:
 
-  /* Pointers to possibly shared arrays */
+   - D+E+H
 
-  const cs_real_t  *val;              /* Matrix coefficients */
+   Where D is the diagonal, E the local extra-diagonal, and H is the part
+   of the matrix referencing halo values (only the upper-part of the
+   coefficients are needed on a given rank).
 
-  /* Pointers to private arrays (NULL if shared) */
+   In cases where a partial block structure is used for the diagonal
+   (usually at boundary cells), the diagonal values may be indexed.
 
-  cs_real_t        *_val;             /* Diagonal matrix coefficients */
+   Sub-matrices are stored in CSR format, to allow easy indexing
+   or access to a given row's elements (which is useful for multigrid
+   coarsening).
 
-  /* Pointers to auxiliary arrays used for queries */
+   Since the H portion of the matrix may be very sparse, with most rows
+   empty, the matching row ids can be stored in addition to the column ids,
+   defining a simple coordinate-type structure as a COO-type SpMv product
+   can be expected to be cheaper than a CSR-based one in this case.
+ */
 
-  const cs_real_t  *d_val;            /* Pointer to diagonal matrix
-                                         coefficients, if queried */
-  cs_real_t        *_d_val;           /* Diagonal matrix coefficients,
-                                         if queried */
-
-} cs_matrix_coeff_csr_t;
-
-/* CSR_SYM (Symmetric Compressed Sparse Row) matrix structure representation */
-/*---------------------------------------------------------------------------*/
-
-typedef struct _cs_matrix_struct_csr_sym_t {
+typedef struct _cs_matrix_struct_dist_t {
 
   cs_lnum_t         n_rows;           /* Local number of rows */
-  cs_lnum_t         n_cols;           /* Local number of columns
-                                         (> n_rows in case of ghost columns) */
+  cs_lnum_t         n_cols_ext;       /* Local number of columns + ghosts */
 
-  /* Pointers to structure arrays and info (row_index, col_id) */
+  /* Pointers to structure arrays and info */
 
-  bool              have_diag;        /* Has non-zero diagonal */
-  bool              direct_assembly;  /* True if each value corresponds to
-                                         a unique face ; false if multiple
-                                         faces contribute to the same
-                                         value (i.e. we have split faces) */
+  cs_matrix_struct_csr_t  e;          /* E (local off-diagonal) CSR structure */
+  cs_matrix_struct_csr_t  h;          /* H (halo) CSR structure */
 
-  cs_lnum_t        *row_index;        /* Row index (0 to n-1) */
-  cs_lnum_t        *col_id;           /* Column id (0 to n-1) */
+  cs_lnum_t               *h_row_id;  /* Optional row id for coordinates
+                                         format (col_id in h structure) */
 
-} cs_matrix_struct_csr_sym_t;
+} cs_matrix_struct_dist_t;
 
-/* symmetric CSR matrix coefficients representation */
-/*--------------------------------------------------*/
+/* Commmon matrix coefficients representation */
+/*--------------------------------------------*/
 
-typedef struct _cs_matrix_coeff_csr_sym_t {
+/* Used for matrix formats except third-party */
 
-  cs_real_t        *val;              /* Matrix coefficients */
+typedef struct _cs_matrix_coeff_t {
 
-  /* Pointers to auxiliary arrays used for queries */
+  bool             symmetric;         /* Symmetry indicator */
 
-  const cs_real_t  *d_val;            /* Pointer to diagonal matrix
-                                         coefficients, if queried */
-  cs_real_t        *_d_val;           /* Diagonal matrix coefficients,
-                                         if queried */
+  int              db_size;           /* Diagonal block size */
+  int              eb_size;           /* Extra-diagonal  block size */
 
-} cs_matrix_coeff_csr_sym_t;
+  /* Pointers to possibly shared arrays.
+     For distributed matrices, where the h_val (halo-only) coefficient array
+     is used, the e_val (extra-diagonal) array should contain only local
+     values. For other matrix types, it can contain a mix of local and
+     distant values. */
 
-/* MSR matrix coefficients representation */
-/*----------------------------------------*/
+  const cs_real_t  *val;              /* All coefficients (CSR) */
+  const cs_real_t  *d_val;            /* D (diagonal-only) coefficients */
+  const cs_real_t  *e_val;            /* E (extra-diagonal) coefficients */
+  const cs_real_t  *h_val;            /* H (halo-only) coefficients */
 
-typedef struct _cs_matrix_coeff_msr_t {
+   /* Pointers to private arrays.
+      nullptr if shared:
+      * If non-null, d_val, e_val, and h_val should point
+        to matching private array.
+      * In the case of CSR storage, where diagonal values can be stored in
+        the a_val array, d_val will be null but _d_val may be used to store
+        (cache) diagonal values, if queried. */
 
-  int              max_db_size;       /* Current max allocated block size */
-  int              max_eb_size;       /* Current max allocated extradiag
-                                         block size */
+  cs_real_t        *_val;            /* All coefficients (CSR) */
+  cs_real_t        *_d_val;          /* D (diagonal) coefficients */
+  cs_real_t        *_e_val;          /* E (extra-diagonal) coefficients */
+  cs_real_t        *_h_val;          /* H (halo-only) coefficients */
 
-  /* Pointers to possibly shared arrays */
+  /* Pointers to auxiliary matrix structure elements */
 
-  const cs_real_t  *d_val;            /* Diagonal matrix coefficients */
-  const cs_real_t  *x_val;            /* Extra-diagonal matrix coefficients */
+  cs_lnum_t        *d_idx;           /* Index for diagonal matrix coefficients
+                                        in case of multiple block sizes */
 
-  /* Pointers to private arrays (NULL if shared) */
-
-  cs_real_t        *_d_val;           /* Diagonal matrix coefficients */
-  cs_real_t        *_x_val;           /* Extra-diagonal matrix coefficients */
-
-} cs_matrix_coeff_msr_t;
+} cs_matrix_coeff_t;
 
 /* Matrix structure (representation-independent part) */
 /*----------------------------------------------------*/
@@ -244,6 +251,8 @@ struct _cs_matrix_structure_t {
 
   cs_lnum_t              n_rows;       /* Local number of rows */
   cs_lnum_t              n_cols_ext;   /* Local number of columns + ghosts */
+
+  cs_alloc_mode_t        alloc_mode;   /* Preferred allocation mode */
 
   void                  *structure;    /* Matrix structure */
 
@@ -266,6 +275,10 @@ struct _cs_matrix_t {
 
   cs_matrix_type_t       type;         /* Matrix storage and definition type */
 
+  const char            *type_name;    /* Pointer to matrix type name string */
+  const char            *type_fname;   /* Pointer to matrix type
+                                          full name string */
+
   cs_lnum_t              n_rows;       /* Local number of rows */
   cs_lnum_t              n_cols_ext;   /* Local number of columns + ghosts */
 
@@ -273,17 +286,13 @@ struct _cs_matrix_t {
 
   bool                   symmetric;    /* true if coefficients are symmetric */
 
-  cs_lnum_t              db_size[4];   /* Diag Block size, including padding:
-                                          0: useful block size
-                                          1: vector block extents
-                                          2: matrix line extents
-                                          3: matrix line*column extents */
+  cs_lnum_t              db_size;      /* Diagonal block size */
 
-  cs_lnum_t              eb_size[4];   /* Extradiag block size, including padding:
-                                          0: useful block size
-                                          1: vector block extents
-                                          2: matrix line extents
-                                          3: matrix line*column extents */
+  cs_lnum_t              eb_size;      /* Extradiag block size */
+
+  cs_alloc_mode_t        alloc_mode;   /* Preferred allocation mode */
+
+  unsigned int           need_xa : 1;  /* Need face-based xa array */
 
   /* Pointer to shared structure */
 
@@ -306,22 +315,62 @@ struct _cs_matrix_t {
      removing the dependency to the native structure in the multigrid
      code first. */
 
-  const cs_real_t      *xa;            /* Extra-diagonal terms */
+  const cs_real_t       *xa;           /* Extra-diagonal terms */
+  cs_real_t             *_xa;          /* Extra-diagonal terms, private copy */
+
+  /* Pointer to associated connectivity and geometric data needed by
+     multigrid smoothing. At least cell centers and volumes are needed for
+     relaxation, and face normals are needed for the "classical" option.
+     Cells and faces here do not need to be primary mesh elements,
+     but could be dual mesh elements of some sort */
+
+  const cs_lnum_t     *c2f_idx;        /* Cell to faces index (shared) */
+  const cs_lnum_t     *c2f;            /* Cell to faces adjacency (shared) */
+  const short int     *c2f_sgn;        /* Cell to faces orientation (shared) */
+
+  const cs_real_3_t   *cell_cen;       /* Cell center (shared) */
+  const cs_real_t     *cell_vol;       /* Cell volume (shared) */
+  const cs_nreal_3_t  *face_u_normal;  /* Face unit normal (shared) */
+  const cs_real_t     *face_surf;      /* Face surface (shared) */
 
   /* Pointer to private data */
 
   void                  *coeffs;       /* Matrix coefficients */
 
+  void                  *ext_lib_map;  /* Mapping of structure and
+                                          coefficients to external
+                                          library, if needed */
+
   /* Function pointers */
 
-  cs_matrix_set_coeffs_t            *set_coefficients;
-  cs_matrix_release_coeffs_t        *release_coefficients;
-  cs_matrix_copy_diagonal_t         *copy_diagonal;
+  cs_matrix_set_coeffs_t               *set_coefficients;
+  cs_matrix_release_coeffs_t           *release_coefficients;
+  cs_matrix_copy_diagonal_t            *copy_diagonal;
+  cs_matrix_get_diagonal_t             *get_diagonal;
+
+  cs_matrix_destroy_struct_t           *destroy_structure;
+  cs_matrix_destroy_coeffs_t           *destroy_coefficients;
+  cs_matrix_destroy_adaptor_t          *destroy_adaptor;
+
+  cs_matrix_assembler_values_create_t  *assembler_values_create;
 
   /* Function pointer arrays, with CS_MATRIX_N_FILL_TYPES variants:
-     fill_type*2 + exclude_diagonal_flag */
+     fill_type*4 + full, extra-diagonal, lower, upper parts */
 
-  cs_matrix_vector_product_t        *vector_multiply[CS_MATRIX_N_FILL_TYPES][2];
+  cs_matrix_vector_product_t  *vector_multiply[CS_MATRIX_N_FILL_TYPES]
+                                              [CS_MATRIX_SPMV_N_TYPES];
+
+#if defined(HAVE_ACCEL)
+
+  /* Function pointer arrays, with CS_MATRIX_N_FILL_TYPES variants, for host
+     or device only: fill_type*4 + full, extra-diagonal, lower, upper parts */
+
+  cs_matrix_vector_product_t  *vector_multiply_h[CS_MATRIX_N_FILL_TYPES]
+                                                [CS_MATRIX_SPMV_N_TYPES];
+  cs_matrix_vector_product_t  *vector_multiply_d[CS_MATRIX_N_FILL_TYPES]
+                                                [CS_MATRIX_SPMV_N_TYPES];
+
+#endif /* defined(HAVE_ACCEL) */
 
 };
 
@@ -335,9 +384,13 @@ struct _cs_matrix_variant_t {
   cs_matrix_type_t       type;        /* Matrix storage and definition type */
   cs_matrix_fill_type_t  fill_type;   /* Matrix storage and definition type */
 
-  /* Function pointer arrays, with and without exclude_diagonal_flag */
+  /* Function pointer arrays */
 
-  cs_matrix_vector_product_t   *vector_multiply[2];
+  cs_matrix_vector_product_t   *vector_multiply[CS_MATRIX_SPMV_N_TYPES];
+
+  /* Associated vector host/device locations (h/d/g for host/device/both) */
+
+  char                          vector_multiply_xy_hd[CS_MATRIX_SPMV_N_TYPES];
 };
 
 /*! (DOXYGEN_SHOULD_SKIP_THIS) \endcond */
@@ -346,161 +399,6 @@ struct _cs_matrix_variant_t {
  * Semi-private function prototypes
  *============================================================================*/
 
-/*----------------------------------------------------------------------------
- * Create CSR matrix coefficients.
- *
- * returns:
- *   pointer to allocated CSR coefficients structure.
- *----------------------------------------------------------------------------*/
-
-cs_matrix_coeff_csr_t *
-cs_matrix_create_coeff_csr(void);
-
-/*----------------------------------------------------------------------------
- * Destroy CSR matrix coefficients.
- *
- * parameters:
- *   coeff  <->  Pointer to CSR matrix coefficients pointer
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_destroy_coeff_csr(cs_matrix_coeff_csr_t **coeff);
-
-/*----------------------------------------------------------------------------
- * Release shared CSR matrix coefficients.
- *
- * parameters:
- *   matrix <-- Pointer to matrix structure
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_release_coeffs_csr(cs_matrix_t  *matrix);
-
-/*----------------------------------------------------------------------------
- * Copy diagonal of CSR matrix.
- *
- * parameters:
- *   matrix <-- Pointer to matrix structure
- *   da     --> Diagonal (pre-allocated, size: n_rows)
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_copy_diagonal_csr(const cs_matrix_t  *matrix,
-                            cs_real_t          *restrict da);
-
-/*----------------------------------------------------------------------------
- * Destroy CSR matrix structure.
- *
- * parameters:
- *   matrix  <->  Pointer to CSR matrix structure pointer
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_destroy_struct_csr(cs_matrix_struct_csr_t  **matrix);
-
-/*----------------------------------------------------------------------------
- * Local matrix.vector product y = A.x with CSR matrix.
- *
- * parameters:
- *   exclude_diag <-- exclude diagonal if true
- *   matrix       <-- Pointer to matrix structure
- *   x            <-- Multipliying vector values
- *   y            --> Resulting vector
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_vec_p_l_csr(bool                exclude_diag,
-                      const cs_matrix_t  *matrix,
-                      const cs_real_t    *restrict x,
-                      cs_real_t          *restrict y);
-
-#if defined (HAVE_MKL)
-/*----------------------------------------------------------------------------
- * Local matrix.vector product y = A.x with MSR matrix, using MKL
- *
- * parameters:
- *   exclude_diag <-- exclude diagonal if true
- *   matrix       <-- Pointer to matrix structure
- *   x            <-- Multipliying vector values
- *   y            --> Resulting vector
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_vec_p_l_csr_mkl(bool                exclude_diag,
-                          const cs_matrix_t  *matrix,
-                          const cs_real_t    *restrict x,
-                          cs_real_t          *restrict y);
-
-#endif /* defined (HAVE_MKL) */
-
-/*----------------------------------------------------------------------------
- * Copy diagonal of native or MSR matrix.
- *
- * parameters:
- *   matrix <-- Pointer to matrix structure
- *   da     --> Diagonal (pre-allocated, size: n_cols)
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_copy_diagonal_separate(const cs_matrix_t  *matrix,
-                                 cs_real_t          *restrict da);
-
-/*----------------------------------------------------------------------------
- * Create MSR matrix coefficients.
- *
- * returns:
- *   pointer to allocated MSR coefficients structure.
- *----------------------------------------------------------------------------*/
-
-cs_matrix_coeff_msr_t *
-cs_matrix_create_coeff_msr(void);
-
-/*----------------------------------------------------------------------------
- * Release shared MSR matrix coefficients.
- *
- * parameters:
- *   matrix <-- Pointer to matrix structure
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_release_coeffs_msr(cs_matrix_t  *matrix);
-
-/*----------------------------------------------------------------------------
- * Local matrix.vector product y = A.x with MSR matrix.
- *
- * parameters:
- *   exclude_diag <-- exclude diagonal if true
- *   matrix       <-- Pointer to matrix structure
- *   x            <-- Multipliying vector values
- *   y            --> Resulting vector
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_vec_p_l_msr(bool                exclude_diag,
-                      const cs_matrix_t  *matrix,
-                      const cs_real_t    *restrict x,
-                      cs_real_t          *restrict y);
-
-#if defined (HAVE_MKL)
-/*----------------------------------------------------------------------------
- * Local matrix.vector product y = A.x with MSR matrix, using MKL
- *
- * parameters:
- *   exclude_diag <-- exclude diagonal if true
- *   matrix       <-- Pointer to matrix structure
- *   x            <-- Multipliying vector values
- *   y            --> Resulting vector
- *----------------------------------------------------------------------------*/
-
-void
-cs_matrix_vec_p_l_msr_mkl(bool                exclude_diag,
-                          const cs_matrix_t  *matrix,
-                          const cs_real_t    *restrict x,
-                          cs_real_t          *restrict y);
-#endif /* defined (HAVE_MKL) */
-
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_PRIV_H__ */
+#endif /* CS_MATRIX_PRIV_H */

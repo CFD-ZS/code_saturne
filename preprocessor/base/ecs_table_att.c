@@ -5,9 +5,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -333,11 +333,10 @@ _table_att__famille_en_groupe(size_t               n_elts,
       nbr_pos_def = pos_fin_def - pos_deb_def;
     }
 
-    else if (num_val_def == 0)
+    else {
       nbr_pos_def = 0;
-
-    else
-      assert(num_val_def >= 0);
+      assert(num_val_def == 0);
+    }
 
     nbr_val_rep_new = ECS_MAX(nbr_val_rep_new, cpt_val_rep + nbr_pos_def);
 

@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_QUANTITIES_H__
-#define __CS_MESH_QUANTITIES_H__
+#ifndef CS_MESH_QUANTITIES_H
+#define CS_MESH_QUANTITIES_H
 
 /*============================================================================
  * Management of mesh quantities
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-#include "cs_internal_coupling.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Macro definitions
@@ -79,6 +74,9 @@ BEGIN_C_DECLS
     of using only the initial estimate based on the vertices center) */
 #define CS_FACE_CENTER_REFINE (1 << 7)
 
+/*! Regularization for faces if null surface value */
+#define CS_FACE_NULL_SURFACE (1 << 8)
+
 /*! @} */
 
 /*============================================================================
@@ -89,40 +87,45 @@ BEGIN_C_DECLS
 
 typedef struct {
 
-  cs_real_t     *cell_cen;       /* Cell center coordinates  */
-  cs_real_t     *cell_vol;       /* Cell volume */
-  cs_real_t     *cell_f_vol;     /* Cell fluid volume */
+  cs_real_3_t   *cell_cen;       /* Cell center coordinates */
 
-  cs_real_t     *i_face_normal;  /* Surface normal of interior faces.
-                                    (L2 norm equals area of the face) */
-  cs_real_t     *b_face_normal;  /* Surface normal of border faces.
-                                    (L2 norm equals area of the face) */
-  cs_real_t     *i_f_face_normal;/* Fluid Surface normal of interior faces.
-                                    (L2 norm equals area of the face) */
-  cs_real_t     *b_f_face_normal;/* Fluid Surface normal of border faces.
-                                    (L2 norm equals area of the face) */
-  cs_real_t     *i_face_cog;     /* Center of gravity of interior faces */
-  cs_real_t     *b_face_cog;     /* Center of gravity of border faces */
+  cs_real_t     *cell_vol;       /* Pointer to cell volume */
+  cs_real_t     *_cell_vol;      /* Cell volume, if owner */
+
+  cs_real_t     *i_face_normal;   /* Surface normal of interior faces.
+                                     (L2 norm equals area of the face) */
+  cs_real_t     *b_face_normal;   /* Surface normal of border faces.
+                                     (L2 norm equals area of the face) */
+  cs_real_t     *c_w_face_normal; /* Solid surface normal immersed in the cells.
+                                     (L2 norm equals area of the face) */
+  cs_real_3_t   *i_face_cog;     /* Center of gravity of interior faces */
+  cs_real_3_t   *b_face_cog;     /* Center of gravity of border faces */
+
+  cs_real_t     *c_w_face_cog;   /* Center of gravity of solid face
+                                    immersed in the cells */
 
   cs_real_t     *i_face_surf;    /* Surface of interior faces. */
   cs_real_t     *b_face_surf;    /* Surface of boundary faces. */
 
-  cs_real_t     *i_f_face_surf;  /* Fluid surface of interior faces. */
-  cs_real_t     *b_f_face_surf;  /* Fluid surface of boundary faces. */
+  cs_real_t     *c_w_face_surf;  /* Solid surface of cells. */
 
-  cs_real_2_t   *i_f_face_factor;/* Fluid surface factor of interior faces. */
-  cs_real_t     *b_f_face_factor;/* Fluid surface factor of boundary faces. */
+  cs_nreal_3_t  *i_face_u_normal;  /* Unit normal of interior faces. */
+  cs_nreal_3_t  *b_face_u_normal;  /* Unit normal of boundary faces. */
 
-  cs_real_t     *dijpf;          /* Vector I'J' for interior faces */
-  cs_real_t     *diipb;          /* Vector II'  for border faces */
-  cs_real_t     *dofij;          /* Vector OF   for interior faces */
-  cs_real_t     *diipf;          /* Vector II'  for interior faces */
-  cs_real_t     *djjpf;          /* Vector JJ'  for interior faces */
+  cs_real_2_t   *i_f_face_factor; /* Fluid surface factor of interior faces. */
+  cs_real_t     *b_f_face_factor; /* Fluid surface factor of boundary faces. */
 
-  cs_real_t     *i_dist;         /* Distance between the cell center and
-                                    the center of gravity of interior faces */
+  cs_rreal_3_t  *diipb;          /* Vector II'  for border faces */
+  cs_real_3_t   *dofij;          /* Vector OF   for interior faces */
+  cs_rreal_3_t  *diipf;          /* Vector II'  for interior faces */
+  cs_rreal_3_t  *djjpf;          /* Vector JJ'  for interior faces */
+
+  cs_real_t     *i_dist;         /* Distance between the centers of the two
+                                    cells sharing an interior face */
   cs_real_t     *b_dist;         /* Distance between the cell center and
                                     the center of gravity of border faces */
+  cs_real_t     *c_w_dist_inv;   /* Distance between the centers of the cell
+                                    and the solid face */
 
   cs_real_t     *weight;         /* Interior faces weighting factor */
 
@@ -130,42 +133,90 @@ typedef struct {
   cs_real_t      max_vol;        /* Maximum cell volume */
   cs_real_t      tot_vol;        /* Total volume */
 
-  cs_real_t      min_f_vol;        /* Minimum cell volume */
-  cs_real_t      max_f_vol;        /* Maximum cell volume */
-  cs_real_t      tot_f_vol;        /* Total volume */
+  cs_real_t     *corr_grad_lin_det; /* Determinant of geometrical matrix
+                                       linear gradient correction */
+  cs_real_33_t  *corr_grad_lin;     /* Geometrical matrix
+                                       linear gradient correction */
 
-  cs_real_t     *corr_grad_lin_det;  /* Determinant of geometrical matrix
-                                        linear gradient correction */
-  cs_real_33_t  *corr_grad_lin;      /* Geometrical matrix
-                                        linear gradient correction */
-
-  cs_int_t      *b_sym_flag;     /* Symmetry flag for boundary faces */
+  int          *b_sym_flag;         /* Symmetry flag for boundary faces */
   int           has_disable_flag;   /* Is the cell disabled?
                                        0: unactivated
                                        1: activated */
-  int           *c_disable_flag;   /* Is the cell disabled?
-                                    used for fluid solid and porous modelling */
-  unsigned      *bad_cell_flag;  /* Flag (mask) for bad cells detected */
+  int          *c_disable_flag;     /* Is the cell disabled?
+                                       used for fluid solid and porous models */
+  unsigned     *bad_cell_flag;      /* Flag (mask) for bad cells detected */
 
-} cs_mesh_quantities_t ;
+} cs_mesh_quantities_t;
 
 /*============================================================================
- * Static global variables
+ * Global variables
  *============================================================================*/
 
-/* Pointer to mesh quantities structure associated to the main mesh */
-
+/* Pointers to mesh quantities structure associated to the main mesh */
+extern cs_mesh_quantities_t  *cs_glob_mesh_quantities_g;
 extern cs_mesh_quantities_t  *cs_glob_mesh_quantities;
 
 /* Flag (mask) to activate bad cells correction */
 extern unsigned cs_glob_mesh_quantities_flag;
 
-/* Choice of the porous model */
-extern int cs_glob_porous_model;
+/*=============================================================================
+ * Templated inline functions
+ *============================================================================*/
+
+#if defined(__cplusplus)
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute volume inverse for non-disabled cell, 0 otherwise
+ *
+ * \param[in]  c_id             cell_id
+ * \param[in]  c_disable_flag   cell disable flag array, null if non disabled
+ * \param[in]  c_vol            cell volume array
+ *
+ * \return the volume inverse if enabled, 0 otherwise
+ */
+/*----------------------------------------------------------------------------*/
+
+CS_F_HOST_DEVICE inline cs_real_t
+cs_mq_cell_vol_inv(cs_lnum_t         c_id,
+                   const int        *c_disable_flag,
+                   const cs_real_t   c_vol[])
+{
+  cs_real_t dvol;
+
+  if (c_disable_flag == nullptr)
+    dvol = 1. / c_vol[c_id];
+  else if (c_disable_flag[c_id] == 0)
+    dvol = 1. / c_vol[c_id];
+  else
+    dvol = 0.;
+
+  return dvol;
+}
+
+#endif // defined(__cplusplus)
 
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Return 0 if cell is disabled, 1 otherwise.
+ *
+ * \param[in]  cell_id
+ *
+ * \return  1 if the cell is active, 0 if it is disabled.
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline int
+cs_mesh_quantities_cell_is_active(const cs_mesh_quantities_t  *mq,
+                                  cs_lnum_t                    cell_id)
+{
+  return (1 - (mq->has_disable_flag
+              *mq->c_disable_flag[mq->has_disable_flag * cell_id]));
+}
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -198,28 +249,6 @@ cs_mesh_quantities_cell_cen_choice(int  algo_choice);
 int
 cs_mesh_quantities_face_cog_choice(int  algo_choice);
 
-/*----------------------------------------------------------------------------
- * Compute fluid volumes and fluid surfaces in addition to cell volumes
- * and surfaces.
- *
- * parameters:
- *   porous_model <-- porous model option (> 0 for porosity)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_quantities_set_porous_model(int  porous_model);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Set (unset) has_disable_flag
- *
- * \param[in]  flag   1: on, 0: off
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_mesh_quantities_set_has_disable_flag(int  flag);
-
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Create a mesh quantities structure.
@@ -228,7 +257,7 @@ cs_mesh_quantities_set_has_disable_flag(int  flag);
  */
 /*----------------------------------------------------------------------------*/
 
-cs_mesh_quantities_t *
+extern "C" cs_mesh_quantities_t *
 cs_mesh_quantities_create(void);
 
 /*----------------------------------------------------------------------------*/
@@ -241,8 +270,8 @@ cs_mesh_quantities_create(void);
  */
 /*----------------------------------------------------------------------------*/
 
-cs_mesh_quantities_t *
-cs_mesh_quantities_destroy(cs_mesh_quantities_t  *mesh_quantities);
+extern "C" cs_mesh_quantities_t *
+cs_mesh_quantities_destroy(cs_mesh_quantities_t  *mq);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -265,8 +294,8 @@ cs_mesh_quantities_free_all(cs_mesh_quantities_t  *mq);
 /*----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quantities_compute_preprocess(const cs_mesh_t       *mesh,
-                                      cs_mesh_quantities_t  *mesh_quantities);
+cs_mesh_quantities_compute_preprocess(const cs_mesh_t       *m,
+                                      cs_mesh_quantities_t  *mq);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -278,32 +307,11 @@ cs_mesh_quantities_compute_preprocess(const cs_mesh_t       *mesh,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quantities_compute(const cs_mesh_t       *mesh,
-                           cs_mesh_quantities_t  *mesh_quantities);
+cs_mesh_quantities_compute(const cs_mesh_t       *m,
+                           cs_mesh_quantities_t  *mq);
 
 /*----------------------------------------------------------------------------
- * Compute fluid mesh quantities
- *
- * parameters:
- *   mesh            <-- pointer to a cs_mesh_t structure
- *   mesh_quantities <-> pointer to a cs_mesh_quantities_t structure
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_quantities_fluid_compute(const cs_mesh_t       *mesh,
-                                 cs_mesh_quantities_t  *mesh_quantities);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Init fluid quantities
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_mesh_init_fluid_quantities(void);
-
-/*----------------------------------------------------------------------------
- * Compute the total, min, and max fluid volumes of cells
+ * Compute the total, min, and max volumes of cells
  *
  * parameters:
  *   mesh            <-- pointer to mesh structure
@@ -311,8 +319,8 @@ cs_mesh_init_fluid_quantities(void);
  *----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quantities_fluid_vol_reductions(const cs_mesh_t       *mesh,
-                                        cs_mesh_quantities_t  *mesh_quantities);
+cs_mesh_quantities_vol_reductions(const cs_mesh_t       *mesh,
+                                  cs_mesh_quantities_t  *mesh_quantities);
 
 /*----------------------------------------------------------------------------
  * Compute fluid section mesh quantities at the initial step
@@ -325,6 +333,22 @@ cs_mesh_quantities_fluid_vol_reductions(const cs_mesh_t       *mesh,
 void
 cs_mesh_init_fluid_sections(const cs_mesh_t       *mesh,
                             cs_mesh_quantities_t  *mesh_quantities);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute cell and faces quantities needed at the immersed boundaries.
+ *
+ * \param[in]       m              pointer to mesh structure
+ * \param[in]       cen_points     point belonging to the immersed solid plane
+ *                                 for each cell
+ * \param[in, out]  mq             pointer to mesh quantities structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_quantities_solid_compute(const cs_mesh_t       *m,
+                                 cs_real_3_t           *cen_points,
+                                 cs_mesh_quantities_t  *mq);
 
 /*----------------------------------------------------------------------------
  * Compute mesh quantities
@@ -353,24 +377,50 @@ cs_mesh_quantities_face_normal(const cs_mesh_t   *mesh,
                                cs_real_t         *p_b_face_normal[]);
 
 /*----------------------------------------------------------------------------
- * Compute interior face centers and normals.
- *
- * The corresponding arrays are allocated by this function, and it is the
- * caller's responsibility to free them when they are no longer needed.
+ * Compute center of gravity and surface normal associated to a set of faces
  *
  * parameters:
- *   mesh            <-- pointer to a cs_mesh_t structure
- *   p_i_face_cog    <-> pointer to the interior face center array
- *   p_i_face_normal <-> pointer to the interior face normal array
+ *   n_faces         <--  number of faces
+ *   vtx_coord       <--  vertex coordinates
+ *   face_vtx_idx    <--  "face -> vertices" connectivity index
+ *   face_vtx        <--  "face -> vertices" connectivity
+ *   face_cog        -->  coordinates of the center of gravity of the faces
+ *   face_normal     -->  face surface normals
  *----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quantities_i_faces(const cs_mesh_t   *mesh,
-                           cs_real_t         *p_i_face_cog[],
-                           cs_real_t         *p_i_face_normal[]);
+cs_mesh_quantities_compute_face_cog_sn(cs_lnum_t        n_faces,
+                                       const cs_real_t  vtx_coord[][3],
+                                       const cs_lnum_t  face_vtx_idx[],
+                                       const cs_lnum_t  face_vtx[],
+                                       cs_real_t        face_cog[][3],
+                                       cs_real_t        face_normal[][3]);
+
+/*----------------------------------------------------------------------------
+ * Compute center of gravity and unit normal associated to a set of faces
+ *
+ * parameters:
+ *   n_faces         <--  number of faces
+ *   vtx_coord       <--  vertex coordinates
+ *   face_vtx_idx    <--  "face -> vertices" connectivity index
+ *   face_vtx        <--  "face -> vertices" connectivity
+ *   face_cog        -->  coordinates of the center of gravity of the faces
+ *   face_u_normal   -->  face unit normals
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_quantities_compute_face_cog_un(cs_lnum_t        n_faces,
+                                       const cs_real_t  vtx_coord[][3],
+                                       const cs_lnum_t  face_vtx_idx[],
+                                       const cs_lnum_t  face_vtx[],
+                                       cs_real_t        face_cog[][3],
+                                       cs_nreal_t       face_u_normal[][3]);
 
 /*----------------------------------------------------------------------------
  * Compute border face centers and normals.
+ *
+ * Deprecated: use cs_mesh_quantities_compute_face_cog_sn or
+ * cs_mesh_quantities_compute_face_cog_un instead.
  *
  * The corresponding arrays are allocated by this function, and it is the
  * caller's responsibility to free them when they are no longer needed.
@@ -381,6 +431,10 @@ cs_mesh_quantities_i_faces(const cs_mesh_t   *mesh,
  *   p_b_face_normal <-> pointer to the border face normal array
  *----------------------------------------------------------------------------*/
 
+[[deprecated(
+"Use cs_mesh_quantities_compute_face_cog_sn or "
+"cs_mesh_quantities_compute_face_cog_un instead"
+)]]
 void
 cs_mesh_quantities_b_faces(const cs_mesh_t   *mesh,
                            cs_real_t         *p_b_face_cog[],
@@ -409,12 +463,12 @@ cs_mesh_quantities_b_faces(const cs_mesh_t   *mesh,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quantities_cell_faces_cog(const cs_mesh_t  *mesh,
-                                  const cs_real_t   i_face_norm[],
-                                  const cs_real_t   i_face_cog[],
-                                  const cs_real_t   b_face_norm[],
-                                  const cs_real_t   b_face_cog[],
-                                  cs_real_t         cell_cen[]);
+cs_mesh_quantities_cell_faces_cog(const cs_mesh_t    *mesh,
+                                  const cs_real_3_t   i_face_norm[],
+                                  const cs_real_3_t   i_face_cog[],
+                                  const cs_real_3_t   b_face_norm[],
+                                  const cs_real_3_t   b_face_cog[],
+                                  cs_real_3_t         cell_cen[]);
 
 /*----------------------------------------------------------------------------
  * Compute cell volumes.
@@ -441,10 +495,29 @@ cs_mesh_quantities_cell_volume(const cs_mesh_t  *mesh);
  *   allow_error     <-- 1 if errors are allowed, 0 otherwise
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_mesh_quantities_check_vol(const cs_mesh_t             *mesh,
                              const cs_mesh_quantities_t  *mesh_quantities,
                              int                          allow_error);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute the bounding box for cells.
+ *
+ * The corresponding array is allocated by this function, and it is the
+ * caller's responsability to free it when they are no longer needed.
+ *
+ * \param[in]   m          pointer to mesh structure
+ * \param[in]   tolerance  addition to local extents of each element:
+ *                         extent = base_extent * (1 + tolerance)
+ *
+ * \return  pointer to newly allocated cell volumes array
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_6_t *
+cs_mesh_quantities_cell_extents(const cs_mesh_t  *m,
+                                cs_real_t         tolerance);
 
 /*----------------------------------------------------------------------------
  * Return the number of times mesh quantities have been computed.
@@ -513,20 +586,5 @@ cs_mesh_quantities_dump(const cs_mesh_t             *mesh,
                         const cs_mesh_quantities_t  *mesh_quantities);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Tag disabled solid cells for fluid_solid mode.
- *
- * \param[in, out] m     pointer to a cs_mesh_t structure
- * \param[in, out] mq    pointer to a cs_mesh_quantities_t structure
- */
-/*----------------------------------------------------------------------------*/
 
-void
-cs_internal_coupling_tag_disable_cells(cs_mesh_t            *m,
-                                       cs_mesh_quantities_t *mq);
-
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_MESH_QUANTITIES_H__ */
+#endif /* CS_MESH_QUANTITIES_H */

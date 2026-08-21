@@ -1,14 +1,14 @@
-#ifndef __CS_PHYSICAL_CONSTANTS_H__
-#define __CS_PHYSICAL_CONSTANTS_H__
+#ifndef CS_PHYSICAL_CONSTANTS_H
+#define CS_PHYSICAL_CONSTANTS_H
 
 /*============================================================================
  * Base physical constants data.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,10 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -50,7 +50,7 @@ BEGIN_C_DECLS
 
 typedef struct {
 
-  cs_real_3_t   gravity;           /* gravity vector */
+  cs_real_t     gravity[3];        /* gravity vector in m.s^-2 */
   int           icorio;            /* Coriolis source terms indicator */
 
 } cs_physical_constants_t;
@@ -65,6 +65,8 @@ typedef struct {
   int           icp;          /* property index of the isobaric specific heat */
   int           icv;          /* property index of the isochoric specific
                                  heat */
+  int           iviscv;       /* property field id for volume viscosity
+                                 (for compressible model) */
   int           irovar;       /* variable density field */
   int           ivivar;       /* variable viscosity field */
   int           ivsuth;       /* Sutherland law for laminar viscosity and
@@ -77,15 +79,24 @@ typedef struct {
   double        pred0;        /* reference value for the reduced pressure */
   double        xyzp0[3];     /* reference point coordinates for the total
                                  pressure */
+  int           p0_face_id;   /* face id of the pressure reference */
+  int           p0_rank_id;   /* rank id of the pressure reference */
   double        t0;           /* reference temperature */
-  double        cp0;          /* reference specific heat */
-  double        cv0;          /* reference specific heat */
-  double        r_pg_cnst;    /* Perfect Gas R constant */
-  double        rvsra;        /* ratio gaz constant h2o/ dry air */
-  double        clatev;       /* latent heat of evaporation: */
+  double        cp0;          /* reference specific heat at constant pressure */
+  double        cv0;          /* reference specific heat at constant volume */
+  double        cpv0;         /* reference specific heat at constant volume
+                                 for water vapor */
+  double        cvl;          /* reference specific for liquid water */
+  double        l00;          /* Latent heat  */
+  double        lambda0;      /* reference heat conductivity */
+
+  double        r_pg_cnst;    /* perfect gas specific constant in J/kg/K */
+  double        r_v_cnst;     /* water vapor specific constant in J/kg/K */
+  double        rvsra;        /* ratio gas constant h2o / dry air */
+  double        clatev;       /* latent heat of evaporation */
   double        xmasmr;       /* molar mass of the perfect gas in kg/mol
                                  (if ieos=1) */
-  int           ipthrm;       /* Uniform variable thermodynamic pressure for the
+  int           ipthrm;       /* uniform variable thermodynamic pressure for the
                                  low-Mach algorithm */
   double        pther;        /* uniform thermodynamic pressure for the low-Mach
                                  algorithm */
@@ -93,8 +104,10 @@ typedef struct {
                                  step */
   double        pthermax;     /* thermodynamic maximum pressure for user
                                  clipping, used to model a venting effect */
-  double        sleak;        /* Leak surface */
-  double        kleak;        /* Leak head loss (2.9 by default, from Idelcick) */
+  double        eint0;        /* reference internal energy for the barotropic
+                                 compressible module. */
+  double        sleak;        /* leak surface */
+  double        kleak;        /* leak head loss (2.9 by default, from Idelcick) */
   double        roref;        /* Initial reference density */
 
 } cs_fluid_properties_t;
@@ -105,12 +118,32 @@ typedef struct {
 
 /* Physical constants */
 
+#if  (defined(__NVCC__) && defined(__CUDA_ARCH__)) \
+  || (defined(__HIPCC__) && defined(__HIP_DEVICE_COMPILE__)) \
+  || defined(SYCL_LANGUAGE_VERSION) \
+  || defined(HAVE_OPENMP_TARGET)
+
+/* On GPU, global variables are usually not accessible. */
+
+#define cs_physical_constants_r 8.31446261815324
+#define cs_physical_constants_kb 1.380649e-23
+#define cs_physical_constants_celsius_to_kelvin 273.15
+#define cs_physical_constants_stephan 5.6703e-8
+#define cs_physical_constants_avogadro 6.02214076e23
+
+#else
+
+/* General constants accessible on CPU */
+
 extern const double cs_physical_constants_r; /* Ideal gas constant (J/mol/K) */
 extern const double cs_physical_constants_kb; /* Boltzmann constant (J/K) */
 extern const double cs_physical_constants_celsius_to_kelvin; /* Celsius to
                                                                 Kelvin*/
 extern const double cs_physical_constants_stephan; /* Stephan constant
                                                      (W/m2/K4)*/
+extern const double cs_physical_constants_avogadro; /* Avogadro constant
+                                                       (1/mol) */
+#endif
 
 /* Pointer to main physical constants structure */
 
@@ -160,4 +193,4 @@ cs_fluid_properties_log_setup(void);
 
 END_C_DECLS
 
-#endif /* __CS_PHYSICAL_CONSTANTS_H__ */
+#endif /* CS_PHYSICAL_CONSTANTS_H */

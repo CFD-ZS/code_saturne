@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_CLOGGING_H__
-#define __CS_LAGR_CLOGGING_H__
+#ifndef CS_LAGR_CLOGGING_H
+#define CS_LAGR_CLOGGING_H
 
 /*============================================================================
  * Clogging modeling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_lagr_particle.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "lagr/cs_lagr_particle.h"
 
 /*============================================================================
  * Type definitions
@@ -73,19 +69,18 @@ typedef struct {
  *----------------------------------------------------------------------------*/
 
 void
-cloginit(const cs_real_t   *water_permit,
-         const cs_real_t   *ionic_strength,
-         const cs_real_t   *jamming_limit,
-         const cs_real_t   *min_porosity,
-         const cs_real_t   *diam_mean,
-         const cs_real_t    temperature[],
-         const cs_real_t   *valen,
-         const cs_real_t   *phi_p,
-         const cs_real_t   *phi_s,
-         const cs_real_t   *cstham,
-         const cs_real_t   *csthpp,
-         const cs_real_t   *lambda_vdw
-         );
+cs_lagr_clogging_initialize(const cs_real_t   *water_permit,
+                            const cs_real_t   *ionic_strength,
+                            const cs_real_t   *jamming_limit,
+                            const cs_real_t   *min_porosity,
+                            const cs_real_t   *diam_mean,
+                            const cs_real_t    temperature[],
+                            const cs_real_t   *valen,
+                            const cs_real_t   *phi_p,
+                            const cs_real_t   *phi_s,
+                            const cs_real_t   *cstham,
+                            const cs_real_t   *csthpp,
+                            const cs_real_t   *lambda_vdw);
 
 /*----------------------------------------------------------------------------
  * Clogging finalization.
@@ -96,6 +91,12 @@ cloginit(const cs_real_t   *water_permit,
 void
 cs_lagr_clogging_finalize(void);
 
+/*=============================================================================
+ * C++ Function definitions
+ *============================================================================*/
+
+#if defined(__cplusplus)
+
 /*----------------------------------------------------------------------------
  * Clogging:
  *
@@ -104,9 +105,9 @@ cs_lagr_clogging_finalize(void);
  * - Re-compute the energy barrier if this number is greater than zero
  *
  * parameters:
- *   particle         <-- pointer to particle data
- *   attr_map         <-- pointer to attribute map
- *   iel              <-- id of cell where the particle is
+ *   p_set            <-- reference to particle set
+ *   p_id             <-- particle id
+ *   c_id             <-- id of cell where the particle is
  *   face_area        <-- area of face
  *   energy_barrier   <-> energy barrier
  *   surface_coverage <-> surface coverage
@@ -116,19 +117,18 @@ cs_lagr_clogging_finalize(void);
  * returns:
  *   number of deposited particles in contact with the depositing particle
  *----------------------------------------------------------------------------*/
-
 int
-cs_lagr_clogging_barrier(const void                     *particle,
-                         const cs_lagr_attribute_map_t  *attr_map,
-                         cs_lnum_t                       iel,
+cs_lagr_clogging_barrier(cs_lagr_particle_set_t         &p_set,
+                         cs_lnum_t                       p_id,
+                         cs_lnum_t                       c_id,
                          cs_real_t                      *energy_barrier,
                          cs_real_t                      *surface_coverage,
                          cs_real_t                      *limit,
                          cs_real_t                      *mporos);
 
+#endif /* __cplusplus */
+
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_CLOGGING_H__ */
+#endif /* CS_LAGR_CLOGGING_H */
 

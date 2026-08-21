@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_BOUNDARY_CONDITION_H__
-#define __CS_GUI_BOUNDARY_CONDITION_H__
+#ifndef CS_GUI_BOUNDARY_CONDITION_H
+#define CS_GUI_BOUNDARY_CONDITION_H
 
 /*============================================================================
  * Management of the GUI parameters file: boundary conditions
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,94 +31,57 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_boundary.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_boundary.h"
+#include "base/cs_zone.h"
 
 /*============================================================================
  * Type definitions
  *============================================================================*/
 
+/*! Arguments passed by context pointer to cs_meg_* functions */
+
+typedef struct {
+
+  const  cs_zone_t    *zone;        /*<! Pointer to zone */
+
+  const  char         *name;        /*<! Pointer to field or array name */
+  const  char         *condition;   /*<! Pointer to condition name type */
+
+  int                  dim;         /*<! Values dimension */
+
+} cs_gui_boundary_meg_context_t;
+
 /*============================================================================
  * Static global variables
  *============================================================================*/
-
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Boundary conditions treatment
- *
- * Remember: rdoccl[k][j][i] = rcodcl[ k * dim1 *dim2 + j *dim1 + i]
- *
- * Fortran Interface:
- *
- * subroutine uiclim
- * *****************
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uiclim, UICLIM)(const int  *idarcy,
-                               const int  *nozppm,
-                               const int  *ncharm,
-                               const int  *ncharb,
-                               const int  *nclpch,
-                               int        *iqimp,
-                               int        *icalke,
-                               int        *ientat,
-                               int        *ientcp,
-                               int        *inmoxy,
-                               int        *ientox,
-                               int        *ientfu,
-                               int        *ientgf,
-                               int        *ientgb,
-                               int        *iprofm,
-                               int        *iautom,
-                               int        *itypfb,
-                               int        *izfppp,
-                               int        *icodcl,
-                               double     *qimp,
-                               double     *qimpat,
-                               double     *qimpcp,
-                               double     *dh,
-                               double     *xintur,
-                               double     *timpat,
-                               double     *timpcp,
-                               double     *tkent,
-                               double     *fment,
-                               double     *distch,
-                               int        *nvar,
-                               double     *rcodcl);
-
-/*----------------------------------------------------------------------------
- * Boundary conditions input verification
- *
- * Fortran Interface:
- *
- * SUBROUTINE UICLVE
- * *****************
- *
- * integer          nozppm  <-- max number of boundary conditions zone
- * integer          itypfb  <-- type of boundary for each face
- * integer          izfppp  <-- zone number
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uiclve, UICLVE)(const int  *nozppm,
-                               int        *itypfb,
-                               int        *izfppp);
 
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
 
+/*----------------------------------------------------------------------------
+ * Boundary conditions treatment
+ *
+ * \param[in, out] itypfb   <-- type of boundary for each face
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_boundary_conditions_processing(int  *itypfb);
+
+/*----------------------------------------------------------------------------
+ * Boundary conditions input verification
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_boundary_conditions_verify(void);
+
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Define boundary conditions based on setup file.
  *
- * \param[in, out]  bdy   main boundaries structure to update
+ * \param[in, out]  bdy   boundaries structure to update
+ *                        (if NULL, default to cs_glob_domain->boundaries)
  */
 /*----------------------------------------------------------------------------*/
 
@@ -135,7 +98,49 @@ void
 cs_gui_boundary_conditions_free_memory(void);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Add new MEG-based cs_dof_func_t context info.
+ *
+ * \param[in]  zone       pointer to associated zone
+ * \param[in]  name       name of associated field or array
+ * \param[in]  condition  associated condition type
+ * \param[in]  dim        associated dimension
+ *
+ * \return: pointer to cs_dof_func_t context info
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+cs_gui_boundary_meg_context_t *
+cs_gui_boundary_add_meg_context(const  cs_zone_t   *zone,
+                                const  char        *name,
+                                const  char        *condition,
+                                int                 dim);
 
-#endif /* __CS_GUI_BOUNDARY_CONDITION_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief cs_dof_func_t function to compute a boundary profiles
+ *        using a MEG generated function.
+ *
+ * For the calling function, elt_ids is optional. If non-null, array(s) should
+ * be accessed with an indirection. The same indirection can be applied to fill
+ * retval if dense_output is set to false.
+ * In the current case, retval is allocated to mesh->n_b_faces
+ *
+ * \param[in]      n_elts        number of elements to consider
+ * \param[in]      elt_ids       list of elements ids
+ * \param[in]      dense_output  perform an indirection in retval or not
+ * \param[in]      input         NULL or pointer to a structure cast on-the-fly
+ * \param[in, out] retval        resulting value(s). Must be allocated.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_gui_boundary_conditions_dof_func_meg(cs_lnum_t         n_elts,
+                                        const cs_lnum_t  *elt_ids,
+                                        bool              dense_output,
+                                        void             *input,
+                                        cs_real_t        *retval);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_GUI_BOUNDARY_CONDITION_H */

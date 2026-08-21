@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,97 +32,74 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/cdo \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
-
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/alge \
-$(FCMODINCLUDE)$(top_builddir)/src/base \
-$(FCMODINCLUDE)$(top_builddir)/src/atmo \
-$(FCMODINCLUDE)$(top_builddir)/src/cfbl \
-$(FCMODINCLUDE)$(top_builddir)/src/cogz \
-$(FCMODINCLUDE)$(top_builddir)/src/comb \
-$(FCMODINCLUDE)$(top_builddir)/src/ctwr \
-$(FCMODINCLUDE)$(top_builddir)/src/elec \
-$(FCMODINCLUDE)$(top_builddir)/src/lagr \
-$(FCMODINCLUDE)$(top_builddir)/src/pprt \
-$(FCMODINCLUDE)$(top_builddir)/src/rayt \
-$(FCMODINCLUDE)$(top_builddir)/src/turb \
-$(FCMODINCLUDE)$(top_builddir)/src/user \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT) $(CFLAGS_SHARED)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+csturb_includedir=$(pkgincludedir)/turb
+csturb_include_HEADERS = \
+cs_turbulence_rotation.h \
+cs_les_balance.h \
 cs_les_filter.h \
 cs_les_inflow.h \
-cs_les_balance.h \
+cs_les_mu_t.h \
 cs_turbulence_bc.h \
-cs_turbulence_model.h
+cs_turbulence_inflow.h \
+cs_turbulence_init.h \
+cs_turbulence_ke.h \
+cs_turbulence_kw.h \
+cs_turbulence_ml.h \
+cs_turbulence_model.h \
+cs_turbulence_rij.h \
+cs_turbulence_rit.h \
+cs_turbulence_sa.h \
+cs_turbulence_v2f.h \
+cs_turbulence_htles.h \
+cs_turbulence_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcsturb.la
+noinst_LIBRARIES = libcsturb.a
 
-libcsturb_la_SOURCES = \
-cs_les_filter.c \
-cs_les_inflow.c \
-cs_les_balance.c \
-cs_turbulence_bc.c \
-cs_turbulence_model.c \
-clipke.f90 \
-clipsa.f90 \
-clpalp.f90 \
-clprij.f90 \
-clpv2f.f90 \
-cnlevm.f90 \
-divrit.f90 \
-resalp.f90 \
-reseps.f90 \
-resrij.f90 \
-resrij2.f90 \
-resrit.f90 \
-resssg.f90 \
-resssg2.f90 \
-resv2f.f90 \
-rijech.f90 \
-rijthe.f90 \
-rijthe2.f90 \
-rotcor.f90 \
-tsepls.f90 \
-turbke.f90 \
-turbkw.f90 \
-turbsa.f90 \
-turrij.f90 \
-visdyn.f90 \
-vislmg.f90 \
-visqke.f90 \
-vissma.f90 \
-vissst.f90 \
-visv2f.f90 \
-viswal.f90 \
-vor2cl.f90 \
-vordep.f90 \
-vorimp.f90 \
-vorin0.f90 \
-vorini.f90 \
-vorlgv.f90 \
-vorpre.f90 \
-vortex.f90 \
-vorver.f90 \
-vorvit.f90
-libcsturb_la_LDFLAGS = -no-undefined
+libcsturb_a_SOURCES = \
+cs_les_balance.cpp \
+cs_les_filter.cpp \
+cs_les_inflow.cpp \
+cs_les_mu_t.cpp \
+cs_turbulence_bc.cpp \
+cs_turbulence_inflow.cpp \
+cs_turbulence_init.cpp \
+cs_turbulence_ke.cpp \
+cs_turbulence_kw.cpp \
+cs_turbulence_ml.cpp \
+cs_turbulence_model.cpp \
+cs_turbulence_rij.cpp \
+cs_turbulence_rit.cpp \
+cs_turbulence_rotation.cpp \
+cs_turbulence_sa.cpp \
+cs_turbulence_v2f.cpp \
+cs_turbulence_htles.cpp
+
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
 
 clean-local:
-	-rm -f *__genmod.f90 *__genmod.mod
+	-rm -rf .deps

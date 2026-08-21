@@ -1,14 +1,14 @@
-#ifndef __CS_DOMAIN_SETUP_H__
-#define __CS_DOMAIN_SETUP_H__
+#ifndef CS_DOMAIN_SETUP_H
+#define CS_DOMAIN_SETUP_H
 
 /*============================================================================
  * Manage the definition/setting of a computation
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,21 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_advection_field.h"
-#include "cs_domain.h"
-#include "cs_equation.h"
-#include "cs_gwf.h"
-#include "cs_param.h"
-#include "cs_property.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_param_types.h"
+#include "cdo/cs_domain.h"
 
 /*============================================================================
  * Macro definitions
@@ -59,24 +51,6 @@ BEGIN_C_DECLS
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Set to true the automatic update of all advection fields
- * \brief  Set auxiliary parameters related to the way output is done
- *
- * \param[in, out]  domain       pointer to a cs_domain_t structure
- * \param[in]       nt_interval  frequency for the restart process
- * \param[in]       nt_list      output frequency into the log
- * \param[in]       verbosity    level of information displayed
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_domain_set_output_param(cs_domain_t       *domain,
-                           int                nt_interval,
-                           int                nt_list,
-                           int                verbosity);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -109,81 +83,94 @@ cs_domain_automatic_time_step_settings(cs_domain_t       *domain);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Define the value of the time step thanks to a predefined function
+ * \brief Define the value of the time step thanks to a predefined function
  *
  * \param[in, out] domain      pointer to a cs_domain_t structure
  * \param[in]      func        pointer to a cs_time_func_t function
  * \param[in]      func_input  pointer to a structure cast on-the-fly
+ *
+ * \return a pointer to the created definition (\ref cs_xdef_t structure)
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_domain_def_time_step_by_function(cs_domain_t        *domain,
-                                    cs_time_func_t     *func,
-                                    void               *func_input);
+cs_xdef_t *
+cs_domain_def_time_step_by_function(cs_domain_t    *domain,
+                                    cs_time_func_t *func,
+                                    void           *func_input);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Define the value of the time step.
+ * \brief Define the value of the time step.
  *
- * \param[in, out]   domain    pointer to a cs_domain_t structure
- * \param[in]        dt        value of the constant time step
+ * \param[in, out] domain  pointer to a cs_domain_t structure
+ * \param[in]      dt      value of the constant time step
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_domain_def_time_step_by_value(cs_domain_t   *domain,
-                                 double         dt);
+cs_domain_def_time_step_by_value(cs_domain_t *domain,
+                                 double       dt);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  First setup stage of the cs_domain_t structure
- *         Define extra domain boundaries
- *         Setup predefined equations
- *         Create fields
- *         Define cs_sles_t structures for variable fields
+ * \brief After having read the mesh and the first setup stage build the
+ *        connectivities and mesh quantities related to CDO/HHO schemes
  *
- * \param[in, out]  domain            pointer to a cs_domain_t struct.
+ * \param[in, out] domain  pointer to a cs_domain_t struct.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_domain_initialize_setup(cs_domain_t                 *domain);
+cs_domain_setup_init_cdo_structures(cs_domain_t *domain);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  After having read the mesh and the first setup stage build the
- *         connectivities and mesh quantities related to CDO/HHO schemes
+ * \brief First setup stage of the cs_domain_t structure
+ *        Define extra domain boundaries
+ *        Setup predefined equations
+ *        Create fields (already done in the FV part)
+ *        Define cs_sles_t structures for variable fields
  *
- * \param[in, out]  domain            pointer to a cs_domain_t struct.
+ * \param[in, out] domain  pointer to a cs_domain_t struct.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_domain_init_cdo_structures(cs_domain_t              *domain);
+cs_domain_setup_initialize(cs_domain_t *domain);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Last setup stage of the cs_domain_t structure
+ * \brief Last GUI and then user setup stage of the cs_domain_t structure
  *
- * \param[in, out]  domain            pointer to a cs_domain_t struct.
+ * \param[in, out] domain  pointer to a cs_domain_t struct.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_domain_finalize_setup(cs_domain_t         *domain);
+cs_domain_setup_finalize(cs_domain_t  *domain);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Initialize systems of equations and their related field values
- *         according to the user settings
+ * \brief Last user setup stage of the cs_domain_t structure
  *
- * \param[in, out]  domain     pointer to a cs_domain_t structure
+ * \param[in, out] domain  pointer to a cs_domain_t struct.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_domain_initialize_systems(cs_domain_t   *domain);
+cs_domain_setup_finalize_module(cs_domain_t *domain);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Initialize systems of equations and their related field/properties
+ *        values according to the user settings
+ *
+ * \param[in, out] domain  pointer to a cs_domain_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_domain_setup_init_state(cs_domain_t *domain);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -196,8 +183,4 @@ cs_domain_initialize_systems(cs_domain_t   *domain);
 void
 cs_domain_setup_log(const cs_domain_t   *domain);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_DOMAIN_SETUP_H__ */
+#endif /* CS_DOMAIN_SETUP_H */

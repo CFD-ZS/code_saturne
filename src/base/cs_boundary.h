@@ -1,14 +1,14 @@
-#ifndef __CS_BOUNDARY_H__
-#define __CS_BOUNDARY_H__
+#ifndef CS_BOUNDARY_H
+#define CS_BOUNDARY_H
 
 /*============================================================================
  * Handle the boundaries of a computational domain
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,20 +26,20 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
+
+/* Rescaling or not of the pressure */
+#define CS_BOUNDARY_PRESSURE_NO_RESCALING   1
+#define CS_BOUNDARY_PRESSURE_RESCALING      0
 
 /* Name of the boundary zone gathering all domain boundary walls */
 #define CS_BOUNDARY_WALLS_NAME   "auto:wall"
@@ -112,10 +112,10 @@ typedef enum {
   CS_BOUNDARY_INLET_SUBSONIC_PH   = 1<<11,
 
   /*! compressible subsonic */
-  CS_BOUNDARY_SUBSONIC             = 1<<12,
+  CS_BOUNDARY_SUBSONIC            = 1<<12,
 
   /*! compressible supersonic */
-  CS_BOUNDARY_SUPERSONIC           = 1<<13,
+  CS_BOUNDARY_SUPERSONIC          = 1<<13,
 
   /*! free surface */
   CS_BOUNDARY_FREE_SURFACE        = 1<<14,
@@ -124,7 +124,10 @@ typedef enum {
   CS_BOUNDARY_COUPLED             = 1<<15,
 
   /*! coupled with decentered flux */
-  CS_BOUNDARY_COUPLED_DF          = 1<<16
+  CS_BOUNDARY_COUPLED_DF          = 1<<16,
+
+  /* mapped */
+  CS_BOUNDARY_MAPPED              = 1<<17
 
 } cs_boundary_flow_subtype_bits_t;
 
@@ -171,7 +174,7 @@ extern cs_boundary_t  *cs_glob_boundaries; /* Pointer to the shared boundaries
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Check if a boundary with a given flag is present.
  *
  * \param[in]  boundaries   pointer to a cs_boundary_t structure
@@ -186,7 +189,7 @@ cs_boundary_has_type(const cs_boundary_t  *boundaries,
                      int                   type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief   Retrieve the related id associated to a boundary from its zone id
  *
  * \param[in] boundaries       pointer to a cs_boundary_t structure
@@ -201,7 +204,7 @@ cs_boundary_id_by_zone_id(const cs_boundary_t  *boundaries,
                           int                   z_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Set the default boundary related to the given \ref cs_boundary_t
  *         structure
  *
@@ -215,7 +218,7 @@ cs_boundary_set_default(cs_boundary_t        *boundaries,
                         cs_boundary_type_t    type);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Create a default boundary structure for the computational domain
  *
  * \param[in]  category       default type of boundary to set
@@ -230,7 +233,7 @@ cs_boundary_create(cs_boundary_category_t  category,
                    cs_boundary_type_t      default_type);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Free all metadate related to the domain boundaries
  *
  * \param[in, out]   p_boundaries   pointer to the structure to free
@@ -241,7 +244,7 @@ void
 cs_boundary_free(cs_boundary_t   **p_boundaries);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Add a new boundary type for a given boundary zone
  *
  * \param[in, out] bdy          pointer to a structure storing boundary info
@@ -256,7 +259,7 @@ cs_boundary_add(cs_boundary_t        *bdy,
                 const char           *zone_name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Build an array on boundary faces which specifies the boundary type
  *         for each face.
  *
@@ -272,7 +275,7 @@ cs_boundary_build_type_array(const cs_boundary_t   *boundaries,
                              cs_boundary_type_t     bf_type[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Add a new zone gathering all CS_BOUNDARY_WALL type zones
  *
  * \param[in, out]  boundaries    pointer to the domain boundaries
@@ -283,13 +286,13 @@ void
 cs_boundary_def_wall_zones(cs_boundary_t   *boundaries);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Check if one needs to perform a pressure rescaling (in case of a
  *         Dirichlet on the velocity for the whole boundary)
  *         Use in CDO schemes for Navier--Stokes
  *
  * \param[in] n_b_faces    number of border faces
- * \param[in] bf_type      array of types of boundary for each boudary face
+ * \param[in] bf_type      array of types of boundary for each boundary face
  *
  * \return 1 if a pressure rescaling is needed otherwise 0
  */
@@ -300,9 +303,10 @@ cs_boundary_need_pressure_rescaling(cs_lnum_t                  n_b_faces,
                                     const cs_boundary_type_t   bf_type[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Build a boundary type description
  *
+ * \param[in]   bdy            pointer to a structure storing boundary info
  * \param[in]   b_type         type flag
  * \param[in]   descr_len_max  maximum name length
  * \param[out]  descr          subtype name
@@ -316,7 +320,7 @@ cs_boundary_get_type_descr(const cs_boundary_t  *bdy,
                            char                  descr[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Summarize the setup of the boundary of the computational domain
  *
  * \param[in] bdy          pointer to a structure storing boundary info
@@ -328,6 +332,4 @@ cs_boundary_log_setup(const cs_boundary_t     *bdy);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BOUNDARY_H__ */
+#endif /* CS_BOUNDARY_H */

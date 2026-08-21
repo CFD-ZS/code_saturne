@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_DEPOSITION_MODEL_H__
-#define __CS_LAGR_DEPOSITION_MODEL_H__
+#ifndef CS_LAGR_DEPOSITION_MODEL_H
+#define CS_LAGR_DEPOSITION_MODEL_H
 
 /*============================================================================
  * Functions and types for the Lagrangian module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,9 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Type definitions
@@ -66,7 +64,7 @@ enum {
 /*----------------------------------------------------------------------------
  * Deposition submodel:
  *   1/ Parameter initialization
- *   2/ Call of the different subroutines with respect to the marko indicator
+ *   2/ Call of the different functions with respect to the marko indicator
  *
  * parameters:
  *   marko     <->    state of the jump process
@@ -112,6 +110,4 @@ cs_lagr_deposition(cs_real_t  dtp,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_DEPOSITION_MODEL_H__ */
+#endif /* CS_LAGR_DEPOSITION_MODEL_H */

@@ -1,14 +1,14 @@
-#ifndef __FVM_TRIANGULATE_H__
-#define __FVM_TRIANGULATE_H__
+#ifndef FVM_TRIANGULATE_H
+#define FVM_TRIANGULATE_H
 
 /*============================================================================
  * Triangulation of a polygon
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -94,7 +90,7 @@ fvm_triangulate_state_create(const int  n_vertices_max);
  *   this_state  <-> pointer to structure that should be destroyed.
  *
  * returns:
- *   NULL pointer.
+ *   null pointer.
  *----------------------------------------------------------------------------*/
 
 fvm_triangulate_state_t *
@@ -112,8 +108,8 @@ fvm_triangulate_state_destroy(fvm_triangulate_state_t  *this_state);
  *   base              <-- base numbering (usually 0 or 1)
  *   n_vertices        <-- number of vertices defining the polygon.
  *   coords            <-- coordinates of the triangulation's vertices.
- *   parent_vertex_num <-- optional indirection to vertex coordinates
- *                         (base to n-base).
+ *   parent_vertex_id  <-- optional indirection to vertex coordinates
+ *                         (0 to n-1).
  *   polygon_vertices  <-- polygon connectivity; size: n_vertices or empty.
  *   mode              <-- triangles connectivity by vertex number or
  *                         polygon vertex index.
@@ -130,7 +126,7 @@ fvm_triangulate_polygon(int                             dim,
                         int                             base,
                         int                             n_vertices,
                         const cs_coord_t                coords[],
-                        const cs_lnum_t                 parent_vertex_num[],
+                        const cs_lnum_t                 parent_vertex_id[],
                         const cs_lnum_t                 polygon_vertices[],
                         fvm_triangulate_def_t           mode,
                         cs_lnum_t                       triangle_vertices[],
@@ -150,8 +146,8 @@ fvm_triangulate_polygon(int                             dim,
  *   dim                  <-- spatial dimension (2 or 3).
  *   base                 <-- base numbering (usually 0 or 1)
  *   coords               <-- coordinates of the triangulation's vertices.
- *   parent_vertex_num    <-- optional indirection to vertex coordinates
- *                            (base to n-base numbering).
+ *   parent_vertex_id     <-- optional indirection to vertex coordinates
+ *                            (0 to n-1).
  *   quadrangle_vertices  <-- polygon connectivity; size: n_vertices or empty.
  *   triangle_vertices    --> triangles connectivity; size: 2 * 3.
  *
@@ -163,12 +159,10 @@ int
 fvm_triangulate_quadrangle(int               dim,
                            int               base,
                            const cs_coord_t  coords[],
-                           const cs_lnum_t   parent_vertex_num[],
+                           const cs_lnum_t   parent_vertex_id[],
                            const cs_lnum_t   quadrangle_vertices[],
                            cs_lnum_t         triangle_vertices[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_TRIANGULATE_H__ */
+#endif /* FVM_TRIANGULATE_H */

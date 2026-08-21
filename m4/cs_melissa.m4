@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,8 @@ AC_DEFUN([CS_AC_TEST_MELISSA], [
 
 cs_have_melissa=no
 cs_have_melissa_mpi=no
+cs_have_melissa_mpi_07=no
+cs_have_melissa_no_mpi=no
 cs_have_plugin_melissa=yes
 
 # ZeroMQ paths
@@ -49,13 +51,13 @@ AC_ARG_WITH(zeromq-lib,
                with_zeromq=yes
              fi
              ZEROMQ_LDFLAGS="-L$with_zeromq_lib"
-             # Add the libdir to the runpath as ZeroMQ is not libtoolized
-             ZEROMQRUNPATH="-R$with_zeromq_lib"],
+             # Add the libdir to the runpath
+             ZEROMQRUNPATH="${LDRPATH}${with_zeromq_lib}"],
             [if test "x$with_zeromq" != "xno" -a "x$with_zeromq" != "xyes" \
 	          -a "x$with_zeromq" != "xcheck"; then
                ZEROMQ_LDFLAGS="-L$with_zeromq/lib"
-               # Add the libdir to the runpath as zeromq is not libtoolized
-               ZEROMQRUNPATH="-R$with_zeromq/lib"
+               # Add the libdir to the runpath
+               ZEROMQRUNPATH="${LDRPATH}${with_zeromq}/lib"
              fi])
 
 # Configure options for Melissa paths
@@ -88,13 +90,13 @@ AC_ARG_WITH(melissa-lib,
                with_melissa=yes
              fi
              MELISSA_LDFLAGS="-L$with_melissa_lib"
-             # Add the libdir to the runpath as melissa is not libtoolized
-             MELISSARUNPATH="-R$with_melissa_lib"],
+             # Add the libdir to the runpath
+             MELISSARUNPATH="${LDRPATH}${with_melissa_lib}"],
             [if test "x$with_melissa" != "xno" -a "x$with_melissa" != "xyes" \
 	          -a "x$with_melissa" != "xcheck"; then
                MELISSA_LDFLAGS="-L$with_melissa/lib"
-               # Add the libdir to the runpath as melissa is not libtoolized
-               MELISSARUNPATH="-R$with_melissa/lib"
+               # Add the libdir to the runpath
+               MELISSARUNPATH="${LDRPATH}${with_melissa}/lib"
              fi])
 
 AC_ARG_ENABLE(melissa-as-plugin,
@@ -122,46 +124,82 @@ if test "x$with_zeromq" != "xno" -a "x$with_melissa" != "xno"; then
   saved_LDFLAGS="$LDFLAGS"
   saved_LIBS="$LIBS"
 
-  MELISSA_LIBS="-lmelissa_api -lzmq"
   MELISSA_LDFLAGS="${MELISSA_LDFLAGS} ${ZEROMQ_LDFLAGS}"
 
   if test "x$cs_have_mpi" != "xno"; then
 
     AC_MSG_CHECKING([for Melissa library (with MPI)])
 
-    CPPFLAGS="${CPPFLAGS} ${MELISSA_CPPFLAGS} ${MPI_CPPFLAGS}"
-    LDFLAGS="${LDFLAGS} ${MELISSA_LDFLAGS} ${MPI_LDFLAGS}"
-    LIBS="${MELISSA_LIBS} ${MPI_LIBS} ${LIBS}"
+    cs_melissa_l0="-lmelissa_messages -lzmq"
+    cs_melissa_l1="-lzmq"
 
-    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+    for melissa_ladd in "$cs_melissa_l0" "$cs_melissa_l1"
+    do
+      if test "x$cs_have_melissa_mpi" = "xno"; then
+
+        MELISSA_LIBS="-lmelissa_api ${melissa_ladd}"
+        CPPFLAGS="${CPPFLAGS} ${MELISSA_CPPFLAGS} ${MPI_CPPFLAGS}"
+        LDFLAGS="${LDFLAGS} ${MELISSA_LDFLAGS} ${MPI_LDFLAGS}"
+        LIBS="${MELISSA_LIBS} ${MPI_LIBS} ${saved_LIBS}"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[#include <mpi.h>
 #include <melissa_api.h>]],
 [[(void)melissa_init("name", 1, MPI_COMM_SELF); ]])],
                    [cs_have_melissa_mpi=yes],
                    [cs_have_melissa_mpi=no])
 
+      fi
+    done
+
+    # Test for version 0.7, if not found
+    if test "x$cs_have_melissa_mpi" = "xno"; then
+
+      MELISSA_LIBS="-lmelissa -lzmq"
+      CPPFLAGS="${CPPFLAGS} ${MELISSA_CPPFLAGS} ${MPI_CPPFLAGS}"
+      LDFLAGS="${LDFLAGS} ${MELISSA_LDFLAGS} ${MPI_LDFLAGS}"
+      LIBS="${MELISSA_LIBS} ${MPI_LIBS} ${saved_LIBS}"
+
+      AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[#include <mpi.h>
+#include <melissa/api.h>]],
+[[(void)melissa_init("name", 1, MPI_COMM_SELF); ]])],
+                   [cs_have_melissa_mpi_07=yes],
+                   [cs_have_melissa_mpi_07=no])
+
+    fi
+
   fi
 
   if test "x$cs_have_melissa_mpi" = "xyes"; then
     cs_have_melissa=yes
+    cs_have_melissa_no_mpi=yes
+  elif test "x$cs_have_melissa_mpi_07" = "xyes"; then
+    cs_have_melissa=yes
+    cs_have_melissa_mpi=yes
   fi
 
-  if test "x$cs_have_melissa" = "xno"; then
+  if test "x$cs_have_melissa_no_mpi" = "xno"; then
 
-    AC_MSG_CHECKING([for Melissa library])
+    AC_MSG_CHECKING([for Melissa library without MPI])
 
     CPPFLAGS="${saved_CPPFLAGS} ${MELISSA_CPPFLAGS}"
     LDFLAGS="${saved_LDFLAGS} ${MELISSA_LDFLAGS}"
+
+    if test "x$cs_have_melissa_mpi" = "xno"; then
+      MELISSA_LIBS="-lmelissa_api -lzmq"
+    fi
+
     LIBS="${MELISSA_LIBS} ${_saved_LIBS}"
-
-    LDFLAGS="${LDFLAGS} ${MELISSA_LDFLAGS}"
-    LIBS="${MELISSA_LIBS} ${LIBS}"
-
     AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[#include <melissa_api_no_mpi.h>]],
 [[(void)melissa_init_no_mpi("name", 1); ]])],
-                   [cs_have_melissa=yes],
-                   [cs_have_melissa=no])
+                   [cs_have_melissa_no_mpi=yes],
+                   [cs_have_melissa_no_mpi=no])
+
+    if test "x$cs_have_melissa_no_mpi" = "xyes"; then
+      cs_have_melissa = yes
+    fi
 
   fi
 
@@ -172,6 +210,12 @@ if test "x$with_zeromq" != "xno" -a "x$with_melissa" != "xno"; then
     AC_DEFINE([HAVE_MELISSA], 1, [Melissa co-processing support])
     if test "x$cs_have_melissa_mpi" = "xyes" ; then
       AC_DEFINE([HAVE_MELISSA_MPI], 1, [Melissa co-processing support with MPI])
+    fi
+    if test "x$cs_have_melissa_mpi_07" = "xyes" ; then
+      AC_DEFINE([HAVE_MELISSA_MPI_07], 1, [Melissa 0.7 co-processing support with MPI])
+    fi
+    if test "x$cs_have_melissa_no_mpi" = "xyes" ; then
+      AC_DEFINE([HAVE_MELISSA_NO_MPI], 1, [Melissa co-processing support without MPI])
     fi
     if test x$cs_have_plugin_melissa = xyes ; then
       AC_DEFINE([HAVE_PLUGIN_MELISSA], 1, [Melissa co-processing support as plugin])

@@ -1,14 +1,14 @@
-#ifndef __BFT_BACKTRACE_H__
-#define __BFT_BACKTRACE_H__
+#ifndef BFT_BACKTRACE_H
+#define BFT_BACKTRACE_H
 
 /*============================================================================
  * Obtaining a stack backtrace
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,10 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
@@ -77,7 +77,7 @@ bft_backtrace_create(void);
  *   bt: <-> pointer to backtrace description structure.
  *
  * returns:
- *   NULL pointer.
+ *   null pointer.
  */
 
 bft_backtrace_t *
@@ -186,4 +186,4 @@ bft_backtrace_print_set(bft_backtrace_print_t  *const fct);
 
 END_C_DECLS
 
-#endif /* __BFT_BACKTRACE_H__ */
+#endif /* BFT_BACKTRACE_H */

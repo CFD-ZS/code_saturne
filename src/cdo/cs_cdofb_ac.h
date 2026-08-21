@@ -1,5 +1,5 @@
-#ifndef __CS_CDOFB_AC_H__
-#define __CS_CDOFB_AC_H__
+#ifndef CS_CDOFB_AC_H
+#define CS_CDOFB_AC_H
 
 /*============================================================================
  * Build an algebraic CDO face-based system for the Navier-Stokes equations
@@ -7,9 +7,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,29 +28,27 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_cdo_connect.h"
-#include "cs_cdo_quantities.h"
-#include "cs_equation.h"
-#include "cs_mesh.h"
-#include "cs_navsto_coupling.h"
-#include "cs_navsto_param.h"
-#include "cs_source_term.h"
-#include "cs_time_step.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_cdofb_navsto.h"
+#include "cdo/cs_equation.h"
+#include "cdo/cs_navsto_context.h"
+#include "cdo/cs_navsto_coupling.h"
+#include "cdo/cs_navsto_param.h"
+#include "cdo/cs_source_term.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -60,6 +58,33 @@ BEGIN_C_DECLS
  * Type definitions
  *============================================================================*/
 
+/*! \struct cs_cdofb_ac_t
+ *  \brief Context related to CDO face-based discretization when dealing with
+ *         the Navier-Stokes equations with an Artificial compressibility
+ *         algorithm
+ */
+
+struct cs_cdofb_ac_t : public cs::cdo_navsto_ac_ctx_t {
+  /*!
+   * @}
+   * @name Build stage
+   * Additional members which corresponds to function pointers
+   * @{
+   */
+
+  /*!
+   * \var add_gravity_term
+   * \ref Compute and add the source term related to the gravity vector
+   *      This can be the Boussinesq term or the hydrostatic term (rho*g)
+   */
+
+  cs_cdofb_navsto_source_t *add_gravity_term;
+
+  /*!
+   * @}
+   */
+};
+
 /*============================================================================
  * Inline static function prototypes
  *============================================================================*/
@@ -68,18 +93,17 @@ BEGIN_C_DECLS
 /*!
  * \brief  Retrieve the values of the velocity on the faces
  *
- * \param[in] scheme_context  pointer to a structure cast on-the-fly
+ * \param[in]   previous  retrieve the previous state (true/false)
  *
- * \return a pointer to an array of \ref cs_real_t
+ * \return a pointer to an array of cs_real_t (size = 3*n_faces)
  */
 /*----------------------------------------------------------------------------*/
 
 inline static cs_real_t *
-cs_cdofb_ac_get_face_velocity(void    *scheme_context)
+cs_cdofb_ac_get_face_velocity(bool   previous)
 {
-  CS_UNUSED(scheme_context);
-
-  return cs_equation_get_face_values(cs_equation_by_name("momentum"));
+  return cs_equation_get_face_values(cs_equation_by_name("momentum"),
+                                     previous);
 }
 
 /*============================================================================
@@ -103,48 +127,39 @@ cs_cdofb_ac_init_common(const cs_cdo_quantities_t     *quant,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Initialize a \ref cs_cdofb_ac_t structure
+ * \brief  Initialize a cs_cdofb_ac_t structure
  *
- * \param[in] nsp        pointer to a \ref cs_navsto_param_t structure
- * \param[in] fb_type    type of boundary for each boundary face
- * \param[in] nsc_input  pointer to a \ref cs_navsto_ac_t structure
+ * \param[in] nsp         pointer to a \ref cs_navsto_param_t structure
+ * \param[in] adv_field   pointer to \ref cs_adv_field_t structure
+ * \param[in] mflux       current values of the mass flux across primal faces
+ * \param[in] mflux_pre   current values of the mass flux across primal faces
+ * \param[in] fb_type     type of boundary for each boundary face
+ * \param[in] nsc_input   pointer to a \ref cs_navsto_ac_t structure
  *
- * \return a pointer to a new allocated \ref cs_cdofb_ac_t structure
+ * \return a pointer to a new allocated cs_cdofb_ac_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs::cdo_navsto_ctx_t *
+cs_cdofb_ac_init_scheme_context(const cs_navsto_param_t *nsp,
+                                cs_adv_field_t          *adv_field,
+                                cs_real_t               *mflux,
+                                cs_real_t               *mflux_pre,
+                                cs_boundary_type_t      *fb_type,
+                                void                    *nsc_input);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Destroy a cs_cdofb_ac_t structure
+ *
+ * \param[in] sc   pointer to a scheme context structure to free
+ *
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
 void *
-cs_cdofb_ac_init_scheme_context(const cs_navsto_param_t    *nsp,
-                                cs_boundary_type_t         *fb_type,
-                                void                       *nsc_input);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Destroy a \ref cs_cdofb_ac_t structure
- *
- * \param[in] scheme_context   pointer to a scheme context structure to free
- *
- * \return a NULL pointer
- */
-/*----------------------------------------------------------------------------*/
-
-void *
-cs_cdofb_ac_free_scheme_context(void   *scheme_context);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Start setting-up the Navier-Stokes equations when an AC algorithm
- *         is used to couple the system.
- *         No mesh information is available at this stage
- *
- * \param[in]      nsp      pointer to a \ref cs_navsto_param_t structure
- * \param[in, out] context  pointer to a context structure cast on-the-fly
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_cdofb_ac_set_sles(const cs_navsto_param_t    *nsp,
-                     void                       *context);
+cs_cdofb_ac_free_scheme_context(cs_cdofb_ac_t *sc);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -154,33 +169,31 @@ cs_cdofb_ac_set_sles(const cs_navsto_param_t    *nsp,
  *
  * \param[in]      mesh            pointer to a \ref cs_mesh_t structure
  * \param[in]      nsp             pointer to a \ref cs_navsto_param_t structure
- * \param[in, out] scheme_context  pointer to a structure cast on-the-fly
+ * \param[in, out] sc     pointer to a \ref cs_cdofb_ac_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_ac_compute_implicit(const cs_mesh_t              *mesh,
-                             const cs_navsto_param_t      *nsp,
-                             void                         *scheme_context);
+cs_cdofb_ac_compute_implicit(const cs_mesh_t         *mesh,
+                             const cs_navsto_param_t *nsp,
+                             cs_cdofb_ac_t           *sc);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Solve the unsteady Navier-Stokes system with a CDO face-based scheme
- *         using a Artificial Compressibility approach and a theta time scheme
+ *         using a Artificial Compressibility approach and an implicit Euler
+ *         time scheme
+ *         For Picard - Navier--Stokes problems
  *
  * \param[in]      mesh            pointer to a \ref cs_mesh_t structure
  * \param[in]      nsp             pointer to a \ref cs_navsto_param_t structure
- * \param[in, out] scheme_context  pointer to a structure cast on-the-fly
+ * \param[in, out] sc     pointer to a \ref cs_cdofb_ac_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_ac_compute_theta(const cs_mesh_t              *mesh,
-                          const cs_navsto_param_t      *nsp,
-                          void                         *scheme_context);
+cs_cdofb_ac_compute_implicit_nl(const cs_mesh_t         *mesh,
+                                const cs_navsto_param_t *nsp,
+                                cs_cdofb_ac_t           *sc);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDOFB_AC_H__ */
+#endif /* CS_CDOFB_AC_H */

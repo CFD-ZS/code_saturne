@@ -1,14 +1,14 @@
-#ifndef __CS_CDOFB_PRIV_H__
-#define __CS_CDOFB_PRIV_H__
+#ifndef CS_CDOFB_PRIV_H
+#define CS_CDOFB_PRIV_H
 
 /*============================================================================
  * Definition of cs_cdofb_scaleq_t and cs_cdofb_vecteq structures
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,18 +26,13 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_hodge.h"
-#include "cs_cdo_advection.h"
-#include "cs_equation_assemble.h"
-#include "cs_equation_bc.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "cdo/cs_cdo_advection.h"
+#include "cdo/cs_equation_bc.h"
+#include "cdo/cs_equation_builder.h"
+#include "cdo/cs_hodge.h"
 
 /*============================================================================
  * Macro definitions
@@ -48,23 +43,26 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /* Algebraic system for CDO face-based discretization */
+
 struct  _cs_cdofb_t {
 
   /* Ids related to the variable field and to the boundary flux field */
+
   int          var_field_id;
   int          bflux_field_id;
 
   /* System size (n_faces + n_cells) */
+
+  cs_lnum_t    n_faces;
   cs_lnum_t    n_dofs;
 
   /* Solution of the algebraic system DoF unknowns (x) + BCs */
+
   cs_real_t   *face_values;     /* At the last iteration */
   cs_real_t   *face_values_pre; /* At the previous iteration */
 
-  /* Assembly process */
-  cs_equation_assembly_t    *assemble;
-
   /* Members related to the static condensation */
+
   cs_real_t   *rc_tilda;   /* Acc^-1 * RHS_cell */
   cs_real_t   *acf_tilda;  /* Acc^-1 * Acf
                               Cell-faces lower-left block of the full matrix
@@ -73,29 +71,57 @@ struct  _cs_cdofb_t {
 
   /* Array storing the value arising from the contribution of all source
      terms (only allocated to n_cells) */
+
   cs_real_t                 *source_terms;
 
   /* Pointer of function to build the diffusion term */
-  cs_hodge_t                *get_stiffness_matrix;
-  cs_hodge_t                *get_diffusion_hodge;
+
+  cs_hodge_t               **diffusion_hodge;
+  cs_hodge_compute_t        *get_stiffness_matrix;
   cs_cdo_enforce_bc_t       *enforce_dirichlet;
+  cs_cdo_enforce_bc_t       *enforce_robin_bc;
   cs_cdo_enforce_bc_t       *enforce_sliding;
 
-  /* Pointer of function to build the advection term */
-  cs_cdofb_advection_t      *adv_func;
-  cs_cdofb_advection_bc_t   *adv_func_bc;
+  /* Pointer of functions to define the advection term:
+   * advection_open is called first, then advection_main which calls
+   * advection_scheme and after the build step, advection_close is called last
+   */
+
+  cs_cdofb_adv_open_hook_t   *advection_open;
+  cs_cdofb_adv_build_t       *advection_main;
+  cs_cdofb_adv_close_hook_t  *advection_close;
+  cs_cdofb_adv_scheme_t      *advection_scheme;
+
+  void                       *advection_input;
 
   /* If one needs to build a local hodge op. for time and reaction */
-  cs_param_hodge_t           hdg_mass;
-  cs_hodge_t                *get_mass_matrix;
+
+  cs_hodge_param_t           mass_hodgep;
+  cs_hodge_t               **mass_hodge;
+  cs_hodge_compute_t        *get_mass_matrix;
+
 };
+
+typedef struct _cs_cdofb_t  cs_cdofb_priv_t;
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Set the advection-related parameters in the context structure of
+ *         CDO face-based schemes
+ *
+ * \param[in]      eqp    pointer to a \ref cs_equation_param_t structure
+ * \param[in, out] eqb    pointer to a \ref cs_equation_builder_t structure
+ * \param[in, out] eqc    pointer to a cs_cdofb_priv_t structure
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_cdofb_set_advection_function(const cs_equation_param_t   *eqp,
+                                cs_equation_builder_t       *eqb,
+                                cs_cdofb_priv_t             *eqc);
 
-#endif /* __CS_CDOFB_PRIV_H__ */
+#endif /* CS_CDOFB_PRIV_H */

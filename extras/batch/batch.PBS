@@ -1,11 +1,8 @@
-#-------------------------------------------------------------------------------
-#
 # Batch options for PBS or Torque
 # ===============================
 #
 #PBS -l nodes=4:ppn=2
 #PBS -l walltime=1:00:00
-#
 #PBS -j eo
 #PBS -N nameandcase
 #
@@ -15,9 +12,3 @@
 # -q queue     : queue name
 # -N name      : job name
 # -j eo        : to combine standard output and error
-#
-#-------------------------------------------------------------------------------
-
-# Change to submission directory
-if test -n "$PBS_O_WORKDIR" ; then cd $PBS_O_WORKDIR ; fi
-

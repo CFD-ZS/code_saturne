@@ -1,14 +1,14 @@
-#ifndef __CS_PART_TO_BLOCK_H__
-#define __CS_PART_TO_BLOCK_H__
+#ifndef CS_PART_TO_BLOCK_H
+#define CS_PART_TO_BLOCK_H
 
 /*============================================================================
  * Convert between general domain partition and block distribution.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,15 +32,11 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_block_dist.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_block_dist.h"
 
 /*=============================================================================
  * Macro definitions
@@ -185,6 +181,4 @@ cs_part_to_block_copy_indexed(cs_part_to_block_t   *d,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PART_TO_BLOCK_H__ */
+#endif /* CS_PART_TO_BLOCK_H */

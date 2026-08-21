@@ -1,14 +1,14 @@
-#ifndef __CS_RANDOM_H__
-#define __CS_RANDOM_H__
+#ifndef CS_RANDOM_H
+#define CS_RANDOM_H
 
 /*============================================================================
  * Random number generation.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,14 +32,10 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -144,6 +140,4 @@ cs_random_restore(cs_real_t  save_block[1634]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RANDOM_H__ */
+#endif /* CS_RANDOM_H */

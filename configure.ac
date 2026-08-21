@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,9 +28,9 @@
 
 m4_define([cs_licence_c_comment],
 [/*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -53,17 +53,14 @@ m4_define([cs_licence_c_comment],
 m4_define([cs_version_string],
           [m4_normalize(esyscmd([build-aux/cs_version.py]))])
 
-AC_INIT([code_saturne],[cs_version_string],[saturne-support@edf.fr],[],[http://code-saturne.org])
-AC_CONFIG_SRCDIR([src/apps/cs_solver.c])
+AC_INIT([code_saturne],[cs_version_string],[saturne-support@edf.fr],[],[https://code-saturne.org])
+AC_CONFIG_SRCDIR([src/apps/cs_solver.cxx])
 
-# Use the config directory for libtool stuff ...
 AC_CONFIG_AUX_DIR(build-aux)
 AC_CONFIG_MACRO_DIR(m4)
 
 AC_CANONICAL_TARGET
-AC_CONFIG_HEADERS([cs_config.h])
-
-AM_GNU_GETTEXT_VERSION([0.19])
+AC_CONFIG_HEADERS([src/base/cs_config.h])
 
 # Initialize automake with the following options:
 # - foreign, so as to handle the absence of ChangeLog (automatically generated)
@@ -112,26 +109,115 @@ user_CFLAGS=$CFLAGS
 user_CFLAGS_HOT=$CFLAGS_HOT
 user_CXXFLAGS=$CXXFLAGS
 user_FCFLAGS=$FCFLAGS
-user_FCFLAGS_HOT=$FCFLAGS_HOT
+user_NVCCFLAGS_HC=$NVCCFLAGS_HC
+user_HIPCCFLAGS_HC=$HIPCCFLAGS_HC
+user_SYCLFLAGS=$SYCLFLAGS
 user_LDFLAGS=$LDFLAGS
 user_LIBS=$LIBS
 user_CS_LD=$CS_LD
 
 AC_PROG_CC
 AC_PROG_CXX
-AC_PROG_FC
+
+# Check for AOCC workaround?
+AC_LANG_PUSH(C++)
+#AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+[[#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+namespace cs {
+template <class T>
+class array {
+
+public:
+
+void *
+operator new
+(
+  std::size_t count,
+  const char *file_name   = __builtin_FILE(),
+  const int   line_number = __builtin_LINE()
+)
+{
+  return ::operator new(count);
+}
+
+array() = default;
+~array() = default;
+
+private:
+  T* _data{nullptr};
+
+};
+}
+
+int
+main
+(
+ int argc,
+ char *argv[]
+)
+{
+  cs::array<int> *ptr = new cs::array<int>();
+
+  delete ptr;
+
+  return 0;
+}
+]]
+)],
+[ AC_MSG_RESULT([AOCC Workaround not needed])
+],
+[ AC_DEFINE([HAVE_AOCC_BUILTIN_WORKAROUND], 1, [AOCC Workaround needed])
+ cs_need_amdclang_workaround=yes
+])
+AC_SUBST(cs_need_amdclang_workaround)
+AC_SUBST(HAVE_AOCC_BUILTIN_WORKAROUND)
+AC_LANG_POP(C++)
+
+
+# For Fortran check if it is disabled first
+AC_ARG_ENABLE(fortran,
+  [AS_HELP_STRING([--disable-fortran], [disable optional Fortran compilation])],
+  [
+    case "${enableval}" in
+      yes) cs_have_fortran=yes ;;
+      no)  cs_have_fortran=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-fortran]) ;;
+    esac
+  ],
+  [ cs_have_fortran=yes ]
+)
+
+AC_SUBST(cs_have_fortran)
+
+if test "x$cs_have_fortran" = "xyes" ; then
+  AC_PROG_FC
+  AC_DEFINE([HAVE_FORTRAN], 1, [Fortran compiler present])
+fi
+AM_CONDITIONAL(HAVE_FORTRAN, test x$cs_have_fortran = xyes)
 
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AM_PROG_CC_C_O
+AC_PROG_RANLIB
 AC_PROG_SED
 
 if test "x$CC" = "x" ; then
   AC_MSG_FAILURE([cannot find C compiler])
 fi
-if test "x$FC" = "x" ; then
+if test "x$FC" = "x" && test "x$cs_have_fortran" = "xyes"; then
   AC_MSG_FAILURE([cannot find Fortran compiler])
 fi
+
+# Check for CUDA compiler
+CS_AC_TEST_CUDA
+
+# Check for HIP compiler
+CS_AC_TEST_HIP
 
 # Needed to use Microsoft archiver lib.exe
 # It copies the ar-lib script, similar to the compile script
@@ -179,21 +265,7 @@ AC_ARG_ENABLE(auto-flags,
   [ auto_flags=yes ]
 )
 
-# Optionally activate French translation of Fortran logs (compile-time)
-
-AC_ARG_ENABLE(french,
-  [AS_HELP_STRING([--enable-french], [enable French translation of Fortran logs])],
-  [
-    case "${enableval}" in
-      yes) french=yes ;;
-      no)  french=no ;;
-      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-french]) ;;
-    esac
-  ],
-  [ french=no ]
-)
-
-# Optionnaly install the code with relocatable features
+# Optionally install the code with relocatable features
 
 AC_ARG_ENABLE(relocatable,
   [AS_HELP_STRING([--enable-relocatable], [enable relocatable installation])],
@@ -231,7 +303,6 @@ if test "x$auto_flags" = "xyes" ; then
   CPPFLAGS="$cppflags_default $user_CPPFLAGS"
   CFLAGS="$cflags_default $user_CFLAGS"
   CXXFLAGS="$cxxflags_default $user_CXXFLAGS"
-  CXXFLAGS_STD="$cxxflags_default_std"
   FCFLAGS="$fcflags_default $user_FCFLAGS"
   LDFLAGS="$ldflags_default $user_LDFLAGS"
   LIBS="$libs_default $user_LIBS"
@@ -252,7 +323,6 @@ if test "x$auto_flags" = "xyes" ; then
     # Hot optimization flags
     CFLAGS_HOT="$cflags_default_hot $user_CFLAGS_HOT"
     CXXFLAGS_HOT="$cxxflags_default_hot"
-    FCFLAGS_HOT="$fcflags_default_hot $user_FCFLAGS_HOT"
     # Add optimization flags for linker
     LDFLAGS="$LDFLAGS $ldflags_default_opt"
     if test "x$profile" = xyes; then
@@ -272,30 +342,43 @@ if test "x$auto_flags" = "xyes" ; then
   AC_SUBST(CXXFLAGS_DBG)
   AC_SUBST(CXXFLAGS_OPT)
   AC_SUBST(CXXFLAGS_HOT)
-  AC_SUBST(CXXFLAGS_STD)
 
   AC_SUBST(FCFLAGS_DBG)
   AC_SUBST(FCFLAGS_OPT)
-  AC_SUBST(FCFLAGS_HOT)
 
   AC_SUBST(LDRPATH)
-  AC_SUBST(ccversion, [${cs_cc_version}])
+
+  AC_SUBST(cs_cc_version_string, [${cs_ac_cc_version}])
+  AC_SUBST(cs_cxx_version_string, [${cs_ac_cxx_version}])
+  AC_SUBST(cs_fc_version_string, [${cs_ac_fc_version}])
+  AC_SUBST(cs_nvcc_version_string, [${cs_ac_nvcc_version}])
+  AC_SUBST(cs_nvcc_hc_version_string, [${cs_nvcc_hc_version}])
+  AC_SUBST(cs_hipcc_version_string, [${cs_ac_hipcc_version}])
+  AC_SUBST(cs_hipcc_hc_version_string, [${cs_hipcc_hc_version}])
+
+  if test "x$cs_ac_cc_version" != "x" -a "x$cs_ac_cc_version" != "xunknown" ; then
+    AC_DEFINE_UNQUOTED([CS_CC_VERSION_STRING], ["$cs_ac_cc_version"], [C compiler version string])
+  fi
+  if test "x$cs_ac_cxx_version" != "x" -a "x$cs_ac_cxx_version" != "xunknown" ; then
+    AC_DEFINE_UNQUOTED([CS_CXX_VERSION_STRING], ["$cs_ac_cxx_version"], [C++ compiler version string])
+  fi
+  if test "x$cs_ac_fc_version" != "x" -a "x$cs_ac_fc_version" != "xunknown" ; then
+    AC_DEFINE_UNQUOTED([CS_FC_VERSION_STRING], ["$cs_ac_fc_version"], [Fortran compiler version string])
+  fi
+  if test "x$cs_ac_nvcc_version" != "x" ; then
+    AC_DEFINE_UNQUOTED([CS_NVCC_VERSION_STRING], ["$cs_ac_nvcc_version"], [CUDA compiler version string])
+  fi
+  if test "x$cs_ac_nvcc_hc_version" != "x" ; then
+    AC_DEFINE_UNQUOTED([CS_NVCC_HC_VERSION_STRING], ["$cs_ac_nvcc_hc_version"], [CUDA host compiler version])
+  fi
+  if test "x$cs_ac_hipcc_version" != "x" ; then
+    AC_DEFINE_UNQUOTED([CS_HIPCC_VERSION_STRING], ["$cs_ac_hipcc_version"], [HIP compiler version string])
+  fi
+  if test "x$cs_ac_hipcc_hc_version" != "x" ; then
+    AC_DEFINE_UNQUOTED([CS_HIPCC_HC_VERSION_STRING], ["$cs_ac_hipcc_hc_version"], [HIP host compiler version])
+  fi
 
 fi
-
-# Add some preprocessor flags to include additional system features
-#------------------------------------------------------------------
-
-case "$host_os" in
-  linux*)
-    CPPFLAGS="${CPPFLAGS} -D_POSIX_C_SOURCE=200809L"
-    ;;
-  darwin*)
-    CPPFLAGS="${CPPFLAGS} -D_DARWIN_C_SOURCE"
-    ;;
-  *)
-    ;;
-esac
 
 # Preprocessor flags for debugging purposes
 
@@ -305,34 +388,63 @@ else
   CPPFLAGS="${CPPFLAGS} -DNDEBUG"
 fi
 
-# Fortran flags for French translation
+# Shared or static mode (shared by default) ?
 
-if test "x$french" = "xyes"; then
-  if test "x$cs_ibm_bg_type" != "x" ; then
-    FCFLAGS="${FCFLAGS} -WF,-D_CS_LANG_FR"
-  else
-    FCFLAGS="${FCFLAGS} -D_CS_LANG_FR"
-  fi
-fi
+AC_ARG_ENABLE(shared,
+  [AS_HELP_STRING([--enable-shared], [build shared libraries])],
+  [
+    case "${enableval}" in
+      yes) enable_shared=yes ;;
+      no)  enable_shared=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-shared]) ;;
+    esac
+  ],
+  [ enable_shared=yes ]
+)
 
-# We may only turn on processing for libtool now that the basic compiler
-# and linker flags are set (to avoid issues with linkers with different
-# modes such as 32 and 64 bit which may be modified by compiler or
-# linker flags).
-
-# AC_DISABLE_SHARED may not be used inside a test, as it seems to
-# take effect whether the result is true or not (maybe due to a bug),
-# so we directly use autoconf's enable_shared variable.
-
-if test "$host_os" = mingw64 ; then
-   enable_shared=no
-fi
 AC_SUBST(enable_shared)
 
-# Initialize libtool.
+# Library extension based on system type
+#---------------------------------------
 
-m4_pushdef([cs_lt_init_args], [disable-static, win32-dll, no-pic])
-LT_INIT([disable-static, win32-dll])
+case "$host_os" in
+  darwin*)
+    SHARED_LIB_EXT=dylib
+    ;;
+  linux*)
+    SHARED_LIB_EXT=so
+    ;;
+  *)
+    AC_MSG_WARN([Not sure how to build shared lib for $target_os; assuming Linux-like])
+    SHARED_LIB_EXT=so
+    ;;
+esac
+
+AC_SUBST(SHARED_LIB_EXT)
+AC_SUBST(LIB_EXT)
+
+# Shared library related settings and flags
+
+if test $enable_shared = yes; then
+  CFLAGS_SHARED="$cflags_default_shared"
+  FCFLAGS_SHARED="$fcflags_default_shared"
+  CXXFLAGS_SHARED="$cxxflags_default_shared"
+
+  LIB_EXT=$SHARED_LIB_EXT
+  LDFLAGS_SHARED="$ldflags_default_shared"
+  LDFLAGS_SONAME="$ldflags_default_soname"
+else
+  LIB_EXT=a
+fi
+
+AC_SUBST(CFLAGS_SHARED)
+AC_SUBST(CXXFLAGS_SHARED)
+AC_SUBST(FCFLAGS_SHARED)
+
+AC_SUBST(LDFLAGS_SHARED)
+AC_SUBST(LDFLAGS_SONAME)
+
+AM_CONDITIONAL(ENABLE_SHARED, test x$enable_shared = xyes)
 
 # In static mode, multiple definitions must be allowed for the linker.
 # On some systems, such as Mac OS X in static mode, limitations
@@ -359,24 +471,9 @@ else
       if test "x$auto_flags" = "xyes" ; then
         case "$cs_ac_cc_version" in
           Cray* )
-            CFLAGS="${CFLAGS} -fPIC"
             ;;
           *)
             LDFLAGS="${LDFLAGS} -Wl,-export-dynamic"
-            ;;
-        esac
-        case "$cs_ac_cxx_version" in
-          Cray* )
-            CXXFLAGS="${CXXFLAGS} -fPIC"
-            ;;
-          *)
-            ;;
-        esac
-        case "$cs_ac_fc_version" in
-          Cray* )
-            FCFLAGS="${FCFLAGS} -fPIC"
-            ;;
-          *)
             ;;
         esac
       fi
@@ -394,7 +491,6 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 AC_TYPE_PID_T
 
-AC_HEADER_TIME
 AC_HEADER_STDBOOL
 
 AC_CHECK_TYPES([long long, unsigned long long])
@@ -426,15 +522,66 @@ AC_ARG_ENABLE(long-gnum,
 )
 
 if test "x$cs_have_long_gnum" = "xyes"; then
-  AC_DEFINE([HAVE_LONG_GNUM],1,[Use 64-bit type if available for cs_gnum_t.])
+  AC_DEFINE([HAVE_LONG_GNUM], 1, [Use 64-bit type for cs_gnum_t.])
 fi
 AC_SUBST(cs_have_long_gnum)
 
+# Use long local numbers ?
+AC_ARG_ENABLE(long-lnum,
+  [AS_HELP_STRING([--enable-long-lnum],[use long local numbers])],
+  [
+    case "${enableval}" in
+      yes) cs_have_long_lnum=yes ;;
+      no)  cs_have_long_lnum=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-long-lnum]) ;;
+    esac
+  ],
+  [ cs_have_long_lnum=no ]
+)
+
+if test "x$cs_have_long_lnum" = "xyes"; then
+  AC_DEFINE([HAVE_LONG_LNUM], 1, [Use 64-bit type for cs_lnum_t.])
+fi
+AC_SUBST(cs_have_long_lnum)
+
 # Check for Fortran module generation
-CS_AC_TEST_FC_MOD
+if test "x$cs_have_fortran" = "xyes" ; then
+  CS_AC_TEST_FC_MOD
+fi
 
 # First determination of Fortran libraries (before OpenMP test)
-AC_FC_LIBRARY_LDFLAGS
+if test "x$cs_have_fortran" = "xyes" ; then
+  AC_FC_LIBRARY_LDFLAGS
+fi
+
+#------------------------------------------------------------------------------
+# Determine SYCL support
+#------------------------------------------------------------------------------
+
+cs_have_sycl=no
+cs_sycl_targets=""
+
+AC_ARG_ENABLE(sycl,
+  [AS_HELP_STRING([--enable-sycl], [enable SYCL support])],
+  [
+    case "${enableval}" in
+      yes) cs_have_sycl=yes ;;
+      no)  cs_have_sycl=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-sycl]) ;;
+    esac
+  ],
+  [ cs_have_sycl=no ]
+)
+
+AC_ARG_VAR([SYCLFLAGS], [Additional compile flags for SYCL])
+
+if test "x$cs_have_sycl" = "xyes" ; then
+  CXXFLAGS_SYCL="-fsycl $user_SYCLFLAGS"
+  AC_DEFINE([HAVE_SYCL], 1, [SYCL support])
+  AC_SUBST(CXXFLAGS_SYCL)
+fi
+
+AC_SUBST(cs_have_sycl)
 
 #------------------------------------------------------------------------------
 # Determine OpenMP support
@@ -449,6 +596,7 @@ AC_FC_LIBRARY_LDFLAGS
 # compiler install paths, such as may happen with gcc's libgomp.
 
 cs_have_openmp=no
+cs_have_openmp_target=no
 cs_have_openmp_f=no
 
 AC_ARG_ENABLE(openmp,
@@ -463,13 +611,32 @@ AC_ARG_ENABLE(openmp,
   [ cs_have_openmp=yes ]
 )
 
+AC_ARG_ENABLE(openmp_target,
+  [AS_HELP_STRING([--enable-openmp-target], [enable OpenMP accelerator support])],
+  [
+    case "${enableval}" in
+      yes) cs_have_openmp_target=yes
+           cs_have_openmp=yes ;;
+      no)  cs_have_openmp_target=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-openmp-target]) ;;
+    esac
+  ],
+  [ cs_have_openmp_target=no ]
+)
+
+if test "x$cs_have_openmp_target" = "xyes" ; then
+  cs_have_openmp=yes
+fi
+
 if test "x$cs_have_openmp" = "xyes" ; then
 
   saved_CFLAGS="$CFLAGS"
+  saved_CXXFLAGS="$CXXFLAGS"
   saved_FCFLAGS="$FCFLAGS"
   saved_LDFLAGS="$LDFLAGS"
 
   CFLAGS="${CFLAGS} ${cflags_default_omp}"
+  CXXFLAGS="${CXXFLAGS} ${cxxflags_default_omp}"
   FCFLAGS="${FCFLAGS} ${fcflags_default_omp}"
   LDFLAGS="${LDFLAGS} ${cflags_default_omp}"
 
@@ -480,16 +647,6 @@ if test "x$cs_have_openmp" = "xyes" ; then
                  [cs_have_openmp=no])
   AC_MSG_RESULT($cs_have_openmp)
   if test "x$cs_have_openmp" = "xyes" ; then
-    AC_MSG_CHECKING([for OpenMP simd])
-    # Note that as the m4 language does not allow escaping [ and ],
-    # we use quadrigraphs @<:@ and @>:@ instead here.
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <omp.h>]],
-                     [[double a@<:@128@:>@;
-                      #pragma omp for simd safelen(4)
-                      for (int i = 0; i < 128; i++) a@<:@i@:>@ = i;]])],
-                     [cs_have_openmp_simd=yes],
-                     [cs_have_openmp_simd=no])
-    AC_MSG_RESULT($cs_have_openmp_simd)
     AC_LANG_PUSH([Fortran])
     AC_MSG_CHECKING([for OpenMP (Fortran)])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([],
@@ -504,57 +661,135 @@ if test "x$cs_have_openmp" = "xyes" ; then
   fi
   if test "x$cs_have_openmp" = "xyes" ; then
     AC_DEFINE([HAVE_OPENMP], 1, [openmp support])
-    if test "x$cs_have_openmp_simd" = "xyes" ; then
-      AC_DEFINE([HAVE_OPENMP_SIMD], 1, [openmp simd support])
-    fi
     if test "x$cs_have_openmp_f" = "xno" ; then
       FCFLAGS="$saved_FCFLAGS"
     fi
+    if test "x$cs_have_openmp_target" = "xyes" ; then
+      AC_DEFINE([HAVE_OPENMP_TARGET], 1, [openmp accelerator support])
+    fi
   else
     cs_have_openmp=no
+    cs_have_openmp_target=no
     CFLAGS="$saved_CFLAGS"
+    CXXFLAGS="$saved_CXXFLAGS"
     FCFLAGS="$saved_FCFLAGS"
     LDFLAGS="$saved_LDFLAGS"
   fi
 fi
+
 AC_SUBST(cs_have_openmp)
+AC_SUBST(cs_have_openmp_target)
 
 # Now that compiler options are determined (relative notably to OpenMP),
 # update Fortran libraries necessary to link.
 
-if test "x$cs_have_openmp_f" = "xyes" ; then
+if test "x$cs_have_openmp_f" = "xyes" && test "x$cs_have_fortran" = "xyes" ; then
   AC_FC_LIBRARY_LDFLAGS
 fi
 
 #------------------------------------------------------------------------------
-# Determine CUDA support
+# Determine Accelerator support
 #------------------------------------------------------------------------------
 
-CS_AC_TEST_CUDA
+cs_have_accel=no
 
 if test "x$auto_flags" = "xyes" ; then
   if test "$cs_have_cuda" = "yes"; then
-    $NVCCFLAGS="$NVCCFLAGS $nvccflags_default"
+    cs_have_accel=yes
+    NVCCFLAGS="$NVCCFLAGS $nvccflags_default"
+    if test "x$enable_shared" = "xyes" ; then
+      NVCCFLAGS="${NVCCFLAGS} --compiler-options -fPIC"
+    fi
     if test "x$debug" = xyes; then
-      $NVCCFLAGS_DBG="$nvccflags_default_dbg"
+      NVCCFLAGS_DBG="$nvccflags_default_dbg"
     else
-      $NVCCFLAGS="$NVCCFLAGS $nvccflags_default_opt"
+      NVCCFLAGS="$NVCCFLAGS $nvccflags_default_opt"
       if test "x$profile" = xyes; then
-        $NVCCFLAGS="$NVCCFLAGS $nvccflags_default_prf"
+        NVCCFLAGS="$NVCCFLAGS $nvccflags_default_prf"
       fi
     fi
     AC_SUBST(NVCCFLAGS_DBG)
     AC_SUBST(NVCCFLAGS_OPT)
     AC_SUBST(NVCCCFLAGS_HOT)
   fi
+
+  if test "$cs_have_hip" = "yes" ; then
+    cs_have_accel=yes
+    HIPCCFLAGS="$HIPCCFLAGS $hipccflags_default"
+    if test "x$enable_shared" = "xyes" ; then
+      HIPCCFLAGS="${HIPCCFLAGS} -fPIC"
+    fi
+    if test "x$debug" = xyes; then
+      HIPCCFLAGS_DBG="$hipccflags_default_dbg"
+    else
+      HIPCCFLAGS="$HIPCCFLAGS $hipccflags_default_opt"
+      if test "x$profile" = xyes; then
+        HIPCCFLAGS="$HIPCCFLAGS $hipccflags_default_prf"
+      fi
+    fi
+    AC_SUBST(HIPCCFLAGS_DBG)
+    AC_SUBST(HIPCCFLAGS_OPT)
+    AC_SUBST(HIPCCCFLAGS_HOT)
+  fi
+
+  if test "$cs_have_sycl" = "yes"; then
+    cs_have_accel=yes
+  fi
+
+  if test "$cs_have_openmp_target" = "yes"; then
+    cs_have_accel=yes
+    CFLAGS="${CFLAGS} ${cflags_default_omp_ad}"
+    CXXFLAGS="${CXXFLAGS} ${cxxflags_default_omp_ad}"
+    FCFLAGS="${FCFLAGS} ${fcflags_default_omp_ad}"
+    LDFLAGS="${LDFLAGS} ${cflags_default_omp_ad}"
+
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[#include <omp.h>
+#pragma omp requires unified_shared_memory]],
+[[]])],
+                       [AC_MSG_RESULT([OpenMP target handles unified shared memory])
+                        cs_have_openmp_target_usm=yes
+                       ],
+                       [AC_MSG_RESULT([OpenMP target does not handle unified shared memory])
+                        cs_have_openmp_target_usm=no
+                       ])
+    if test "x$cs_have_openmp_target_usm" = "xyes" ; then
+     AC_DEFINE([HAVE_OPENMP_TARGET_USM], 1, [openmp target unified shared memory support])
+    fi
+  fi
+
+  if test "$cs_enable_cuda_cpp" = "yes"; then
+    if test "x$cs_have_openmp" = "xyes" ; then
+      NVCCFLAGS_CPP="$nvccflags_default_cpp $nvccflags_default_cpp_omp $user_NVCCFLAGS_HC"
+    else
+      NVCCFLAGS_CPP="$nvccflags_default_cpp $user_NVCCFLAGS_HC"
+    fi
+    AC_SUBST(NVCCFLAGS_CPP)
+  fi
+
+  if test "$cs_enable_hip_cpp" = "yes"; then
+    if test "x$cs_have_openmp" = "xyes" ; then
+      HIPCCFLAGS_CPP="$hipccflags_default_cpp $hipccflags_default_cpp_omp $user_HIPCCFLAGS_HC"
+    else
+      HIPCCFLAGS_CPP="$hipccflags_default_cpp $user_HIPCCFLAGS_HC"
+    fi
+    AC_SUBST(HIPCCFLAGS_CPP)
+  fi
+
 fi
+
+AC_ARG_VAR([NVCCFLAGS_HC], [Additional host compiler flags for CUDA nvcc])
+AC_ARG_VAR([HIPCCFLAGS_HC], [Additional host compiler flags for HIP hipcc])
+
+AM_CONDITIONAL([HAVE_ACCEL], [test "$cs_have_accel" = "yes"])
+AM_CONDITIONAL([HAVE_OPENMP_TARGET], [test "$cs_have_openmp_target" = "yes"])
 
 #------------------------------------------------------------------------------
 # Checks for Python support.
 #------------------------------------------------------------------------------
 
 AC_ARG_VAR([PYTHON], [the Python interpreter])
-AM_PATH_PYTHON(["2.6"])
+AM_PATH_PYTHON(["3.4"])
 
 # On MinGW hosts, Automake/Python mixes Windows-style and GNU-style paths
 # It seems better to use the standard way of installing Python modules,
@@ -589,23 +824,17 @@ fi
 # Checks for additional version information.
 #------------------------------------------------------------------------------
 
-# Define the different version numbers where needed
+# Define the different version number where needed
+# (detailed version numbers are generated during the build step as a
+# precaution, so that when switching revisions not requiring
+# rebuild of the configure file / re-configure, the correct
+# version number is used).
 
-case "$host_os" in
-  mingw* | cygwin)
-    cs_version=`$PYTHON ${srcdir}/build-aux/cs_version.py --short`
-    cs_version_full=`$PYTHON ${srcdir}/build-aux/cs_version.py --full`
-    cs_version_short=`$PYTHON ${srcdir}/build-aux/cs_version.py --short`
-    AC_SUBST(cs_version)
-    AC_SUBST(cs_version_full)
-    AC_SUBST(cs_version_short)
-    AM_SUBST_NOTMAKE(cs_version)
-    AM_SUBST_NOTMAKE(cs_version_full)
-    AM_SUBST_NOTMAKE(cs_version_short)
-    ;;
-  *)
-    ;;
-esac
+cs_version_short=`$PYTHON ${srcdir}/build-aux/cs_version.py --short`
+AC_SUBST(cs_version_short)
+
+cs_version_lib=`$PYTHON ${srcdir}/build-aux/cs_version.py --lib`
+AC_SUBST(cs_version_lib)
 
 #------------------------------------------------------------------------------
 # Optional shared library and plugin support
@@ -663,6 +892,16 @@ AC_ARG_ENABLE(dlopen-rtld-global,
   [ enable_dlopen_rtld_global=no ]
 )
 
+# Cleanup Fortran library flags
+
+FCLIBS=`$PYTHON ${srcdir}/build-aux/cs_build_tools.py clean-lib-flags $FCLIBS`
+AC_SUBST(FCLIBS)
+
+# Check for linker default search path
+
+cs_ld_default_search_path=`$PYTHON ${srcdir}/build-aux/cs_build_tools.py get-ld-default-search-path`
+AC_SUBST(cs_ld_default_search_path)
+
 #------------------------------------------------------------------------------
 # Checks for libraries.
 #------------------------------------------------------------------------------
@@ -674,11 +913,6 @@ if test "x$cs_have_internal_ple" = xyes; then
   AC_CONFIG_SUBDIRS([libple])
 fi
 
-AM_CONDITIONAL(HAVE_SALOME, test x$with_salome != xno)
-if test "x$with_salome" != xno; then
-  AC_CONFIG_SUBDIRS([salome])
-fi
-
 CS_AC_TEST_BLAS([$cs_have_openmp])
 CS_AC_TEST_MPI
 CS_AC_TEST_METIS
@@ -688,52 +922,41 @@ CS_AC_TEST_CGNS
 CS_AC_TEST_MED
 CS_AC_TEST_CCM
 CS_AC_TEST_EOS
-CS_AC_TEST_FREESTEAM
 CS_AC_TEST_COOLPROP
 CS_AC_TEST_ZLIB
 CS_AC_TEST_MEDCOUPLING
+CS_AC_TEST_CATALYST2
 CS_AC_TEST_CATALYST
 CS_AC_TEST_MELISSA
+CS_AC_TEST_MUMPS
 CS_AC_TEST_PETSC
+CS_AC_TEST_HYPRE
+CS_AC_TEST_AMGX
+CS_AC_TEST_CUDSS
 
 CS_AC_TEST_DOCS
 
-cs_have_neptune=cfd=no
+cs_have_neptune_cfd=no
 if test -f ${srcdir}/neptune_cfd/configure; then
   cs_have_neptune_cfd=yes
 fi
 
-# Check if we need to force link with C++
-cs_have_link_cxx=no
-if test x$cs_have_neptune_cfd = xyes ; then
-  cs_have_link_cxx=yes
-elif test x$cs_have_med_link_cxx = xyes ; then
-  cs_have_link_cxx=yes
-elif test x$cs_have_medcoupling = xyes -o x$cs_have_paramedmem = xyes ; then
-  if test x$enable_shared = xno -o x$cs_have_plugin_medcoupling = xno ; then
-    cs_have_link_cxx=yes
-  fi
-elif test x$cs_have_eos = xyes ; then
-  cs_have_link_cxx=yes
-elif test x$cs_have_coolprop = xyes ; then
-  cs_have_link_cxx=yes
-elif test x$cs_have_catalyst = xyes ; then
-  if test x$enable_shared = xno -o x$cs_have_plugin_catalyst = xno ; then
-    cs_have_link_cxx=yes
-  fi
+# Check if we need to force preprocessor link with C++
+cs_pp_have_link_cxx=no
+if test x$cs_have_med_link_cxx = xyes ; then
+  cs_pp_have_link_cxx=yes
 fi
+
 if test x$user_CS_LD != "x" ; then
   CS_LD=$user_CS_LD
-elif test $cs_have_link_cxx = yes ; then
-  CS_LD=$CXX
 else
-  CS_LD=$CC
+  CS_LD=$CXX
 fi
 AC_SUBST(CS_LD)
-AM_CONDITIONAL(HAVE_LINK_CXX, test x$cs_have_link_cxx = xyes)
+AM_CONDITIONAL(HAVE_PP_LINK_CXX, test x$cs_pp_have_link_cxx = xyes)
 
 #------------------------------------------------------------------------------
-# Enables Code_Saturne front-end
+# Enables code_saturne front-end
 #------------------------------------------------------------------------------
 
 AC_ARG_ENABLE(frontend, [AS_HELP_STRING([--disable-frontend],
@@ -751,7 +974,7 @@ AM_CONDITIONAL(HAVE_FRONTEND, test x$cs_have_frontend = xyes)
 AC_SUBST(cs_have_frontend)
 
 #------------------------------------------------------------------------------
-# Enables Code_Saturne back-end
+# Enables code_saturne back-end
 #------------------------------------------------------------------------------
 
 AC_ARG_ENABLE(backend, [AS_HELP_STRING([--disable-backend],
@@ -769,7 +992,7 @@ AM_CONDITIONAL(HAVE_BACKEND, test x$cs_have_backend = xyes)
 AC_SUBST(cs_have_backend)
 
 #------------------------------------------------------------------------------
-# Enables Code_Saturne graphical user interface
+# Enables code_saturne graphical user interface
 #------------------------------------------------------------------------------
 
 AC_ARG_ENABLE(gui, [AS_HELP_STRING([--disable-gui],
@@ -789,18 +1012,17 @@ if test "x$cs_have_frontend" = "xno" ; then
 fi
 
 #------------------------------------------------------------------------------
-# Checks for PyQt support.
+# Checks for PyQt5, PyQt6, or Pyside6 support.
 #------------------------------------------------------------------------------
-
-# Test for PyQt4 or PyQt5
-cs_have_gui_qt4=no
-cs_have_gui_qt5=no
 
 if test "x$cs_have_gui" = "xcheck" ; then
 
-  if test "x$QT_SELECT" = "x" -o "x$QT_SELECT" = "x5" ; then
+  cs_have_pyuic=no
+  cs_have_pyrcc=no
 
-    AC_MSG_CHECKING([for PyQt5 version >= 5.0])
+  if test "x$QT_SELECT" = "x" -o "x$QT_SELECT" = "xpyqt5" -o "x$QT_SELECT" = "x5" ; then
+
+    AC_MSG_CHECKING([for PyQt5])
 
     prog="[import sys, string
 try: import PyQt5
@@ -817,28 +1039,59 @@ sys.exit(0)]"
       AC_MSG_RESULT([no])
     else
       AC_MSG_RESULT([yes])
-      cs_have_gui=yes
-      cs_have_gui_qt5=yes
+      cs_have_gui=PyQt5
+    fi
+
+  fi
+
+  # Test for PyQt5 developer tools
+  if test "x$cs_have_gui" = "xPyQt5" ; then
+
+    # Try to find PyQt5 tools through Python interpreter
+    prog="[import os, sys
+from PyQt5.QtCore import QCoreApplication
+app = QCoreApplication([])
+path = app.applicationDirPath()
+sys.stdout.write(path)]"
+
+    PYPATH=`${PYTHON} -c "${prog}"`
+
+    AC_ARG_VAR([PYUIC5], [PyQt5 user interfaces compiler])
+    AC_ARG_VAR([PYRCC5], [PyQt5 resources compiler])
+
+    if test "x$PYUIC5" = "x" ; then
+      AC_PATH_PROG([PYUIC5], [pyuic5], [], [${PYPATH}:$PATH])
+      cs_have_pyuic="pyuic5"
+    fi
+    if test "x$PYRCC5" = "x" ; then
+      AC_PATH_PROG([PYRCC5], [pyrcc5], [], [${PYPATH}:$PATH])
+      cs_have_pyrcc="pyrcc5"
+    fi
+
+    if test "x$PYUIC5" = "x" -o "x$PYRCC5" = "x" ; then
+      AC_MSG_FAILURE([cannot find PyQt5 dev tools, Graphical User Interface cannot be installed])
+      cs_have_gui=no
     fi
 
   fi
 
 fi
 
+# Test for PyQt6
+#---------------
+
 if test "x$cs_have_gui" = "xcheck" ; then
 
-  cs_have_gui=no
+  if test "x$QT_SELECT" = "x" -o "x$QT_SELECT" = "xpyqt6" ; then
 
-  if test "x$QT_SELECT" = "x" -o "x$QT_SELECT" = "x4" ; then
-
-    AC_MSG_CHECKING([for PyQt4 version >= 4.5])
+    AC_MSG_CHECKING([for PyQt6])
 
     prog="[import sys, string
-try: import PyQt4
+try: import PyQt6
 except ImportError: sys.exit(1)
-from PyQt4.QtCore import *
-if list(map(int, QT_VERSION_STR.split('.'))) < [4,5,0]: sys.exit(1)
-if list(map(int, PYQT_VERSION_STR.split('.'))) < [4,5,0]: sys.exit(1)
+from PyQt6.QtCore import *
+if list(map(int, QT_VERSION_STR.split('.'))) < [6,0,0]: sys.exit(1)
+if list(map(int, PYQT_VERSION_STR.split('.'))) < [6,0,0]: sys.exit(1)
 sys.exit(0)]"
 
     ${PYTHON} -c "${prog}"
@@ -846,102 +1099,113 @@ sys.exit(0)]"
 
     if test $retval -ne 0 ; then
       AC_MSG_RESULT([no])
-      AC_MSG_FAILURE([cannot find PyQt5 support (>= 5.0) or PyQt4 support (>= 4.5), Graphical User Interface cannot be installed])
+      AC_MSG_FAILURE([PyQt6 support (>= 6.0), Graphical User Interface cannot be installed])
     else
       AC_MSG_RESULT([yes])
-      cs_have_gui=yes
-      cs_have_gui_qt4=yes
+      cs_have_gui=PyQt6
     fi
   fi
 
-fi
+  # Test for PyQt6 developer tools
+  if test "x$cs_have_gui" = "xPyQt5" ; then
 
-# Test for PyQt4 developer tools
-if test "x$cs_have_gui_qt4" = "xyes" ; then
-
-  # Try to find PyQt4 tools through Python interpreter
-  prog="[import os, sys
-from PyQt4.QtCore import QCoreApplication
+    # Try to find PyQt6 tools through Python interpreter
+    prog="[import os, sys
+from PyQt6.QtCore import QCoreApplication
 app = QCoreApplication([])
 path = app.applicationDirPath()
 sys.stdout.write(path)]"
 
-  PYPATH=`${PYTHON} -c "${prog}"`
+    PYPATH=`${PYTHON} -c "${prog}"`
 
-  # On Cygwin hosts, the PATH does not seem to be correctly found
-  if test "$host_os" = cygwin ; then
-     PYPATH=/usr/lib/python$PYTHON_VERSION/site-packages/PyQt4
-  fi
+    AC_ARG_VAR([PYUIC6], [PyQt6 user interfaces compiler])
+    AC_ARG_VAR([RCC], [Qt resources compiler])
 
-  AC_ARG_VAR([PYUIC4], [PyQt4 user interfaces compiler])
-  AC_ARG_VAR([PYRCC4], [PyQt4 resources compiler])
-  AC_ARG_VAR([LRELEASE], [Qt message files generator])
-
-  # On MinGW (MSYS) or Cygwin (BASH) build systems, and for MinGW hosts,
-  # pyuic4 is a batch file and cannot be run from the shell.
-  # To bypass this issue, we launch pyuic4 through cmd.exe
-  # with a "standard" PATH.
-  # pyrcc4 does not need this trick as it is a standard executable.
-  if test "$host_os" = mingw64 ; then
-    if test "$build_os" = mingw64 ; then
-      CMDPYUIC4="cmd //C $PYPATH/Lib/site-packages/PyQt4/pyuic4"
-    elif test "$build_os" = cygwin ; then
-      CMDPYUIC4="cmd /C $PYPATH/Lib/site-packages/PyQt4/pyuic4"
+    if test "x$PYUIC6" = "x" ; then
+      AC_PATH_PROG([PYUIC6], [pyuic6], [], [${PYPATH}:$PATH])
+      cs_have_pyuic="pyuic6"
     fi
-  fi
+    if test "x$RCC" = "x" ; then
+      AC_PATH_PROG([RCC], [rcc], [], [${PYPATH}:$PATH])
+    fi
 
-  if test "x$PYUIC4" = "x" ; then
-    AC_PATH_PROG([PYUIC4], [pyuic4], [$CMDPYUIC4], [${PYPATH}:$PATH])
-  fi
-  if test "x$PYRCC4" = "x" ; then
-    AC_PATH_PROG([PYRCC4], [pyrcc4], [],           [${PYPATH}:$PATH])
-  fi
+    if test "x$PYUIC6" = "x" -o "x$RCC" = "x" ; then
+      AC_MSG_FAILURE([cannot find PyQt6 dev tools, Graphical User Interface cannot be installed])
+      cs_have_gui=no
+    fi
 
-  if test "x$PYUIC4" = "x" -o "x$PYRCC4" = "x" ; then
-    AC_MSG_FAILURE([cannot find PyQt4 dev tools, Graphical User Interface cannot be installed])
-    cs_have_gui=no
   fi
 
 fi
 
-# Test for PyQt5 developer tools
-if test "x$cs_have_gui_qt5" = "xyes" ; then
+# Test for PySide6
+#------------------
 
-  # Try to find PyQt5 tools through Python interpreter
-  prog="[import os, sys
-from PyQt5.QtCore import QCoreApplication
+if test "x$cs_have_gui" = "xcheck" ; then
+
+  if test "x$QT_SELECT" = "x" -o "x$QT_SELECT" = "xpyside6" -o "x$QT_SELECT" = "x6" ; then
+
+    AC_MSG_CHECKING([for PySide6])
+
+    prog="[import sys, string
+try: import PySide6
+except ImportError: sys.exit(1)
+from PySide6.QtCore import *
+if list(map(int, PySide6.QtCore.__version__.split('.'))) < [6,0,0]: sys.exit(1)
+if list(map(int, PySide6.__version__.split('.'))) < [6,0,0]: sys.exit(1)
+sys.exit(0)]"
+
+    ${PYTHON} -c "${prog}"
+    retval=$?
+
+    if test $retval -ne 0 ; then
+      AC_MSG_RESULT([no])
+      AC_MSG_FAILURE([cannot find PySide support (>= 6.0), Graphical User Interface cannot be installed])
+    else
+      AC_MSG_RESULT([yes])
+      cs_have_gui=PySide6
+    fi
+
+  fi
+
+  # Test for PySide6 developer tools
+  if test "x$cs_have_gui" = "xPySide6" ; then
+
+    # Try to find PyQt6 tools through Python interpreter
+    prog="[import os, sys
+from PySide6.QtCore import QCoreApplication
 app = QCoreApplication([])
 path = app.applicationDirPath()
 sys.stdout.write(path)]"
 
-  PYPATH=`${PYTHON} -c "${prog}"`
+    PYPATH=`${PYTHON} -c "${prog}"`
 
-  ## On Cygwin hosts, the PATH does not seem to be correctly found
-  #if test "$host_os" = cygwin ; then
-  #   PYPATH=/usr/lib/python$PYTHON_VERSION/site-packages/PyQt5
-  #fi
+    AC_ARG_VAR([PYSIDE6UIC], [PySide6 user interfaces compiler])
+    AC_ARG_VAR([PYSIDE6RCC], [Qt6 resources compiler])
 
-  AC_ARG_VAR([PYUIC5], [PyQt5 user interfaces compiler])
-  AC_ARG_VAR([PYRCC5], [PyQt5 resources compiler])
-  AC_ARG_VAR([LRELEASE], [Qt message files generator])
+    if test "x$PYSIDE6UIC" = "x" ; then
+      AC_PATH_PROG([PYSIDE6UIC], [pyside6-uic], [], [${PYPATH}:$PATH])
+    fi
+    if test "x$PYSIDE6RCC" = "x" ; then
+      AC_PATH_PROG([PYSIDE6RCC], [pyside6-rcc], [], [${PYPATH}:$PATH])
+    fi
 
-  if test "x$PYUIC5" = "x" ; then
-    AC_PATH_PROG([PYUIC5], [pyuic5], [$CMDPYUIC5], [${PYPATH}:$PATH])
-  fi
-  if test "x$PYRCC5" = "x" ; then
-    AC_PATH_PROG([PYRCC5], [pyrcc5], [],           [${PYPATH}:$PATH])
-  fi
+    if test "x$PYSIDE6UIC" != "x" ; then
+      cs_have_pyuic="pyside6_uic"
+    else
+      AC_PATH_PROG([UIC], [uic], [], [])
+    fi
+    if test "x$PYSIDE6RCC" != "x" ; then
+      cs_have_pyrcc="pyside6_rcc"
+    else
+      AC_PATH_PROG([RCC], [rcc], [], [])
+    fi
 
-  if test "x$LRELEASE" = "x" ; then
-    AC_PATH_PROGS([LRELEASE], [lrelease-qt5 lrelease])
-  fi
+    if test "x${PYSIDE6UIC}${UIC}" = "x" -o "x${PYSIDE6RCC}${RCC}" = "x" ; then
+      AC_MSG_FAILURE([cannot find PySide6 dev tools, Graphical User Interface cannot be installed])
+      cs_have_gui=no
+    fi
 
-  # lrelease not currently used (except in SALOME CFD extension, with a separate
-  # configure, so not an issue here
-
-  if test "x$PYUIC5" = "x" -o "x$PYRCC5" = "x" ; then
-    AC_MSG_FAILURE([cannot find PyQt5 dev tools, Graphical User Interface cannot be installed])
-    cs_have_gui=no
   fi
 
 fi
@@ -950,18 +1214,18 @@ fi
 # Checks for Qt tools.
 #------------------------------------------------------------------------------
 
-AM_CONDITIONAL(HAVE_GUI, [test "x$cs_have_gui" = "xyes"])
+AM_CONDITIONAL(HAVE_GUI, [test "x$cs_have_gui" != "xno"])
 AC_SUBST(cs_have_gui)
-AM_CONDITIONAL(HAVE_QT4, [test "x$cs_have_gui_qt4" = "xyes"])
-AC_SUBST(cs_have_gui_qt4)
-AM_CONDITIONAL(HAVE_QT5, [test "x$cs_have_gui_qt5" = "xyes"])
-AC_SUBST(cs_have_gui_qt5)
+AM_CONDITIONAL(HAVE_PYSIDE6, [test "x$cs_have_gui" = "xPySide6"])
+AM_CONDITIONAL(HAVE_PYQT6, [test "x$cs_have_gui" = "xPyQt6"])
+AM_CONDITIONAL(HAVE_PYQT5, [test "x$cs_have_gui" = "xPyQt5"])
+AM_CONDITIONAL(HAVE_PYUIC, [test "x$cs_have_pyuic" != "xno"])
+AM_CONDITIONAL(HAVE_PYRCC, [test "x$cs_have_pyrcc" != "xno"])
 
 #------------------------------------------------------------------------------
 # Checks for header files.
 #------------------------------------------------------------------------------
 
-AC_HEADER_STDC
 AC_CHECK_HEADERS([sys/types.h sys/utsname.h sys/stat.h dirent.h stddef.h])
 AC_CHECK_HEADERS([unistd.h fcntl.h sys/types.h sys/signal.h])
 AC_CHECK_HEADERS([sys/procfs.h sys/sysinfo.h sys/resource.h])
@@ -1106,6 +1370,8 @@ if test "x$enable_shared" = "xyes" ; then
     # Test for different plugins here
     if test x$cs_have_plugin_medcoupling = xyes ; then
       cs_have_plugins=yes
+    elif test x$cs_have_plugin_catalyst2 = xyes ; then
+      cs_have_plugins=yes
     elif test x$cs_have_plugin_catalyst = xyes ; then
       cs_have_plugins=yes
     elif test x$cs_have_ccm = xyes ; then
@@ -1123,13 +1389,7 @@ AC_SUBST(cs_py_have_plugins)
 AM_CONDITIONAL(HAVE_PLUGINS, test x$cs_have_plugins = xyes)
 
 #------------------------------------------------------------------------------
-# Internationalization
-#------------------------------------------------------------------------------
-
-AM_GNU_GETTEXT([external])
-
-#------------------------------------------------------------------------------
-# Pass compiler options to automake files and cs_config.py
+# Pass compiler options to automake files and code_saturne_build.cfg.in
 #------------------------------------------------------------------------------
 
 AC_SUBST(CPPFLAGS)
@@ -1147,10 +1407,8 @@ NEPTUNE_CFD=
 if test x$cs_have_neptune_cfd = xyes; then
   AC_CONFIG_SUBDIRS([neptune_cfd])
   NEPTUNE_CFD=neptune_cfd
-  NEPTUNE_CFD_LIBS="-lneptune"
 fi
 
-AC_SUBST(HAVE_NEPTUNE_CFD)
 AC_SUBST(NEPTUNE_CFD)
 
 #------------------------------------------------------------------------------
@@ -1159,60 +1417,30 @@ AC_SUBST(NEPTUNE_CFD)
 
 # Main configuration
 
-AC_CONFIG_FILES([Makefile po/Makefile.in
+AC_CONFIG_FILES([Makefile
                  preprocessor/Makefile
                  preprocessor/appli/Makefile preprocessor/base/Makefile
                  preprocessor/pre-post/Makefile preprocessor/util/Makefile
+                 external/Makefile external/atmo/Makefile
                  src/Makefile      src/apps/Makefile src/gui/Makefile
-                 src/bft/Makefile  src/fvm/Makefile  src/mei/Makefile
-                 src/base/Makefile src/atmo/Makefile src/cdo/Makefile
+                 src/bft/Makefile  src/fvm/Makefile
+                 src/base/Makefile src/model/Makefile src/atmo/Makefile src/cdo/Makefile
                  src/cfbl/Makefile src/cogz/Makefile src/ctwr/Makefile
-                 src/darc/Makefile src/elec/Makefile src/comb/Makefile
+                 src/elec/Makefile src/comb/Makefile src/gwf/Makefile
                  src/pprt/Makefile src/lagr/Makefile src/rayt/Makefile
                  src/turb/Makefile src/alge/Makefile src/mesh/Makefile
                  src/user/Makefile src/user_examples/Makefile
                  src/meg/Makefile
-                 gui/Makefile gui/Base/Makefile gui/Pages/Makefile
-                 gui/studymanager_gui/Makefile gui/trackcvg/Makefile
-                 docs/Makefile docs/doxygen/Makefile docs/style/csvers.tex
-                 docs/studymanager/Makefile docs/studymanager/graphics/Makefile
-                 docs/developer/Makefile docs/developer/graphics/Makefile
-                 docs/install/Makefile
-                 docs/refcard/Makefile docs/refcard/graphics/Makefile
-                 docs/theory/Makefile docs/theory/graphics/Makefile
-                 docs/user/Makefile docs/user/graphics/Makefile
+                 python/Makefile
+                 data_model/Makefile doc/Makefile doc/doxygen/Makefile
+                 doc/sphinx/Makefile doc/style/csvers.tex
+                 doc/theory/Makefile
                  tests/Makefile
-                 bin/cs_config.py])
+                 config/code_saturne_build.cfg.in])
 
 #------------------------------------------------------------------------------
 
 AC_OUTPUT
-
-#------------------------------------------------------------------------------
-
-# Libtool configuration bug workaround (problem encountered with compilers
-# which do not recognize "-soname", so that "-Wl,-soname" is needed to pass
-# flags to the linker; Manually setting $wl to "-Wl" in libtool corrects
-# the problem, and so does this workaround borrowed from
-# the HDF5 configure.in, which does it automatically).
-
-if test "x$GCC" != "xyes"; then
-  echo 'fixing $wl in libtool'
-ed - libtool <<EOF 2> /dev/null
-/^wl=""/s//wl="-Wl,"/
-w
-q
-EOF
-fi
-
-# Copy modified version of libtool to avoid issues with " -fPIC -DPIC"
-# insertion in CUDA compiler options. The -no-fpic option cannot be used
-# as pic_mode propagates to sub-libraries.
-
-if test "$cs_have_cuda" = "yes"; then
-  sed -e "s/ -fPIC -DPIC//" libtool > libtool_cuda
-  chmod +x libtool_cuda
-fi
 
 #------------------------------------------------------------------------------
 
@@ -1226,7 +1454,7 @@ echo " use malloc hooks: "$cs_have_malloc_hooks""
 if test x$cs_have_frontend = xno ; then
   echo " use frontend: no"
 else
-  echo " use graphical user interface: "$cs_have_gui""
+  echo " graphical user interface: "$cs_have_gui""
 fi
 if test x$cs_have_backend = xno ; then
   echo " use backend: no"
@@ -1236,16 +1464,33 @@ echo " Zlib (gzipped file) support: "$cs_have_zlib""
 echo " MPI (Message Passing Interface) support: "$cs_have_mpi""
 if (test x$cs_have_mpi = xyes) ; then
   echo "   MPI I/O support: "$cs_have_mpi_io""
-  echo "   MPI2 one-sided communication support: "$cs_have_mpi_one_sided""
-  echo "   MPI3 neighborhood collectives support: "$cs_have_mpi_one_sided""
   echo "   MPI3 nonblocking barrier support: "$cs_have_mpi_ibarrier""
 fi
 echo " OpenMP support: "$cs_have_openmp""
 if test x$cs_have_openmp = xyes ; then
+  echo " OpenMP accelerator support: "$cs_have_openmp_target""
+  if test "x$cs_have_openmp_target" = "xyes" ; then
+    echo "   Unified shared memory support: "$cs_have_openmp_target_usm""
+  fi
   echo " OpenMP Fortran support: "$cs_have_openmp_f""
 fi
 echo " CUDA support: "$cs_have_cuda""
-echo " BLAS (Basic Linear Algebra Subprograms) support: "$cs_have_blas""
+if test x$cs_have_cuda = xyes ; then
+  echo "   cuBLAS support: "$cs_have_cublas""
+  echo "   cuSPARSE support: "$cs_have_cusparse""
+  echo "   use CUDA in .cpp files: "$cs_enable_cuda_cpp""
+  echo "   NCCL support: "$cs_have_nccl""
+fi
+echo " HIP support : "$cs_have_hip""
+if test x$cs_have_hip = xyes ; then
+  echo "   hipBLAS support: "$cs_have_hipblas""
+  echo "   rocSPARSE support: "$cs_have_rocsparse""
+  echo "   use HIP in .cpp files: "$cs_enable_hip_cpp""
+  echo "   RCCL support: "$cs_have_rccl""
+fi
+echo " SYCL support: "$cs_have_sycl""
+echo " BLAS (Basic Linear Algebra Subprograms) support: "$with_blas_type""
+
 echo " ParMETIS (Parallel Graph Partitioning) support: "$cs_have_parmetis""
 if test x$cs_have_parmetis = xno ; then
   echo " METIS (Graph Partitioning) support: "$cs_have_metis""
@@ -1265,7 +1510,16 @@ echo " MEDCoupling support: "$cs_have_medcoupling""
 if test x$cs_have_medcoupling = xyes ; then
   echo "   MEDLoader support: "$cs_have_medcoupling_loader""
   echo "   ParaMEDMEM support: "$cs_have_paramedmem""
+  if test x$cs_have_paramedmem = xyes ; then
+    echo "      - with InterpKernelDEC: "$cs_have_paramedmem""
+    echo "      - with InterpKernelDECWithOverlap: "$cs_have_paramedmem_ikdecwo""
+    echo "      - with CFEMDEC: "$cs_have_paramedmem_cfemdec""
+  fi
   echo "   MEDCoupling as plugin: "$cs_have_plugin_medcoupling""
+fi
+echo " Catalyst2 (co-processing) support: "$cs_have_catalyst2""
+if (test x$cs_have_catalyst2 = xyes) ; then
+  echo "   Catalyst2 as plugin: "$cs_have_plugin_catalyst2""
 fi
 echo " Catalyst (ParaView co-processing) support: "$cs_have_catalyst""
 if (test x$cs_have_catalyst = xyes) ; then
@@ -1276,18 +1530,28 @@ if (test x$cs_have_melissa = xyes) ; then
   echo "   Melissa as plugin: "$cs_have_plugin_melissa""
 fi
 echo " EOS support: "$cs_have_eos""
-echo " freesteam support: "$cs_have_freesteam""
 echo " CoolProp support: "$cs_have_coolprop""
 echo " PETSc support: "$cs_have_petsc""
+echo " MUMPS support: "$cs_have_mumps""
+echo " HYPRE support: "$cs_have_hypre""
+echo " AMGX support: "$cs_have_amgx""
+echo " cuDSS support: "$cs_have_cudss""
 echo " Dynamic loader support: "$cs_have_dlloader""
 if (test "x$cs_env_modules" != "x") ; then
   echo " Auto load environment modules: "$cs_env_modules""
+fi
+echo
+echo " PdfLaTeX (document typesetting) available: "$cs_have_latex""
+echo " Doxygen (document generation) available: "$cs_have_doxygen""
+echo " Sphinx (documentation) available: "$cs_have_sphinx""
+if (test x$cs_have_doxygen = xyes) ; then
+  echo "   dot (Graphviz) available: "$cs_have_dot""
+  echo "   MathJax enabled: "$cs_enable_mathjax""
 fi
 echo
 echo "The package has been configured. Type:"
 echo " make"
 echo " make install"
 echo
-echo "To generate and install the Code_Saturne kernel"
+echo "To generate and install code_saturne."
 echo
-

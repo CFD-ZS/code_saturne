@@ -1,14 +1,14 @@
-#ifndef __BFT_SYSTEM_INFO_H__
-#define __BFT_SYSTEM_INFO_H__
+#ifndef CS_SYSTEM_INFO_H
+#define CS_SYSTEM_INFO_H
 
 /*============================================================================
  * Base system information (System and Library dependent)
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Public types
@@ -83,6 +79,4 @@ cs_system_info_no_log(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __BFT_SYSTEM_INFO_H__ */
+#endif /* CS_SYSTEM_INFO_H */

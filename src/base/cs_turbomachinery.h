@@ -1,14 +1,14 @@
-#ifndef __CS_TURBOMACHINERY_H__
-#define __CS_TURBOMACHINERY_H__
+#ifndef CS_TURBOMACHINERY_H
+#define CS_TURBOMACHINERY_H
 
 /*============================================================================
  * Turbomachinery modeling features.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_restart.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_restart.h"
 
 /*=============================================================================
  * Local Type Definitions
@@ -55,9 +51,9 @@ BEGIN_C_DECLS
 
 typedef enum {
 
-  CS_TURBOMACHINERY_NONE,          /* No turbomachinery modeling */
-  CS_TURBOMACHINERY_FROZEN,        /* Frozen rotor model */
-  CS_TURBOMACHINERY_TRANSIENT      /* full transient simulation */
+  CS_TURBOMACHINERY_NONE = 0,          /* No turbomachinery modeling */
+  CS_TURBOMACHINERY_FROZEN = 1,        /* Frozen rotor model */
+  CS_TURBOMACHINERY_TRANSIENT = 2      /* full transient simulation */
 
 } cs_turbomachinery_model_t;
 
@@ -82,6 +78,19 @@ cs_turbomachinery_set_model(cs_turbomachinery_model_t  model);
 
 cs_turbomachinery_model_t
 cs_turbomachinery_get_model(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return number of boundary couplings used for rotor/stator model.
+ *
+ * Joining-based definitions are not counted here.
+ *
+ * \return  number of boundary couplings used for rotor/stator model.
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_turbomachinery_get_n_couplings(void);
 
 /*----------------------------------------------------------------------------
  * Define a rotor by its axis and cell selection criteria.
@@ -121,7 +130,7 @@ cs_turbomachinery_join_add(const char  *sel_criteria,
                            int          visualization);
 
 /*----------------------------------------------------------------------------
- * Add a cs_join_t structure to the list of rotor/stator couplings.
+ * \brief Add a boundary coupling to the list of rotor/stator couplings.
  *
  * parameters:
  *   sel_criteria <-- boundary face selection criteria
@@ -166,13 +175,11 @@ cs_turbomachinery_finalize(void);
  * Update mesh for unsteady rotor/stator computation
  *
  * parameters:
- *   t_cur_mob    <-- current rotor time
- *   t_elapsed    --> elapsed computation time
+ *   t_elapsed --> elapsed computation time
  *----------------------------------------------------------------------------*/
 
 void
-cs_turbomachinery_update_mesh(double   t_cur_mob,
-                              double  *t_elapsed);
+cs_turbomachinery_update_mesh(double  *t_elapsed);
 
 /*----------------------------------------------------------------------------
  * Update mesh for unsteady rotor/stator computation in case of restart.
@@ -239,6 +246,19 @@ cs_turbomachinery_n_rotors(void);
 
 const int *
 cs_turbomachinery_get_cell_rotor_num(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get arrays associated to wall BC update.
+ *
+ * \param[out] coftur  values of "cofimp" term before geometry update
+ * \param[out] hfltur  local exchange coefficient before geometry update
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_turbomachinery_get_wall_bc_coeffs(cs_real_t  **coftur,
+                                     cs_real_t  **hfltur);
 
 /*----------------------------------------------------------------------------
  * Return rotation velocity
@@ -319,6 +339,10 @@ cs_turbomachinery_rotate_fields(const cs_real_t dt[]);
  *   velocity  --> velocity relative to fixed coordinates
  *----------------------------------------------------------------------------*/
 
+[[deprecated(
+"Use cs_rotation_velocity for more consistent naming of this "
+"reference frame velocity"
+)]]
 void
 cs_turbomachinery_relative_velocity(int              rotor_num,
                                     const cs_real_t  coords[3],
@@ -351,8 +375,15 @@ void
 cs_turbomachinery_restart_write(cs_restart_t  *r);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Create or access function objects specific to
+ *        turbomachinery models (relative_pressure, relative_velocity).
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_turbomachinery_define_functions(void);
 
-#endif /* __CS_TURBOMACHINERY_H__ */
+/*----------------------------------------------------------------------------*/
 
+#endif /* CS_TURBOMACHINERY_H */

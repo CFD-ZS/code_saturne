@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -56,6 +56,12 @@ AC_ARG_WITH(scotch,
                             [specify prefix directory for SCOTCH])],
             [if test "x$withval" = "x"; then
                with_scotch=yes
+             elif test "x$withval" = "xsalome"; then
+               if test -z "$SCOTCH_ROOT_DIR"; then
+                 AC_MSG_FAILURE([no SALOME path information for PT-SCOTCH (needed by --with-scotch=salome)!])
+               else
+                 with_scotch=$SCOTCH_ROOT_DIR
+               fi
              fi],
             [with_scotch=no])
 
@@ -79,14 +85,10 @@ AC_ARG_WITH(scotch-lib,
             [if test "x$with_scotch" = "xcheck" -o "x$with_scotch" = "xno"; then
                with_scotch=yes
              fi
-             SCOTCH_LDFLAGS="-L$with_scotch_lib"
-             # Add the libdir to the runpath as SCOTCH is not libtoolized
-             SCOTCHRUNPATH="-R$with_scotch_lib"],
+             SCOTCH_LDFLAGS="-L$with_scotch_lib"],
             [if test "x$with_scotch" != "xno" -a "x$with_scotch" != "xyes" \
 	          -a "x$with_scotch" != "xcheck"; then
                SCOTCH_LDFLAGS="-L$with_scotch/lib"
-               # Add the libdir to the runpath as SCOTCH is not libtoolized
-               SCOTCHRUNPATH="-R$with_scotch/lib"
              fi])
 
 
@@ -266,7 +268,6 @@ AC_SUBST(scotch_prefix, [${scotch_prefix}])
 AC_SUBST(SCOTCH_CPPFLAGS)
 AC_SUBST(SCOTCH_LDFLAGS)
 AC_SUBST(SCOTCH_LIBS)
-AC_SUBST(SCOTCHRUNPATH)
 
 ])dnl
 

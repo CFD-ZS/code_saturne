@@ -1,14 +1,14 @@
-#ifndef __CS_FP_EXCEPTION_H__
-#define __CS_FP_EXCEPTION_H__
+#ifndef CS_FP_EXCEPTION_H
+#define CS_FP_EXCEPTION_H
 
 /*============================================================================
  * Program timing information
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Public types
@@ -55,7 +51,7 @@ BEGIN_C_DECLS
  * Uses a counter to handle nested calls.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_fp_exception_enable_trap(void);
 
 /*----------------------------------------------------------------------------
@@ -64,18 +60,16 @@ cs_fp_exception_enable_trap(void);
  * Uses a counter to handle nested calls.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_fp_exception_disable_trap(void);
 
 /*----------------------------------------------------------------------------
  * Restore floating-point exception trapping.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_fp_exception_restore_trap(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FP_EXCEPTION_H__ */
+#endif /* CS_FP_EXCEPTION_H */

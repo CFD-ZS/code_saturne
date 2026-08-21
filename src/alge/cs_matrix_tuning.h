@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_TUNING_H__
-#define __CS_MATRIX_TUNING_H__
+#ifndef CS_MATRIX_TUNING_H
+#define CS_MATRIX_TUNING_H
 
 /*============================================================================
  * Sparse Matrix Representation and Operations
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,14 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-#include "cs_numbering.h"
-#include "cs_halo_perio.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_halo.h"
+#include "base/cs_numbering.h"
+#include "base/cs_halo_perio.h"
 
 /*============================================================================
  * Macro definitions
@@ -50,7 +46,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -58,15 +54,18 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Build a matrix variant tuned matrix.vector product operations.
  *
  * The variant may later be applied to matrices of the same type and fill type.
  *
+ * In presence of supported accelerated devices, an array of 3 variants
+ * is returned; the second one applies to the host only, the third one
+ * to the device only.
+ *
  * \param[in]  m           associated matrix
  * \param[in]  verbosity   verbosity level
  * \param[in]  n_measure   minimum number of measuring runs
- * \param[in]  t_measure   minimum measure time
  *
  * \returns  pointer to tuning results structure
  */
@@ -75,11 +74,8 @@ BEGIN_C_DECLS
 cs_matrix_variant_t *
 cs_matrix_variant_tuned(const cs_matrix_t  *m,
                         int                 verbosity,
-                        int                 n_measure,
-                        double              t_measure);
+                        int                 n_measure);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_TUNING_H__ */
+#endif /* CS_MATRIX_TUNING_H */

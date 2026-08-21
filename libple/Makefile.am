@@ -2,7 +2,7 @@
 #   This file is part of the "Parallel Location and Exchange" library,
 #   intended to provide mesh or particle-based code coupling services.
 #
-#   Copyright (C) 2005-2020  EDF S.A.
+#   Copyright (C) 2005-2023  EDF S.A.
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Lesser General Public
@@ -19,33 +19,33 @@
 #   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #-------------------------------------------------------------------------------
 
-AUX_DIST = build-aux/compile \
-           build-aux/config.guess \
-           build-aux/config.sub \
-           build-aux/depcomp \
-           build-aux/install-sh \
-           build-aux/ltmain.sh \
-           build-aux/missing \
-           m4/libtool.m4 \
-           m4/lt~obsolete.m4 \
-           m4/ltoptions.m4 \
-           m4/ltsugar.m4 \
-           m4/ltversion.m4
+AUX_DIST = \
+build-aux/ar-lib \
+build-aux/compile \
+build-aux/config.guess \
+build-aux/config.sub \
+build-aux/depcomp \
+build-aux/install-sh \
+build-aux/missing \
+build-aux/py-compile
 
 MAINTAINERCLEANFILES = aclocal.m4 configure $(AUX_DIST)
 
-SUBDIRS = src pyple tests doc po
+SUBDIRS = src pyple tests doc
 
-EXTRA_DIST = m4/ple_config_info.m4 \
-             m4/ple_config_publ.m4 \
-             m4/ple_mpi.m4 \
-             m4/ple_mpi4py.m4 \
-             m4/ple_types.m4 \
-             config/ple_auto_flags.sh \
-             sbin/backup \
-             sbin/bootstrap \
-             sbin/clean \
-             sbin/rmb
+EXTRA_DIST = \
+NEWS.md \
+README.md \
+m4/ple_config_info.m4 \
+m4/ple_config_publ.m4 \
+m4/ple_mpi.m4 \
+m4/ple_mpi4py.m4 \
+m4/ple_types.m4 \
+config/ple_auto_flags.sh \
+sbin/backup \
+sbin/bootstrap \
+sbin/clean \
+sbin/rmb
 
 # One adds the examples sub-directories with a dist-hook.
 # The reason for this trick is that
@@ -70,11 +70,6 @@ ACLOCAL_AMFLAGS = -I m4
 
 uninstall-local:
 	rmdir $(configincludedir) || exit 0
-
-# Update gettext dictionnaries
-
-update-po:
-	cd po && $(MAKE) $(AM_MAKEFLAGS) update-po
 
 # Generate and install documentation
 

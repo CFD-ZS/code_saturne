@@ -1,14 +1,14 @@
-#ifndef __CS_LES_BALANCE_H__
-#define __CS_LES_BALANCE_H__
+#ifndef CS_LES_BALANCE_H
+#define CS_LES_BALANCE_H
 
 /*============================================================================
  * Filters for dynamic models.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2018 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Macro definitions
@@ -66,26 +62,24 @@ BEGIN_C_DECLS
  * Type definition
  *============================================================================*/
 
-/* Additional types */
-
 /* Rij LES balance structure */
 /*---------------------------*/
 
 typedef struct {
 
   /* Working arrays */
-  cs_real_t      *pp2;
-  cs_real_t      *smagp2;
-  cs_real_6_t    *prodij;
-  cs_real_6_t    *phiij;
-  cs_real_6_t    *epsij;
-  cs_real_6_t    *difftij;
-  cs_real_6_t    *difftpij;
-  cs_real_6_t    *unstij;
-  cs_real_6_t    *convij;
-  cs_real_6_t    *difflamij;
-  cs_real_6_t    *budsgsij;
-  cs_real_96_t   *budsgsfullij;
+  cs_real_t     *pp2;
+  cs_real_t     *smagp2;
+  cs_real_6_t   *prodij;
+  cs_real_6_t   *phiij;
+  cs_real_6_t   *epsij;
+  cs_real_6_t   *difftij;
+  cs_real_6_t   *difftpij;
+  cs_real_6_t   *unstij;
+  cs_real_6_t   *convij;
+  cs_real_6_t   *difflamij;
+  cs_real_6_t   *budsgsij;
+  cs_real_69_t  *budsgsfullij;
 
 } cs_les_balance_rij_t;
 
@@ -135,6 +129,10 @@ typedef struct {
 
   int                      type;
 
+  int                      nt_start;
+
+  cs_real_t                t_start;
+
   int                      frequency_n;
 
 } cs_les_balance_t;
@@ -150,7 +148,7 @@ extern cs_les_balance_t *cs_glob_les_balance;
  * Create fields used in LES balance computation
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_create_fields(void);
 
 /*----------------------------------------------------------------------------
@@ -160,49 +158,49 @@ cs_les_balance_create_fields(void);
  *  pointer to LES balance global structure
  *----------------------------------------------------------------------------*/
 
-cs_les_balance_t *
+extern "C" cs_les_balance_t *
 cs_get_glob_les_balance(void);
 
 /*----------------------------------------------------------------------------
  * Create a LES balance descriptor.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_create(void);
 
 /*----------------------------------------------------------------------------
  * Update gradients needed in LES balance
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_update_gradients(void);
 
 /*----------------------------------------------------------------------------
  * Compute Rij LES balance.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_compute_rij(void);
 
 /*----------------------------------------------------------------------------
  * Compute Tui LES balance.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_compute_tui(void);
 
 /*----------------------------------------------------------------------------
  * Write the LES balance structure in the auxiliary restart file.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_write_restart(void);
 
 /*----------------------------------------------------------------------------
  * Destroy the LES balance structure.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_finalize(void);
 
 /*----------------------------------------------------------------------------
@@ -213,7 +211,7 @@ cs_les_balance_finalize(void);
  *  frequency_n --> balance computing frequency in time-steps
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_activate(int     type_flag,
                         int     frequency_n);
 
@@ -221,11 +219,9 @@ cs_les_balance_activate(int     type_flag,
  * Compute the LES balance
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_les_balance_compute(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LES_BALANCE_H__ */
+#endif /* CS_LES_BALANCE_H */

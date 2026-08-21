@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_LAGCAR_H__
-#define __CS_LAGR_LAGCAR_H__
+#ifndef CS_LAGR_LAGCAR_H
+#define CS_LAGR_LAGCAR_H
 
 /*============================================================================
  * Compute particle characteristics: Tp, TL et PI
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,10 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
+#include "lagr/cs_lagr_particle.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Macro definitions
@@ -45,41 +44,81 @@ BEGIN_C_DECLS
  * Global variables
  *============================================================================*/
 
+#if defined(__cplusplus)
+
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Compute particle characteristics: Tp, TL and PI
+ * \brief Compute particle characteristics (except force_p): Tp, TL and PI
+ * as well as covariance and variance tensors for the stochastic model
  *
- * \param[in] iprev     time step indicator for fields
- *                        0: use fields at current time step
- *                        1: use fields at previous time step
- * \param[in]  dt       time step (per cell)
- * \param[out] taup     dynamic characteristic time
- * \param[out] tlag     fluid characteristic time
- * \param[out] piil     term in integration of up sde
- * \param[out] bx       turbulence characteristics
- * \param[out] tempct   thermal charactersitic time
- * \param[in]  gradpr   pressure gradient
- * \param[in]  gradvf   fluid velocity gradient
+ * \param[in] iprev                time step indicator for fields
+ *                                   0: use fields at current time step
+ *                                   1: use fields at previous time step
+ * \param[in]  phase_id            carrier phase id
+ * \param[in]  p_set               reference to particle set
+ * \param[in]  p_id                particle index in set
+ * \param[in]  nor                 current step id (for 2nd order scheme)
+ * \param[in]  dt_part             time step associated to the particle
+ * \param[out] taup                dynamic characteristic time
+ * \param[out] tlag                fluid characteristic Lagrangian time scale
+ * \param[out] piil                term in integration of up sde
+ * \param[out] bx                  turbulence characteristics
+ * \param[out] tempct              thermal characteristic time
+ * \param[out] beta                for the extended scheme
+ *
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_lagr_car(int              iprev,
-            const cs_real_t  dt[],
-            cs_real_t        taup[],
-            cs_real_3_t      tlag[],
-            cs_real_3_t      piil[],
-            cs_real_33_t     bx[],
-            cs_real_t        tempct[],
-            cs_real_3_t      gradpr[],
-            cs_real_33_t     gradvf[]);
+cs_lagr_car(int                         iprev,
+            int                         phase_id,
+            cs_lagr_particle_set_t     &p_set,
+            cs_lnum_t                   p_id,
+            int                         nor,
+            const cs_real_t             dt_part,
+            cs_real_t                  *taup,
+            cs_real_3_t                 tlag,
+            cs_real_3_t                 piil,
+            cs_real_33_t                bx,
+            cs_real_2_t                 tempct,
+            cs_real_3_t                 beta);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute external force impacting the particle
+ *
+ * \param[in]  dt_part             time step associated to the particle
+ * \param[in]  p_set               reference to particle set
+ * \param[in]  p_id                particle index in set
+ * \param[in]  taup                dynamic characteristic time
+ * \param[in]  tlag                fluid characteristic Lagrangian time scale
+ * \param[in]  piil                term in integration of up sde
+ * \param[in]  bx                  turbulence characteristics
+ * \param[in]  tempct              thermal characteristic time
+ * \param[in]  beta                for the extended scheme
+ * \param[in]  tsfext              info for return coupling source terms
+ * \param[in]  force_p             user external force field (m/s^2)$
+ *
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_lagr_get_force_p(const cs_real_t             dt_part,
+                    cs_lagr_particle_set_t     &p_set,
+                    cs_lnum_t                   p_id,
+                    cs_array<cs_real_t>&        taup,
+                    cs_array_2d<cs_real_t>&     tlag,
+                    cs_array_2d<cs_real_t>&     piil,
+                    cs_array_3d<cs_real_t>&     bx,
+                    cs_real_t                   tsfext,
+                    cs_real_3_t                 force_p);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+#endif /* __cplusplus */
 
-#endif /* __CS_LAGR_LAGCAR_H__ */
+#endif /* CS_LAGR_LAGCAR_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_LOG_ITERATION_H__
-#define __CS_LOG_ITERATION_H__
+#ifndef CS_LOG_ITERATION_H
+#define CS_LOG_ITERATION_H
 
 /*============================================================================
  * Log field and other array statistics at relevant time steps.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -25,26 +25,18 @@
   Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-#include "cs_base.h"
-#include "cs_mesh_location.h"
-#include "cs_time_step.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh_location.h"
+#include "base/cs_time_control.h"
+#include "base/cs_time_step.h"
 
 /*============================================================================
  * Macro definitions
@@ -75,6 +67,64 @@ cs_log_iteration_destroy_all(void);
 
 void
 cs_log_iteration(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Retrieve the time control associated to the iteration logging
+ *
+ * \return a pointer to the time control structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_time_control_t *
+cs_log_iteration_get_time_control(void);
+
+/*----------------------------------------------------------------------------
+ * Log field and other array statistics for the current time step.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_log_equation_convergence_info_write(void);
+
+/*----------------------------------------------------------------------------
+ * Set adaptive interval for "per time step" logging information.
+ *
+ * Logging will also occur:
+ * - Each time step for the first n absolute or restarted time steps.
+ * - Every 5 time steps between n and 5.n time steps.
+ * - Every 10 time steps between 5.n and 10.n time steps.
+ * - Every 50 time steps between 10.n and 50.n time steps.
+ * - Every 100 time steps between 50.n and 100.n time steps.
+ * - ...
+ * - At the last time step\n\n"),
+ *
+ * parameters:
+ *   n  <--  base interval for output.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_log_iteration_set_automatic(int  n);
+
+/*----------------------------------------------------------------------------
+ * Set interval for "per time step" logging information.
+ *
+ * Logging will also occur for the 10 first time steps, as well as the last one.
+ *
+ * parameters:
+ *   n  <--  interval between 2 output time steps.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_log_iteration_set_interval(int  n);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Activate or deactivate default log for current iteration.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_log_iteration_set_active(void);
 
 /*----------------------------------------------------------------------------
  * Add or update array not saved as permanent field to iteration log.
@@ -138,15 +188,29 @@ cs_log_iteration_clipping_field(int               f_id,
                                 cs_lnum_t         n_clip_min_comp[],
                                 cs_lnum_t         n_clip_max_comp[]);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Initialize structures used for logging for new iteration.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_log_iteration_prepare(void);
+
 /*----------------------------------------------------------------------------
- * Log L2 time residual for every variable fields.
+ * Log L2 time residual for variable fields.
  *----------------------------------------------------------------------------*/
 
 void
-cs_log_l2residual(void);
+cs_log_iteration_l2residual(void);
+
+/*----------------------------------------------------------------------------
+ * Print default log per iteration options to setup.log.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_log_iteration_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LOG_ITERATION_H__ */
+#endif /* CS_LOG_ITERATION_H */

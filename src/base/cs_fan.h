@@ -1,14 +1,14 @@
-#ifndef __CS_FAN_H__
-#define __CS_FAN_H__
+#ifndef CS_FAN_H
+#define CS_FAN_H
 
 /*============================================================================
  * Fan modeling through velocity source terms.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,74 +28,23 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
-#include "cs_mesh.h"
-#include "cs_mesh_quantities.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*============================================================================
  * Structure definition
  *============================================================================*/
 
 typedef struct _cs_fan_t cs_fan_t;
-
-/*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Compute the flows through the fans
- *
- * Fortran interface:
- *
- * subroutine debvtl
- * *****************
- *
- * double precision flumas(*)      : <-- : interior faces mass flux
- * double precision flumab(*)      : <-- : boundary faces mass flux
- * double precision rhofac(*)      : <-- : density at cells
- * double precision rhofab(*)      : <-- : density at boundary faces
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (debvtl, DEBVTL)
-(
- cs_real_t  flumas[],
- cs_real_t  flumab[],
- cs_real_t  rhofac[],
- cs_real_t  rhofab[]
-);
-
-/*----------------------------------------------------------------------------
- * Compute the force induced by the fans (needs a previous calculation
- * of the flows through each fan).
- *
- * The induced force is added to the array crvxep (which can have other
- * contributions).
- *
- * Fortran interface:
- *
- * subroutine tsvvtl
- * *****************
- *
- * parameters:
- *  crvexp         <-> Explicit source term (velocity)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tsvvtl, TSVVTL)
-(
- cs_real_3_t  crvexp[]
-);
 
 /*============================================================================
  * Public function prototypes
@@ -113,8 +62,11 @@ void CS_PROCF (tsvvtl, TSVVTL)
  *
  * parameters:
  *   fan_dim             <-- fan dimension:
- *                           2: pseudo-2D (extruded mesh)
- *                           3: 3D (standard)
+ *                             2: pseudo-2D (extruded mesh)
+ *                             3: 3D (standard)
+ *   mode                <-- mode:
+ *                             0: fan
+ *                             1: wind turbine
  *   inlet_axis_coords   <-- intersection coords. of axis and inlet face
  *   outlet_axis_coords  <-- intersection coords. od axis and outlet face
  *   fan_radius          <-- fan radius
@@ -128,6 +80,7 @@ void CS_PROCF (tsvvtl, TSVVTL)
 
 void
 cs_fan_define(int              fan_dim,
+              int              mode,
               const cs_real_t  inlet_axis_coords[3],
               const cs_real_t  outlet_axis_coords[3],
               cs_real_t        fan_radius,
@@ -152,6 +105,13 @@ cs_fan_destroy_all(void);
 
 int
 cs_fan_n_fans(void);
+
+/*----------------------------------------------------------------------------
+ * Create fans field.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_fan_field_create(void);
 
 /*----------------------------------------------------------------------------
  * Log fans definition setup information.
@@ -247,6 +207,4 @@ cs_fan_cells_select(void         *input,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FAN_H__ */
+#endif /* CS_FAN_H */

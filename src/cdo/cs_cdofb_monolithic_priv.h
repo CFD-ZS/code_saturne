@@ -1,5 +1,5 @@
-#ifndef __CS_CDOFB_MONOLITHIC_PRIV_H__
-#define __CS_CDOFB_MONOLITHIC_PRIV_H__
+#ifndef CS_CDOFB_MONOLITHIC_PRIV_H
+#define CS_CDOFB_MONOLITHIC_PRIV_H
 
 /*============================================================================
  * Build an algebraic CDO face-based system for the Navier-Stokes equations
@@ -8,9 +8,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,47 +29,50 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_cdo_bc.h"
-#include "cs_cdofb_priv.h"
-#include "cs_cdofb_scaleq.h"
-#include "cs_cdofb_vecteq.h"
-#include "cs_cdofb_monolithic_sles.h"
-#include "cs_cdofb_navsto.h"
-#include "cs_equation_bc.h"
-#include "cs_equation_common.h"
-#include "cs_equation_priv.h"
-#include "cs_navsto_coupling.h"
-#include "cs_param.h"
-#include "cs_static_condensation.h"
-#include "cs_timer.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "alge/cs_saddle_solver.h"
+#include "alge/cs_sles.h"
+#include "base/cs_timer.h"
+#include "cdo/cs_cdo_assembly.h"
+#include "cdo/cs_cdo_bc.h"
+#include "cdo/cs_cdo_system.h"
+#include "cdo/cs_cdofb_monolithic_sles.h"
+#include "cdo/cs_cdofb_navsto.h"
+#include "cdo/cs_cdofb_priv.h"
+#include "cdo/cs_cdofb_scaleq.h"
+#include "cdo/cs_cdofb_vecteq.h"
+#include "cdo/cs_equation_bc.h"
+#include "cdo/cs_equation_priv.h"
+#include "cdo/cs_iter_algo.h"
+#include "cdo/cs_navsto_context.h"
+#include "cdo/cs_navsto_coupling.h"
+#include "cdo/cs_navsto_param.h"
+#include "cdo/cs_static_condensation.h"
 
 /*=============================================================================
  * Additional doxygen documentation
  *============================================================================*/
 
 /*!
- * \file cs_cdofb_monolithic_priv.c
+ * \file cs_cdofb_monolithic_priv.h
  *
  * \brief Structures and function pointers useful to build and solve
  *        the Navier-Stokes equations with face-based schemes and a
  *        monolithic approach
  */
 
-typedef struct _cdofb_monolithic_t  cs_cdofb_monolithic_t;
+typedef struct _cs_cdofb_monolithic_t cs_cdofb_monolithic_t;
+
+/*! \cond DOXYGEN_SHOULD_SKIP_THIS */
 
 /*=============================================================================
  * Definitions of function pointers
@@ -77,77 +80,72 @@ typedef struct _cdofb_monolithic_t  cs_cdofb_monolithic_t;
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Initialize a matrix and its related structures needed during the
- *         assembly step.
+ * \brief Perform the assembly stage for a vector-valued system obtained with
+ *        CDO-Fb schemes
  *
- * \param[in, out]  sc           pointer to scheme context structure
+ * \param[in]      csys  pointer to a cs_cell_sys_t structure
+ * \param[in]      cm    pointer to a cs_cell_mesh_t structure
+ * \param[in]      nsb   pointer to a navsto builder structure
+ * \param[in, out] sc    pointer to scheme context structure
+ * \param[in, out] eqc   context structure for a vector-valued Fb
+ * \param[in, out] asb   pointer to cs_cdo_assembly_t
  */
 /*----------------------------------------------------------------------------*/
 
 typedef void
-(cs_cdofb_monolithic_init_matrix_t)(cs_cdofb_monolithic_t     *sc);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Perform the assembly stage for a vector-valued system obtained
- *         with CDO-Fb schemes
- *
- * \param[in]       csys              pointer to a cs_cell_sys_t structure
- * \param[in]       cm                pointer to a cs_cell_mesh_t structure
- * \param[in]       div_op            array with the divergence op. values
- * \param[in]       has_sourceterm    has the equation a source term?
- * \param[in, out]  sc                pointer to scheme context structure
- * \param[in, out]  eqc               context structure for a vector-valued Fb
- * \param[in, out]  eqa               pointer to cs_equation_assemble_t
- */
-/*----------------------------------------------------------------------------*/
-
-typedef void
-(cs_cdofb_monolithic_assemble_t)(const cs_cell_sys_t            *csys,
-                                 const cs_cell_mesh_t           *cm,
-                                 const cs_real_t                *div_op,
-                                 const bool                      has_sourceterm,
-                                 cs_cdofb_monolithic_t          *sc,
-                                 cs_cdofb_vecteq_t              *eqc,
-                                 cs_equation_assemble_t         *eqa);
+(cs_cdofb_monolithic_assemble_t)(const cs_cell_sys_t              *csys,
+                                 const cs_cell_mesh_t             *cm,
+                                 const cs_cdofb_navsto_builder_t  *nsb,
+                                 cs_cdofb_monolithic_t            *sc,
+                                 cs_cdofb_vecteq_t                *eqc,
+                                 cs_cdo_assembly_t                *asb);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Build a linear system for Stokes, Oseen or Navier-Stokes in the
  *         steady-state case. Specific case: GKB algorithm is used to solve
- *         the saddle-point system.
+ *         the saddle-point system. In case of unsteady computation, indice n
+ *         means the previous time step (one computes the new state at n+1) and
+ *         state at n-1 is the previous state of the previous state.
  *
- * \param[in]      nsp           pointer to a \ref cs_navsto_param_t structure
- * \param[in]      dir_values    array storing the Dirichlet values
- * \param[in]      forced_ids    indirection in case of internal enforcement
- * \param[in, out] sc            pointer to the scheme context
+ * \param[in]      nsp          pointer to a \ref cs_navsto_param_t structure
+ * \param[in]      vel_f_n      velocity face DoFs at time step n
+ * \param[in]      vel_c_n      velocity cell DoFs at time step n
+ * \param[in]      vel_f_nm1    velocity face DoFs at time step n-1 or null
+ * \param[in]      vel_c_nm1    velocity cell DoFs at time step n-1 or null
+ * \param[in, out] sc           pointer to the scheme context
  */
 /*----------------------------------------------------------------------------*/
 
 typedef void
 (cs_cdofb_monolithic_build_t)(const cs_navsto_param_t      *nsp,
-                              const cs_real_t              *dir_values,
-                              const cs_lnum_t               forced_ids[],
+                              const cs_real_t               vel_f_n[],
+                              const cs_real_t               vel_c_n[],
+                              const cs_real_t               vel_f_nm1[],
+                              const cs_real_t               vel_c_nm1[],
                               cs_cdofb_monolithic_t        *sc);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Use the GKB algorithm to solve the saddle-point problem arising
- *         from CDO-Fb schemes for Stokes and Navier-Stokes with a monolithic
- *         coupling
+ * \brief Generic function prototype to solve the linear system arising from
+ *        the discretization of the Navier-Stokes equation with a CDO
+ *        face-based approach and using a monolithic (strongly coupled) velocity-
+ *        pressure approach.
  *
- * \param[in]      nsp      pointer to a cs_navsto_param_t structure
- * \param[in]      eqp      pointer to a cs_equation_param_t structure
- * \param[in, out] msles    pointer to a cs_cdofb_monolithic_sles_t structure
+ * \param[in]      nsp     set of parameters related to the Navier-Stokes eqs.
+ * \param[in, out] solver  pointer to a cs_saddle_solver_t structure
+ * \param[in, out] u_f     values of the velocity at faces (3 components)
+ * \param[in, out] p_c     values of the pressure in cells
  *
- * \return the cumulated number of iterations of the solver
+ * \return the (cumulated) number of iterations of the solver
  */
 /*----------------------------------------------------------------------------*/
 
 typedef int
-(cs_cdofb_monolithic_solve_t)(const cs_navsto_param_t       *nsp,
-                              const cs_equation_param_t     *eqp,
-                              cs_cdofb_monolithic_sles_t    *msles);
+(cs_cdofb_monolithic_solve_t)(const cs_navsto_param_t  *nsp,
+                              cs_saddle_solver_t       *saddle,
+                              cs_real_t                *u_f,
+                              cs_real_t                *p_c);
 
 /*=============================================================================
  * Structure definitions
@@ -159,85 +157,7 @@ typedef int
  *         Case of a monolithic approach (i.e fully coupled)
  */
 
-struct _cdofb_monolithic_t {
-
-  /*! \var coupling_context
-   *  Pointer to a \ref cs_navsto_monolithic_t (owned by \ref
-   *  cs_navsto_system_t) containing the settings related to the monolithic
-   *  approach
-   */
-
-  cs_navsto_monolithic_t   *coupling_context;
-
-  /*!
-   * @name Main field variables
-   * Fields for every main variable of the equation. Got from cs_navsto_system_t
-   */
-
-  /*! \var velocity
-   *  Pointer to \ref cs_field_t (owned by \ref cs_navsto_system_t) containing
-   *  the cell DoFs of the velocity
-   */
-
-  cs_field_t               *velocity;
-
-  /*! \var pressure
-   *  Pointer to \ref cs_field_t (owned by \ref cs_navsto_system_t) containing
-   *  the cell DoFs of the pressure
-   */
-
-  cs_field_t               *pressure;
-
-  /*! \var divergence
-   *  Pointer to \ref cs_real_t containing the values of the divergence on the
-   *  cells
-   */
-
-  cs_field_t               *divergence;
-
-  /*!
-   * @}
-   * @name Boundary conditions (BC) management
-   * Routines and elements used for enforcing the BCs
-   * @{
-   *
-   *  \var bf_type
-   *  Array of boundary type for each boundary face. (Shared)
-   */
-
-  const cs_boundary_type_t       *bf_type;
-
-  /*!
-   * \var pressure_bc
-   * Structure storing the metadata after processing the user-defined boundary
-   * conditions related to the pressure field
-   */
-
-  cs_cdo_bc_face_t               *pressure_bc;
-  int                             need_pressure_rescaling;
-
-  /*! \var apply_fixed_wall
-   *  \ref cs_cdo_apply_boundary_t function pointer defining how to apply a
-   *  wall boundary (no slip boundary)
-   *
-   *  \var apply_sliding_wall
-   *  \ref cs_cdo_apply_boundary_t function pointer defining how to apply a
-   *  wall boundary (a tangential velocity is specified at the wall)
-   *
-   *  \var apply_velocity_inlet
-   *  \ref cs_cdo_apply_boundary_t function pointer defining how to apply a
-   *  boundary with a fixed velocity at the inlet
-   *
-   *  \var apply_symmetry
-   *  \ref cs_cdo_apply_boundary_t function pointer defining how to apply a
-   *  symmetry boundary
-   */
-
-  cs_cdo_apply_boundary_t        *apply_fixed_wall;
-  cs_cdo_apply_boundary_t        *apply_sliding_wall;
-  cs_cdo_apply_boundary_t        *apply_velocity_inlet;
-  cs_cdo_apply_boundary_t        *apply_symmetry;
-
+struct _cs_cdofb_monolithic_t : public cs::cdo_navsto_monolithic_ctx_t {
   /*!
    * @}
    * @name Build stage
@@ -245,9 +165,16 @@ struct _cdofb_monolithic_t {
    * @{
    */
 
-  cs_cdofb_monolithic_init_matrix_t   *init_system;
-  cs_cdofb_monolithic_build_t         *steady_build;
-  cs_cdofb_monolithic_build_t         *build;
+  cs_cdofb_monolithic_build_t *steady_build;
+  cs_cdofb_monolithic_build_t *build;
+
+  /*!
+   * \var add_gravity_term
+   * \ref Compute and add the source term related to the gravity vector
+   *      This can be the Boussinesq term or the hydrostatic term (rho*g)
+   */
+
+  cs_cdofb_navsto_source_t *add_gravity_term;
 
   /*!
    * @}
@@ -261,65 +188,60 @@ struct _cdofb_monolithic_t {
    * system of equation
    */
 
-  cs_cdofb_monolithic_assemble_t      *assemble;
+  cs_cdofb_monolithic_assemble_t *assemble;
 
-  /* \var elemental_assembly
-   * Function pointer to manage the assembly process at low-level
+  /* \var block21_op
+   * Unassembled (2,1)-block (related to the divergence). Not always
+   * allocated. It depends on the solver for the saddle-point system.
    */
 
-  cs_equation_assembly_t              *elemental_assembly;
+  cs_real_t *block21_op;
 
-  /* \var mav_structures
-   * Set of pointers to the matrix assembler structures for matrix values
-   * Size = 1 or 9
+  /* \var system_helper
+   * Set of structure to handle the saddle-point matrix and its rhs
    */
 
-  cs_matrix_assembler_values_t       **mav_structures;
+  cs_cdo_system_helper_t *system_helper;
 
   /*!
    * @}
    * @name Solve stage
    * Additional members which may be used to solve the system
    * @{
+   *
+   * \var solve
+   * Function dedicated to the resolution of the saddle-point system
    */
 
-  cs_cdofb_monolithic_solve_t      *solve;
+  cs_cdofb_monolithic_solve_t *solve;
 
-  /* \var msles
+  /* \var saddle_solver
    * Set of pointers to enable the resolution of saddle-point system
    * with various algorithms. This structure allows us to unify the prototype
    * of "solve" functions
-   * Some members of this structure are allocated only if a specific algorithm
-   * is requested.
+   *
+   * \var gamma
+   * Scaling coefficient in case of augmentation of the system
    */
 
-  cs_cdofb_monolithic_sles_t       *msles;
+  cs_saddle_solver_t *saddle_solver;
+
+  double gamma;
 
   /*!
-   * @}
-   * @name Performance monitoring
-   * Monitoring the efficiency of the algorithm used to solve the Navier-Stokes
-   * system
-   * @{
+   * \var nl_algo
+   * Structure used to drive the convergence of high-level iterative algorithms
    */
 
-  /*! \var timer
-   *  Cumulated elapsed time for building and solving the Navier--Stokes system
-   */
-  cs_timer_counter_t  timer;
+  cs_iter_algo_t *nl_algo;
 
   /*! @} */
-
 };
 
-/*! \cond DOXYGEN_SHOULD_SKIP_THIS */
+/*! (DOXYGEN_SHOULD_SKIP_THIS) \endcond */
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDOFB_MONOLITHIC_PRIV_H__ */
+#endif /* CS_CDOFB_MONOLITHIC_PRIV_H */

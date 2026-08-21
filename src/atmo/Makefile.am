@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,85 +33,65 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
-
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/base \
-$(FCMODINCLUDE)$(top_builddir)/src/user \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT) $(CFLAGS_SHARED)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+csatmo_includedir=$(pkgincludedir)/atmo
+csatmo_include_HEADERS = \
 cs_air_props.h \
-cs_at_plugin.h \
 cs_at_opt_interp.h \
 cs_at_data_assim.h \
+cs_atmo_1d_rad.h   \
 cs_atmo.h \
-cs_atmo_headers.h
+cs_atmo_chemistry.h \
+cs_atmo_aerosol_ssh.h \
+cs_atmo_headers.h \
+cs_atmo_imbrication.h \
+cs_atmo_kinetic_rates.h \
+cs_atmo_profile_std.h \
+cs_atmo_source_terms.h \
+cs_atmo_variables.h \
+cs_atmo_ground_model.h \
+cs_atprke.h \
+cs_intprf.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcsatmo.la
-libcsatmo_la_SOURCES = \
-atini0.f90 \
-atini1.f90 \
-atiniv.f90 \
-atleca.f90 \
-atlecc.f90 \
-atlecm.f90 \
-atmcls.f90 \
-atmsol.f90 \
-atmstd.f90 \
-atphyv.f90 \
-atprke.f90 \
-atprop.f90 \
-atr1vf.f90 \
-attssc.f90 \
-attycl.f90 \
-atvarp.f90 \
-chem_luscheme_siream.f90 \
-chem_luscheme1.f90 \
-chem_luscheme2.f90 \
-chem_luscheme3.f90 \
-chem_solvelu.f90 \
-chem_source_terms.f90 \
-compute_gaseous_chemistry.f90 \
-compute_siream.f90 \
-cs_air_props.c \
-cs_at_plugin.c \
-cs_at_opt_interp.c \
-cs_at_data_assim.c \
-cs_atmo.c \
-cs_at_source_terms.f90 \
-etheq.f90  \
-intprf.f90 \
-kinrates.f90 \
-nuclea.f90 \
-rayigc.f90 \
-rayir.f90 \
-rayive.f90 \
-rayso.f90 \
-raysze.f90 \
-roschem.f90 \
-solcat.f90 \
-soliva.f90 \
-solmoy.f90 \
-solvar.f90
-
-libcsatmo_la_LDFLAGS = -no-undefined
+noinst_LIBRARIES = libcsatmo.a
+libcsatmo_a_SOURCES = \
+cs_air_props.cpp \
+cs_at_opt_interp.cpp \
+cs_at_data_assim.cpp \
+cs_atmo_1d_rad.cpp \
+cs_atmo.cpp \
+cs_atmo_chemistry.cpp \
+cs_atmo_aerosol_ssh.cpp \
+cs_atmo_imbrication.cpp \
+cs_atmo_kinetic_rates.cpp \
+cs_atmo_profile_std.cpp \
+cs_atmo_source_terms.cpp \
+cs_atmo_variables.cpp \
+cs_atmo_ground_model.cpp \
+cs_atprke.cpp \
+cs_intprf.cpp
 
 clean-local:
-	-rm -f *__genmod.f90 *__genmod.mod
+	-rm -rf .deps
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif

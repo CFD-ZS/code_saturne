@@ -1,14 +1,14 @@
-#ifndef __CS_OPTS_H__
-#define __CS_OPTS_H__
+#ifndef CS_OPTS_H
+#define CS_OPTS_H
 
 /*============================================================================
  * Parsing of program arguments and associated initializations
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Macro definitions
@@ -46,7 +42,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------
- * Code_Saturne base options structure
+ * code_saturne base options structure
  *----------------------------------------------------------------------------*/
 
 typedef struct {
@@ -96,6 +92,4 @@ cs_opts_define(int         argc,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_OPTS_H__ */
+#endif /* CS_OPTS_H */

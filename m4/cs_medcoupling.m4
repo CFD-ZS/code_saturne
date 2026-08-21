@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,10 @@ AC_DEFUN([CS_AC_TEST_MEDCOUPLING], [
 cs_have_medcoupling=no
 cs_have_medcoupling_loader=no
 cs_have_paramedmem=no
+cs_have_paramedmem_cfemdec=no
+cs_have_paramedmem_ikdecwo=no
+
+AC_ARG_VAR([MEDCOUPLING_ROOT_DIR], [MEDCOUPLING root directory (superseded by --with-medcoupling=PATH)])
 
 # Configure options
 #------------------
@@ -37,10 +41,24 @@ cs_have_paramedmem=no
 AC_ARG_WITH(medcoupling,
             [AS_HELP_STRING([--with-medcoupling=PATH],
                             [specify directory for MEDCoupling and ParaMEDMEM])],
-            [if test "x$withval" = "x"; then
-               with_medcoupling=yes
+            [if test "x$withval" = "xyes"; then
+               if test "x$MEDCOUPLING_ROOT_DIR" != "x"; then
+                 with_medcoupling=$MEDCOUPLING_ROOT_DIR
+               fi
+             elif test "x$withval" = "xsalome"; then
+               cs_salome_medcoupling_root_dir=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD > /dev/null 2>&1 ; echo $MEDCOUPLING_ROOT_DIR")`
+               if test -z "cs_salome_medcoupling_root_dir"; then
+                 AC_MSG_FAILURE([no SALOME path information for MEDCoupling (needed by --with-medcoupling=salome)!])
+               else
+                 with_medcoupling=$cs_salome_medcoupling_root_dir
+               fi
+               unset cs_salome_medcoupling_root_dir
              fi],
-            [with_medcoupling=check])
+             [if test "x$MEDCOUPLING_ROOT_DIR" != "x"; then
+               with_medcoupling=$MEDCOUPLING_ROOT_DIR
+             else
+               with_medcoupling=check
+             fi])
 
 AC_ARG_ENABLE(medcoupling-as-plugin,
   [AS_HELP_STRING([--enable-medcoupling-as-plugin], [use MEDCoupling as plugin])],
@@ -80,11 +98,11 @@ if test "x$with_medcoupling" != "xno" ; then
   saved_LDFLAGS="$LDFLAGS"
   saved_LIBS="$LIBS"
 
-  if test "x$with_medcoupling" != "x" ; then
+  if test "x$MEDCOUPLING" != "x" ; then
     MEDCOUPLING_CPPFLAGS="-I$MEDCOUPLING/include"
     MEDCOUPLING_LDFLAGS="-L$MEDCOUPLING/lib"
-    # Add the libdir to the runpath as libtool does not do this for modules
-    MEDCOUPLINGRUNPATH="-R$MEDCOUPLING/lib"
+    # Add the libdir to the runpath for the plugin build
+    MEDCOUPLINGRUNPATH="${LDRPATH}${MEDCOUPLING}/lib"
   fi
 
   AC_LANG_PUSH([C++])
@@ -137,7 +155,7 @@ MEDCouplingUMesh *m = MEDCouplingUMesh::New();]])
 
     else
 
-      MEDCOUPLING_LIBS="-lmedcoupling -linterpkernel -lmedcouplingremapper -lmedloader"
+      MEDCOUPLING_LIBS="-lmedloader -lmedcoupling -lmedcouplingremapper -linterpkernel"
 
       LDFLAGS="${MEDCOUPLING_LDFLAGS} ${MED_LDFLAGS} ${HDF5_LDFLAGS} ${LDFLAGS}"
       LIBS="${MEDCOUPLING_LIBS} ${MED_LIBS} ${HDF5_LIBS} ${LIBS}"
@@ -173,25 +191,30 @@ MEDCouplingUMesh *m = MEDCouplingUMesh::New();]])
 
   if test "$cs_have_medcoupling" = "yes" -a "$cs_have_mpi" = "yes"; then
 
-    CPPFLAGS="${MPI_CPPFLAGS} ${MEDCOUPLING_CPPFLAGS} ${CPPFLAGS}"
+    cs_medcoupling_l0="-lparamedmem"
+    cs_medcoupling_l1="-lparamedmem -lmedicoco"
 
-    if test "$cs_have_medcoupling_loader" = "yes"; then
-      cs_paramedmem_libs="-lparamedmem -lparamedloader"
-    else
-      cs_paramedmem_libs="-lparamedmem"
-    fi
+    for cs_medcoupling_ladd in "$cs_medcoupling_l0" "$cs_medcoupling_l1"
+    do
+      if test "x$cs_have_paramedmem" = "xno" ; then
 
-    if test "x$cs_have_paramedmem" = "xno" ; then
+        CPPFLAGS="${MPI_CPPFLAGS} ${MEDCOUPLING_CPPFLAGS} ${CPPFLAGS}"
 
-      if test "$cs_have_medcoupling_loader" = "no"; then
-        LDFLAGS="${MEDCOUPLING_LDFLAGS} ${MPI_LDFLAGS} ${LDFLAGS}"
-        LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS} ${MPI_LIBS} ${LIBS}"
-      else
-        LDFLAGS="${MEDCOUPLING_LDFLAGS} ${MED_LDFLAGS} ${HDF5_LDFLAGS} ${MPI_LDFLAGS} ${LDFLAGS}"
-        LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS} ${MED_LIBS} ${HDF5_LIBS} ${MPI_LIBS} ${LIBS}"
-      fi
+        if test "$cs_have_medcoupling_loader" = "yes"; then
+          cs_paramedmem_libs="${cs_medcoupling_ladd} -lparamedloader"
+        else
+          cs_paramedmem_libs="${cs_medcoupling_ladd}"
+        fi
 
-      AC_LINK_IFELSE([AC_LANG_PROGRAM(
+        if test "$cs_have_medcoupling_loader" = "no"; then
+          LDFLAGS="${MEDCOUPLING_LDFLAGS} ${MPI_LDFLAGS} ${LDFLAGS}"
+          LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS} ${MPI_LIBS} ${LIBS}"
+        else
+          LDFLAGS="${MEDCOUPLING_LDFLAGS} ${MED_LDFLAGS} ${HDF5_LDFLAGS} ${MPI_LDFLAGS} ${LDFLAGS}"
+          LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS} ${MED_LIBS} ${HDF5_LIBS} ${MPI_LIBS} ${LIBS}"
+        fi
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[#include <InterpKernelDEC.hxx>
 #include <set>]],
 [[using namespace MEDCoupling;
@@ -207,14 +230,50 @@ InterpKernelDEC *dec = new InterpKernelDEC(procs_source, procs_target);]])
                        [ ],
                       )
 
-      if test "x$cs_have_paramedmem" = "xyes"; then
-        MEDCOUPLING_LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS}"
+        if test "x$cs_have_paramedmem" = "xyes"; then
+          MEDCOUPLING_LIBS="${cs_paramedmem_libs} ${MEDCOUPLING_LIBS}"
+
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[#include <CFEMDEC.hxx>
+#include <ProcessorGroup.hxx>
+#include <set>]],
+[[using namespace MEDCoupling;
+int procs_source_c[1]={0};
+std::set<int> procs_source(procs_source_c, procs_source_c+1);
+int procs_target_c[1]={1};
+std::set<int> procs_target(procs_target_c, procs_target_c+1);
+CFEMDEC *dec = new CFEMDEC(procs_source, procs_target);]])
+                       ],
+                       [ AC_DEFINE([HAVE_PARAMEDMEM_CFEMDEC], 1, [ParaMEDMEM with CFEMDEC support])
+                         cs_have_paramedmem_cfemdec=yes
+                       ],
+                       [ ],
+                      )
+
+
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[#include <InterpKernelDECWithOverlap.hxx>
+#include <set>]],
+[[using namespace MEDCoupling;
+int procs_source_c[1]={0};
+std::set<int> procs_source(procs_source_c, procs_source_c+1);
+int procs_target_c[1]={1};
+std::set<int> procs_target(procs_target_c, procs_target_c+1);
+InterpKernelDECWithOverlap *dec = new InterpKernelDECWithOverlap(procs_source, procs_target);]])
+                       ],
+                       [ AC_DEFINE([HAVE_PARAMEDMEM_IKDECWO], 1, [ParaMEDMEM with InterpKernelDECWithOverlap support])
+                         cs_have_paramedmem_ikdecwo=yes
+                       ],
+                       [ ],
+                      )
+        fi
+
+        LDFLAGS="$saved_LDFLAGS"
+        LIBS="$saved_LIBS"
+
       fi
 
-      LDFLAGS="$saved_LDFLAGS"
-      LIBS="$saved_LIBS"
-
-    fi
+    done
 
     if test "x$cs_have_paramedmem" != "xyes"; then
       AC_MSG_WARN([no ParaMEDMEM support])

@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_ADJACENCIES_H__
-#define __CS_MESH_ADJACENCIES_H__
+#ifndef CS_MESH_ADJACENCIES_H
+#define CS_MESH_ADJACENCIES_H
 
 /*============================================================================
  * Additional mesh adjacencies.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_base_accel.h"
+#include "base/cs_halo.h"
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Macro definitions
@@ -72,7 +69,7 @@ typedef struct {
   cs_lnum_t    n_elts;
   cs_lnum_t   *idx;     /*!< index, or NULL if strided (size = n_elts + 1) */
   cs_lnum_t   *ids;     /*!< ids from 0 to n-1 (there is no multifold entry) */
-  short int   *sgn;     /*!< +/- 1 according to the orientation of the element */
+  short int   *sgn;     /*!< -/+1 according to the orientation of the element */
 
 } cs_adjacency_t;
 
@@ -87,18 +84,40 @@ typedef struct {
 
   /* cells -> cells connectivity (standard) */
 
-  cs_lnum_t  *cell_cells_idx;          /*!< indexes (shared) */
-  cs_lnum_t  *cell_cells;              /*!< adjacency (shared) */
+  cs_lnum_t  *cell_cells_idx;          /*!< cells to cells indexes */
+  cs_lnum_t  *cell_cells;              /*!< cells to cells adjacency */
 
   /* cells -> cells connectivity (extended) */
 
   const cs_lnum_t  *cell_cells_e_idx;  /*!< indexes (shared) */
   const cs_lnum_t  *cell_cells_e;      /*!< adjacency (shared) */
 
+  /* cells->interior faces connectivity
+     (same index as cells->cells connectivity) */
+
+  cs_lnum_t  *cell_i_faces;            /*!< cells to interior faces adjacency */
+  short int  *cell_i_faces_sgn;        /*!< cells to interior faces orientation */
+
   /* cells -> boundary faces connectivity */
 
   cs_lnum_t        *cell_b_faces_idx;  /*!< cells to boundary faces index */
   cs_lnum_t        *cell_b_faces;      /*!< cells to boundary faces adjacency */
+
+  /* cells -> hidden boundary faces connectivity, if present;
+     "hidden" boundary faces are those whose ids are in the meshe's
+     ] n_b_faces, n_b_faces_true() ] range */
+
+  cs_lnum_t        *cell_hb_faces_idx;  /*!< cells to hidden boundary faces
+                                          index, if present */
+  cs_lnum_t        *cell_hb_faces;      /*!< cells to hidden boundary faces
+                                          adjacency, if present */
+
+  /* cells -> faces connectivity */
+
+  const cs_adjacency_t  *c2f;          /*!< cells to faces adjacency */
+
+  cs_adjacency_t        *_c2f;         /*!< cells to faces adjacency if owner,
+                                         NULL otherwise */
 
   /* cells -> vertices connectivity */
 
@@ -110,7 +129,7 @@ typedef struct {
 } cs_mesh_adjacencies_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Read-only pointer to global mesh additional adjacencies structure */
@@ -120,6 +139,15 @@ extern const cs_mesh_adjacencies_t  *cs_glob_mesh_adjacencies;
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Get non-const pointer to cs_glob_mesh_adacencies.
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_mesh_adjacencies_t *
+cs_mesh_adjacencies_get_global(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -160,11 +188,59 @@ cs_mesh_adjacencies_update_cell_cells_e(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Ensure presence of cell -> interior face connectivites in
+ *         mesh adjacencies helper API relative to mesh.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_adjacencies_update_cell_i_faces(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Update cells -> boundary faces connectivity
+ *
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_adjacencies_update_cell_b_faces(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Map some global mesh adjacency arrays for use on device.
+ *
+ * More elements may be mapped dependin on which arrays are used in
+ * accelerated algorithms.
+ *
+ * \param[in]  alloc_mode  chosen allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_adjacencies_update_device(cs_alloc_mode_t  alloc_mode);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Return cell -> face connectivites in
+ *         mesh adjacencies helper API relative to mesh.
+ *
+ * Boundary faces appear first, interior faces second.
+ *
+ * This connectivity is built only when first requested, then updated later if
+ * needed.
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_adjacency_t  *
+cs_mesh_adjacencies_cell_faces(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Return cell -> vertex connectivites in
  *         mesh adjacencies helper API relative to mesh.
  *
- * This connectivity is built only when first requested, the updated
- * later if needed.
+ * This connectivity is built only when first requested, then updated later if
+ * needed.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -261,6 +337,48 @@ cs_adjacency_compose(int                      n_c_elts,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief   Create a new cs_adjacency_t structure from the concatenation of
+ *          two cs_adjacency_t structures: A -> B created by
+ *          two different compositions: (1) A -> B = A -> C + C -> B
+ *                                      (2) A -> B = A -> D + D -> B
+ *
+ *  The resulting structure describes A -> B.
+ *  It does not rely on a stride and has no sgn member and duplicated elements
+ *  are removed
+ *
+ * \param[in]  a2b_1     adjacency A -> B (1)
+ * \param[in]  a2b_2     adjacency A -> B (2)
+ *
+ *\return  a pointer to the cs_adjacency_t structure A -> B
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_adjacency_t *cs_adjacency_concatenate(const cs_adjacency_t *a2b_1,
+                                         const cs_adjacency_t *a2b_2);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief   Create a new cs_adjacency_t structure from the difference of
+ *          two cs_adjacency_t structures: A -> B created by
+ *          two different compositions: (1) A -> B = A -> C + C -> B
+ *                                      (2) A -> B = A -> D + D -> B
+ *
+ *  The resulting structure describes (1)\(2).
+ *  It does not rely on a stride and has no sgn member and duplicated elements
+ *  are removed
+ *
+ * \param[in]  a2b_1     adjacency A -> B (1)
+ * \param[in]  a2b_2     adjacency A -> B (2)
+ *
+ *\return  a pointer to the cs_adjacency_t structure A -> B
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_adjacency_t *cs_adjacency_difference(const cs_adjacency_t *a2b_1,
+                                        const cs_adjacency_t *a2b_2);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief   Create a new cs_adjacency_t structure from a one corresponding to
  *          A -> B. The resulting structure deals with B -> A
  *
@@ -338,12 +456,55 @@ cs_mesh_adjacency_c2f(const cs_mesh_t  *m,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Build a partial cells to faces adjacency structure.
+ *
+ * With the boundary_order option set to 0, boundary faces come first, so
+ * interior face ids are shifted by the number of boundary faces.
+ * With boundary_order set to 1, boundary faces come last, so face ids are
+ * shifted by the number of interior faces.
+ * With boundary order set to -1, boundary faces are ignored.
+ *
+ * Only internal faces as seen from the cell with lowest cell id (out of 2
+ * cells adjacent to that face) are added to the structure, so each face
+ * appears only once, not twice. In other words, only the lower part
+ * of the corresponding cell-cells adjacency matrix is built.
+ *
+ * By construction, face ids adjacent to each cell are ordered.
+ *
+ * \param[in]  m               pointer to a cs_mesh_t structure
+ * \param[in]  boundary_order  boundaries first (0), last (1), or ignored (-1)
+ *
+ * \return a pointer to a new allocated cs_adjacency_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_adjacency_t *
+cs_mesh_adjacency_c2f_lower(const cs_mesh_t  *m,
+                            int               boundary_order);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Build a cells to boundary faces adjacency structure.
+ *
+ * By construction, face ids adjacent to each cell are ordered.
+ *
+ * \param[in]  m  pointer to a cs_mesh_t structure
+ *
+ * \return a pointer to a new allocated cs_adjacency_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_adjacency_t *
+cs_mesh_adjacency_c2f_boundary(const cs_mesh_t  *m);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Allocate and define a cs_adjacency_t structure related to the
  *        connectivity vertex to vertices through edges.
  *
  * Adjacent vertices are accessed based on the vertex with lowest id.
  * Another v2v connectivity through cells is possible. Please read the
- * \file cs_cdo_connect.c source code if interested
+ * \file cs_cdo_connect.cpp source code if interested
  *
  * \param[in]  m  pointer to a cs_mesh_t structure
  *
@@ -356,6 +517,4 @@ cs_mesh_adjacency_v2v(const cs_mesh_t  *m);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_ADJACENCIES__ */
+#endif /* CS_MESH_ADJACENCIES__ */

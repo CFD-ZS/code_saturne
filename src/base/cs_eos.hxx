@@ -1,14 +1,14 @@
-#ifndef __CS_EOS_HXX__
-#define __CS_EOS_HXX__
+#ifndef CS_EOS_HXX
+#define CS_EOS_HXX
 
 /*============================================================================
  * Equation of state
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_physical_properties.h"
+#include "base/cs_physical_properties.h"
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -50,7 +50,7 @@
  *============================================================================*/
 
 /*============================================================================
- *  Global variables definition
+ * Global variables definition
  *============================================================================*/
 
 /*============================================================================
@@ -65,10 +65,7 @@
  *   EOSRef     <-- reference table for EOS thermo properties
  *----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_eos_create(const char *EOSMethod,
               char       *EOSRef);
 
@@ -76,10 +73,7 @@ cs_eos_create(const char *EOSMethod,
  * Delete EOS instances
  *----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_eos_destroy(void);
 
 /*----------------------------------------------------------------------------*/
@@ -96,10 +90,7 @@ cs_eos_destroy(void);
  */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
                  cs_phys_prop_type_t                property,
                  const cs_lnum_t                    n_vals,
@@ -109,4 +100,4 @@ cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __CS_EOS_HXX__ */
+#endif /* CS_EOS_HXX */

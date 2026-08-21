@@ -1,14 +1,14 @@
-#ifndef __FVM_PERIODICITY_H__
-#define __FVM_PERIODICITY_H__
+#ifndef FVM_PERIODICITY_H
+#define FVM_PERIODICITY_H
 
 /*============================================================================
  * Main structure for handling of periodicities
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -101,7 +97,7 @@ fvm_periodicity_create(double  equiv_tolerance);
  *   this_periodicity  <-> pointer to structure that should be destroyed
  *
  * returns:
- *  NULL pointer
+ *  null pointer
  *---------------------------------------------------------------------------*/
 
 fvm_periodicity_t *
@@ -343,12 +339,25 @@ fvm_periodicity_get_equiv_id(const fvm_periodicity_t  *this_periodicity,
  *   tr_id            <-- id of transformation we are interested in
  *   matrix           --> coefficients of transformation matrix
  *
- * returns:
- *   periodicity transform's matrix
  *---------------------------------------------------------------------------*/
 
 void
 fvm_periodicity_get_matrix(const fvm_periodicity_t  *this_periodicity,
+                           int                       tr_id,
+                           double                    matrix[3][4]);
+
+/*----------------------------------------------------------------------------
+ * Return a periodicity transformation's matrix.
+ *
+ * parameters:
+ *   this_periodicity <-- pointer to periodicity structure
+ *   tr_id            <-- id of transformation we are interested in
+ *   matrix           <-- coefficients of transformation matrix
+ *
+ *---------------------------------------------------------------------------*/
+
+void
+fvm_periodicity_set_matrix(const fvm_periodicity_t  *this_periodicity,
                            int                       tr_id,
                            double                    matrix[3][4]);
 
@@ -381,6 +390,4 @@ fvm_periodicity_dump(const fvm_periodicity_t  *this_periodicity);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_PERIODICITY_H__ */
+#endif /* FVM_PERIODICITY_H */

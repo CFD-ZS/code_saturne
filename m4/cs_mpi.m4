@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -31,8 +31,6 @@ AC_DEFUN([CS_AC_TEST_MPI], [
 cs_have_mpi=no
 cs_have_mpi_header=no
 cs_have_mpi_io=no
-cs_have_mpi_one_sided=no
-cs_have_mpi_neighbor_coll=no
 cs_have_mpi_ibarrier=no
 
 mpi_prefix=""
@@ -203,9 +201,6 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
 
   CPPFLAGS="$saved_CPPFLAGS $MPI_CPPFLAGS"
   mpi_type=""
-  if test "x$cs_ibm_bg_type" = "xQ" ; then
-    mpi_type=BGQ_MPI
-  fi
   if test "x$mpi_type" = "x"; then
     AC_EGREP_CPP([cs_msmpi],
                  [
@@ -229,16 +224,6 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
                  [mpi_type=MPICH])
   fi
   if test "x$mpi_type" = "x"; then
-    AC_EGREP_CPP([cs_mpich2],
-                 [
-                  #include <mpi.h>
-                  #ifdef MPICH2
-                  cs_mpich2
-                  #endif
-                  ],
-                 [mpi_type=MPICH2])
-  fi
-  if test "x$mpi_type" = "x"; then
     AC_EGREP_CPP([cs_ompi],
                  [
                   #include <mpi.h>
@@ -247,16 +232,6 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
                   #endif
                   ],
                   [mpi_type=OpenMPI])
-  fi
-  if test "x$mpi_type" = "x"; then
-    AC_EGREP_CPP([cs_mpibull2],
-                 [
-                  #include <mpi.h>
-                  #ifdef MPIBULL2_NAME
-                  cs_mpibull2
-                  #endif
-                  ],
-                  [mpi_type=MPIBULL2])
   fi
   if test "x$mpi_type" = "x"; then
     AC_EGREP_CPP([cs_platform_mpi],
@@ -271,37 +246,23 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
 
   # Add a specific preprocessor directive to skip the MPI C++ bindings
   case $mpi_type in
-    OpenMPI)         MPI_CPPFLAGS="$MPI_CPPFLAGS -DOMPI_SKIP_MPICXX" ;;
-    MPICH | MPICH2)  MPI_CPPFLAGS="$MPI_CPPFLAGS -DMPICH_SKIP_MPICXX" ;;
+    OpenMPI) MPI_CPPFLAGS="$MPI_CPPFLAGS -DOMPI_SKIP_MPICXX" ;;
+    MPICH)   MPI_CPPFLAGS="$MPI_CPPFLAGS -DMPICH_SKIP_MPICXX" ;;
   esac
 
-  # Now try to determine if we are in fact using a variant MPI,
-  # which does not define its own version macros in mpi.h but still uses its
-  # own numbering (very ugly, but Intel and Bull do it).
+  # Now try to determine if we are in fact using a variant MPI.
 
   case $mpi_type in
-    OpenMPI)         if test -d "${mpi_libdir}/bullxmpi" ; then
-                       mpi_type=BullxMPI
-                       AC_DEFINE([MPI_VENDOR_NAME], "BullxMPI", [MPI vendor name])
-                     fi
-                     ;;
-    MPICH | MPICH2)  cs_mpisupport=""
-                     if test -f "${mpi_libdir}/../mpisupport.txt" ; then
-                       # mpi_libdir may point to lib sudirectory
-                       cs_mpisupport="${mpi_libdir}/../mpisupport.txt"
-                     elif test -f "${mpi_libdir}/../../mpisupport.txt" ; then
-                       # mpi_libdir may point to intel64/lib sudirectory
-                       cs_mpisupport="${mpi_libdir}/../../mpisupport.txt"
-                     fi
-                     if test "x$cs_mpisupport" != "x" ; then
-                       grep "Intel(R) MPI" "$cs_mpisupport" > /dev/null 2>&1
-                       if test $? = 0 ; then
-                         mpi_type=Intel_MPI
-                         AC_DEFINE([MPI_VENDOR_NAME], "Intel MPI", [MPI vendor name])
-                       fi
-                     fi
-                     unset cs_mpisupport
-                     ;;
+    MPICH)
+      AC_EGREP_CPP([cs_intel_mpi],
+                   [
+                    #include <mpi.h>
+                    #ifdef I_MPI_VERSION
+                    cs_intel_mpi
+                    #endif
+                    ],
+                   [mpi_type=Intel_MPI])
+      ;;
   esac
 
   # If only MPI headers have been detected so far (i.e. we are
@@ -313,8 +274,8 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
 
     case $mpi_type in
 
-      MPICH | MPICH2)
-        AC_MSG_CHECKING([for MPICH-3 or MPICH2])
+      MPICH)
+        AC_MSG_CHECKING([for MPICH])
         # First try (with ROMIO)
         case $host_os in
           mingw64)
@@ -387,7 +348,7 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
   # MPI libraries should now have been detected
 
   if test "x$cs_have_mpi" != "xno"; then
-    # Try to detect some MPI 2 features
+    # Try to detect some MPI 2+ features
     if test "x$mpi_io" = "xtrue"; then
       AC_MSG_CHECKING([for MPI I/O])
       AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
@@ -397,33 +358,7 @@ if test "x$cs_have_mpi_header" = "xyes" ; then
                      [cs_have_mpi_io=no])
       AC_MSG_RESULT($cs_have_mpi_io)
     fi
-    AC_MSG_CHECKING([for MPI2 one-sided communication])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
-                   [[ MPI_Win_free((void *)0); ]])],
-                   [AC_DEFINE([HAVE_MPI_ONE_SIDED], 1, [MPI one-sided communication])
-                    cs_have_mpi_one_sided=yes],
-                   [cs_have_mpi_one_sided=no])
-    AC_MSG_RESULT($cs_have_mpi_one_sided)
-    AC_MSG_CHECKING([for MPI in place])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
-                   [[ MPI_Allreduce(MPI_IN_PLACE, (void *)0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD); ]])],
-                   [AC_DEFINE([HAVE_MPI_IN_PLACE], 1, [MPI_IN_PLACE support])
-                   have_mpi_in_place=yes],
-                   [have_mpi_in_place=no])
-    AC_MSG_RESULT($have_mpi_in_place)
     # Try to detect some MPI 3 features
-    AC_MSG_CHECKING([for MPI Neighborhood collectives])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
-                   [[ void *sbuf, *rbuf;
-                      int *scounts, *sdispls, *rcounts, *rdispls;
-                      MPI_Comm comm;
-                      MPI_Neighbor_alltoallv(sbuf, scounts, sdispls, MPI_INT,
-                                             rbuf, rcounts, rdispls, MPI_INT,
-                                             comm); ]])],
-                   [AC_DEFINE([HAVE_MPI_NEIGHBOR_COLL], 1, [MPI neighborhood collectives])
-                    cs_have_mpi_neighbor_coll=yes],
-                   [cs_have_mpi_neighbor_coll=no])
-      AC_MSG_RESULT($cs_have_mpi_neighbor_coll)
     AC_MSG_CHECKING([for MPI nonblocking barrier])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
                    [[ MPI_Request r;

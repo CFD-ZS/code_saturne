@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_OUTPUT_H__
-#define __CS_GUI_OUTPUT_H__
+#ifndef CS_GUI_OUTPUT_H
+#define CS_GUI_OUTPUT_H
 
 /*============================================================================
  * Management of the GUI parameters file: main parameters
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,25 +31,12 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "cdo/cs_domain.h"
 
 /*============================================================================
  * Type definitions
  *============================================================================*/
-
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Determine output boundary fields
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (cspstb, CSPSTB) (cs_int_t        *ipstdv);
 
 /*============================================================================
  * Public function prototypes
@@ -60,7 +47,14 @@ void CS_PROCF (cspstb, CSPSTB) (cs_int_t        *ipstdv);
  *----------------------------------------------------------------------------*/
 
 void
-cs_gui_output(void);
+cs_gui_output(cs_domain_t *domain);
+
+/*----------------------------------------------------------------------------
+ * Determine output boundary fields
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_output_boundary(void);
 
 /*----------------------------------------------------------------------------
  * Define postprocessing meshes using an XML file.
@@ -76,15 +70,6 @@ cs_gui_postprocess_meshes(void);
 void
 cs_gui_postprocess_writers(void);
 
-/*----------------------------------------------------------------------------
- * Activate writers depending on a formula
- *----------------------------------------------------------------------------*/
-
-void
-cs_gui_postprocess_activate(void);
-
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_GUI_OUTPUT_H__ */
+#endif /* CS_GUI_OUTPUT_H */

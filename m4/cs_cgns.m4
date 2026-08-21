@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -31,21 +31,29 @@ cs_have_cgns=no
 cs_have_cgns_headers=no
 cgns_prefix=""
 
+AC_ARG_VAR([CGNS_ROOT_DIR], [CGNS root directory (superseded by --with-cgns=PATH)])
+
 AC_ARG_WITH(cgns,
             [AS_HELP_STRING([--with-cgns=PATH],
                             [specify prefix directory for CGNS])],
-            [if test "x$withval" = "x"; then
-               with_cgns=yes
-             elif test "x$withval" = "xsalome"; then
-               if test "x$CGNSHOME" != "x"; then
-                 with_cgns=$CGNSHOME
-               elif test "x$CGNS_ROOT_DIR" != "x"; then
+            [if test "x$withval" = "xyes"; then
+               if test "x$CGNS_ROOT_DIR" != "x"; then
                  with_cgns=$CGNS_ROOT_DIR
-               else
-                 AC_MSG_FAILURE([no SALOME path information for CGNS (needed by --with-cgns=salome)!])
                fi
+             elif test "x$withval" = "xsalome"; then
+               cs_salome_cgns_root_dir=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD > /dev/null 2>&1 ; echo $CGNS_ROOT_DIR")`
+               if test -z "cs_salome_cgns_root_dir"; then
+                 AC_MSG_FAILURE([no SALOME path information for CGNS (needed by --with-cgns=salome)!])
+               else
+                 with_cgns=$cs_salome_cgns_root_dir
+               fi
+               unset cs_salome_cgns_root_dir
              fi],
-            [with_cgns=check])
+            [if test "x$CGNS_ROOT_DIR" != "x"; then
+               with_cgns=$CGNS_ROOT_DIR
+             else
+               with_cgns=check
+             fi])
 
 AC_ARG_WITH(cgns-include,
             [AS_HELP_STRING([--with-cgns-include=PATH],
@@ -66,13 +74,13 @@ AC_ARG_WITH(cgns-lib,
                with_cgns=yes
              fi
              CGNS_LDFLAGS="-L$with_cgns_lib"
-             # Add the libdir to the runpath as CGNS is not libtoolized
-             CGNSRUNPATH="-R$with_cgns_lib"],
+             # Add the libdir to the runpath for the preprocessor build
+             CGNSRUNPATH="${LDRPATH}${with_cgns_lib}"],
             [if test "x$with_cgns" != "xno" -a "x$with_cgns" != "xyes" \
 	          -a "x$with_cgns" != "xcheck"; then
                CGNS_LDFLAGS="-L$with_cgns/lib"
-               # Add the libdir to the runpath as CGNS is not libtoolized
-               CGNSRUNPATH="-R$with_cgns/lib"
+               # Add the libdir to the runpath for the preprocessor build
+               CGNSRUNPATH="${LDRPATH}${with_cgns}/lib"
              fi])
 
 

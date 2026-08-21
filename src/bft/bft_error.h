@@ -1,14 +1,14 @@
-#ifndef __BFT_ERROR_H__
-#define __BFT_ERROR_H__
+#ifndef BFT_ERROR_H
+#define BFT_ERROR_H
 
 /*============================================================================
  * Base error handling
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,12 +27,10 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
@@ -40,10 +38,6 @@
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
-
-/*-----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*============================================================================
  * Public types
@@ -76,7 +70,7 @@ typedef void (bft_error_handler_t) (const char    *const file_name,
 
 #if defined(__GNUC__)
 
-void
+extern "C" void
 bft_error(const char  *const file_name,
           const int          line_num,
           const int          sys_error_code,
@@ -86,7 +80,7 @@ bft_error(const char  *const file_name,
 
 #else
 
-void
+extern "C" void
 bft_error(const char  *const file_name,
           const int          line_num,
           const int          sys_error_code,
@@ -102,7 +96,7 @@ bft_error(const char  *const file_name,
  *  pointer to the error handler function.
  */
 
-bft_error_handler_t *
+extern "C" bft_error_handler_t *
 bft_error_handler_get(void);
 
 /*
@@ -112,11 +106,9 @@ bft_error_handler_get(void);
  *   handler: <-- pointer to the error handler function.
  */
 
-void
+extern "C" void
 bft_error_handler_set(bft_error_handler_t  *const handler);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __BFT_ERROR_H__ */
+#endif /* BFT_ERROR_H */

@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2018 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -63,7 +63,7 @@ def version_from_news(srcdir):
     version = [-1]
     release = [-1, '', '', '']
 
-    f = open(os.path.join(srcdir, "NEWS.md"))
+    f = open(os.path.join(srcdir, "NEWS.md"), encoding="utf-8")
     lines = f.readlines()
     f.close()
 
@@ -75,6 +75,10 @@ def version_from_news(srcdir):
 
             j = i-1
             l = lines[j]
+
+            # Avoid issue when previous line is empty
+            while l[0].isprintable() == False:
+                l = l[1:]
 
             if l[0:7] == 'Master ' and master < 0:
                 master = j
@@ -184,18 +188,19 @@ def git_version(srcdir, defaults):
     # Universal newlines options may fail in some cases with
     # Python 3, so check for newlines using '\n' and '\\n' later.
 
-    p = subprocess.Popen(cmd,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         universal_newlines=False)
-    output = p.communicate()
-    if p.returncode != 0:
-        return major, minor, release, extra
-    else:
-        commit_rev = output[0]
-        if sys.version[0] == '3':
-            commit_rev = commit_rev.decode('utf-8')
-        revision += '-' + commit_rev
+    try:
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             universal_newlines=False)
+        output = p.communicate()
+        if p.returncode == 0:
+            commit_rev = output[0]
+            if sys.version[0] == '3':
+                commit_rev = commit_rev.decode('utf-8')
+            revision += '-' + commit_rev
+    except Exception:
+        pass
 
     return major, minor, release, extra, revision
 
@@ -211,20 +216,23 @@ def git_version_is_modified(srcdir):
 
     cmd = ['git', '--no-pager', '--git-dir='+os.path.join(srcdir, '.git'),
            '--work-tree='+srcdir, 'status', '-s', '-uno']
-    p = subprocess.Popen(cmd,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         universal_newlines=True)
-    output = p.communicate()
-    o0 = str(output[0])
-    if p.returncode == 0:
-        changes = o0.split('\n')
-        n_changes = len(changes) - 1
-        for c in changes:
-            if c[-3:] == '.po':
-                n_changes -= 1
-        if n_changes > 0:
-            return True
+    try:
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             universal_newlines=True)
+        output = p.communicate()
+        o0 = str(output[0])
+        if p.returncode == 0:
+            changes = o0.split('\n')
+            n_changes = len(changes) - 1
+            for c in changes:
+                if c[-3:] == '.po':
+                    n_changes -= 1
+            if n_changes > 0:
+                return True
+    except Exception:
+        pass
 
     return False
 
@@ -322,7 +330,13 @@ if __name__ == '__main__':
 
     elif sys.argv[1] == '--short':
         major, minor, release, extra = version_from_news(srcdir)
+        if not extra in ['-alpha', '-beta']:
+            extra = ''
         sys.stdout.write(build_version_string(major, minor, '', extra))
+
+    elif sys.argv[1] == '--lib':
+        major, minor, release, extra = version_from_news(srcdir)
+        sys.stdout.write(build_version_string(major, minor, '', ''))
 
     # Call tools
 
@@ -402,6 +416,7 @@ Options:
                               version control info
   --short                     print short version string with major, minor,
                               and extras
+  --lib                       print short version string with major and minor
   --revision-only             print version string with version control info only
   --update <template> [path]  build or rebuild output file from template
   --verbose                   print fields on different lines

@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_ASSEMBLER_PRIV_H__
-#define __CS_MATRIX_ASSEMBLER_PRIV_H__
+#ifndef CS_MATRIX_ASSEMBLER_PRIV_H
+#define CS_MATRIX_ASSEMBLER_PRIV_H
 
 /*============================================================================
  * Incremental or general construction of matrix.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,30 +27,26 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_log.h"
-#include "cs_rank_neighbors.h"
-#include "cs_timer.h"
+#include "base/cs_defs.h"
+#include "base/cs_log.h"
+#include "base/cs_rank_neighbors.h"
+#include "base/cs_timer.h"
 
-#include "cs_matrix.h"
+#include "alge/cs_matrix.h"
 
 /*----------------------------------------------------------------------------
  *  Header for the current file
  *----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*! \cond DOXYGEN_SHOULD_SKIP_THIS */
 
@@ -155,17 +151,8 @@ struct _cs_matrix_assembler_values_t {
   bool        separate_diag;          /* is diagonal handled separately ? */
   bool        final_assembly;         /* are we ready for final assembly ? */
 
-  cs_lnum_t   db_size[4];             /* Diag Block size including padding:
-                                         0: useful block size
-                                         1: vector block extents
-                                         2: matrix line extents
-                                         3: matrix line*column extents */
-
-  cs_lnum_t   eb_size[4];             /* Extradiag block size including padding:
-                                         0: useful block size
-                                         1: vector block extents
-                                         2: matrix line extents
-                                         3: matrix line*column extents */
+  cs_lnum_t   db_size;                /* Diagonal blocks size */
+  cs_lnum_t   eb_size;                /* Extradiagonal blocks size */
 
   cs_lnum_t  *diag_idx;               /* Local index of diagonal in each row
                                          when conversion beween separate
@@ -181,7 +168,7 @@ struct _cs_matrix_assembler_values_t {
 
 #endif
 
-  /* Matching strcuture and function pointers; some function type may not be
+  /* Matching structure and function pointers; some function type may not be
      useful for certain matrix structures or libraries. */
 
   void                                 *matrix;          /* pointer to
@@ -277,8 +264,8 @@ _g_id_binary_find(cs_lnum_t        g_id_array_size,
   return mid_id;
 }
 
+/*! (DOXYGEN_SHOULD_SKIP_THIS) \endcond */
+
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_ASSEMBLER_PRIV_H__ */
+#endif /* CS_MATRIX_ASSEMBLER_PRIV_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_MULTIGRID_H__
-#define __CS_MULTIGRID_H__
+#ifndef CS_MULTIGRID_H
+#define CS_MULTIGRID_H
 
 /*============================================================================
  * Multigrid solver.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_grid.h"
-#include "cs_sles.h"
-#include "cs_sles_it.h"
-#include "cs_sles_pc.h"
-#include "cs_time_plot.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "alge/cs_grid.h"
+#include "alge/cs_sles.h"
+#include "alge/cs_sles_it.h"
+#include "alge/cs_sles_pc.h"
+#include "base/cs_time_plot.h"
+#include "base/cs_tree.h"
 
 /*============================================================================
  * Macro definitions
@@ -68,7 +65,7 @@ typedef enum {
 typedef struct _cs_multigrid_t  cs_multigrid_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Names for multigrid types */
@@ -92,6 +89,13 @@ cs_multigrid_initialize(void);
 
 void
 cs_multigrid_finalize(void);
+
+/*----------------------------------------------------------------------------*
+ * Set maximum grid level which should run on device (i.e. GPU).
+ *----------------------------------------------------------------------------*/
+
+void
+cs_multigrid_set_max_grid_level_for_device(int  level);
 
 /*----------------------------------------------------------------------------
  * Define and associate a multigrid sparse linear system solver
@@ -131,13 +135,15 @@ cs_multigrid_define(int                   f_id,
  * The multigrid variant is an ACM (Additive Corrective Multigrid) method.
  *
  * \param[in]  mg_type  type of multigrid algorithm to use
+ * \param[in]  config   configuration dictionary node, or null
  *
  * \return  pointer to new multigrid info and context
  */
 /*----------------------------------------------------------------------------*/
 
 cs_multigrid_t *
-cs_multigrid_create(cs_multigrid_type_t  mg_type);
+cs_multigrid_create(cs_multigrid_type_t   mg_type,
+                    cs_tree_node_t       *config);
 
 /*----------------------------------------------------------------------------
  * Destroy multigrid linear system solver info and context.
@@ -154,6 +160,9 @@ cs_multigrid_destroy(void  **context);
  * Create multigrid sparse linear system solver info and context
  * based on existing info and context.
  *
+ * Note that the configuration dictionnary remains shared with the
+ * copied context.
+ *
  * parameters:
  *   context <-- pointer to reference info and context
  *               (actual type: cs_multigrid_t  *)
@@ -167,15 +176,37 @@ void *
 cs_multigrid_copy(const void  *context);
 
 /*----------------------------------------------------------------------------
+ * Access multigrid solver configuration dictionnary.
+ *
+ * parameters:
+ *   mg <->  pointer to multigrid info and context
+ *
+ * returns:
+ *   pointer to configuration dictionnary node
+ *----------------------------------------------------------------------------*/
+
+cs_tree_node_t *
+cs_multigrid_get_config(cs_multigrid_t  *mg);
+
+/*----------------------------------------------------------------------------
+ * Set multigrid coarsening parameters.
+ *
+ * parameters:
+ *   mg             <-> pointer to multigrid info and context
+ *   conv_diff      <-- true if convection/diffusion mode is required
+ *----------------------------------------------------------------------------*/
+
+void
+cs_multigrid_set_conv_diff(cs_multigrid_t  *mg,
+                           bool             conv_diff);
+
+/*----------------------------------------------------------------------------
  * Set multigrid coarsening parameters.
  *
  * parameters:
  *   mg                     <-> pointer to multigrid info and context
  *   aggregation_limit      <-- maximum allowed fine rows per coarse cell
- *   coarsening_type        <-- coarsening type:
- *                              0: algebraic, natural face traversal;
- *                              1: algebraic, face traveral by criteria;
- *                              2: algebraic, Hilbert face traversal;
+ *   coarsening_type        <-- coarsening type; see cs_grid_coarsening_t
  *   n_max_levels           <-- maximum number of grid levels
  *   min_g_rows             <-- global number of rows on coarse grids
  *                              under which no coarsening occurs
@@ -185,16 +216,42 @@ cs_multigrid_copy(const void  *context);
  *----------------------------------------------------------------------------*/
 
 void
-cs_multigrid_set_coarsening_options(cs_multigrid_t  *mg,
-                                    int              aggregation_limit,
-                                    int              coarsening_type,
-                                    int              n_max_levels,
-                                    cs_gnum_t        min_g_rows,
-                                    double           p0p1_relax,
-                                    int              postprocess_block_size);
+cs_multigrid_set_coarsening_options
+  (cs_multigrid_t       *mg,
+   int                   aggregation_limit,
+   cs_grid_coarsening_t  coarsening_type,
+   int                   n_max_levels,
+   cs_gnum_t             min_g_rows,
+   double                p0p1_relax,
+   int                   postprocess_block_size);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set specific multigrid coarsening parameters for fine grids.
+ *
+ * \param[in, out]  mg                    pointer to multigrid info and context
+ * \param[in]       f_settings_threshold  grids of this level or higher use
+ *                                        standard (coarse grid) settings.
+ * \param[in]       aggregation_limit     maximum allowed fine rows
+ *                                        per coarse row
+ * \param[in]       coarsening_type       coarsening type;
+ *                                        see \ref cs_grid_coarsening_t
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_multigrid_set_coarsening_options_fine_grid
+  (cs_multigrid_t       *mg,
+   int                   f_settings_threshold,
+   int                   aggregation_limit,
+   cs_grid_coarsening_t  coarsening_type);
 
 /*----------------------------------------------------------------------------
  * Set multigrid parameters for associated iterative solvers.
+ *
+ * On a GPU, some parameters may be replaced by the closest GPU equivalents.
+ * For finer control, use \ref cs_multigrid_set_coarsening_options_d after
+ * calling this function to modify parameters for solvers running on device.
  *
  * parameters:
  *   mg                     <-> pointer to multigrid info and context
@@ -233,18 +290,68 @@ cs_multigrid_set_solver_options(cs_multigrid_t     *mg,
                                 double              precision_mult_ascent,
                                 double              precision_mult_coarse);
 
-/*----------------------------------------------------------------------------
- * Return solver type used on fine mesh.
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set multigrid device solver parameters for associated
+ *        iterative solvers.
  *
- * parameters:
- *   mg <-- pointer to multigrid info and context
- *
- * returns:
- *   type of smoother for descent (used for fine mesh)
- *----------------------------------------------------------------------------*/
+ * \param[in, out]  mg                      pointer to multigrid info
+ *                                          and context
+ * \param[in]       descent_smoother_type   type of smoother for descent
+ * \param[in]       ascent_smoother_type    type of smoother for ascent
+ * \param[in]       coarse_solver_type      type of solver for coarsest grid
+ * \param[in]       n_max_iter_descent      maximum iterations
+ *                                          per descent smoothing
+ * \param[in]       n_max_iter_ascent       maximum iterations
+ *                                          per ascent smoothing
+ * \param[in]       n_max_iter_coarse       maximum iterations
+ *                                          per coarsest solution
+ * \param[in]       poly_degree_descent     preconditioning polynomial degree
+ *                                          for descent phases (0: diagonal)
+ * \param[in]       poly_degree_ascent      preconditioning polynomial degree
+ *                                          for ascent phases (0: diagonal)
+ * \param[in]       poly_degree_coarse      preconditioning polynomial degree
+ *                                          for coarse solver (0: diagonal)
+ */
+/*----------------------------------------------------------------------------*/
 
-cs_sles_it_type_t
-cs_multigrid_get_fine_solver_type(const cs_multigrid_t  *mg);
+void
+cs_multigrid_set_solver_options_d(cs_multigrid_t     *mg,
+                                  cs_sles_it_type_t   descent_smoother_type,
+                                  cs_sles_it_type_t   ascent_smoother_type,
+                                  cs_sles_it_type_t   coarse_solver_type,
+                                  int                 n_max_iter_descent,
+                                  int                 n_max_iter_ascent,
+                                  int                 n_max_iter_coarse,
+                                  int                 poly_degree_descent,
+                                  int                 poly_degree_ascent,
+                                  int                 poly_degree_coarse);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set the max. number of cycles for a multigrid
+ *
+ * \param[in, out]  mg              pointer to multigrid info and context
+ * \param[in]       n_max_cycles    maximum number of cycles
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_multigrid_set_max_cycles(cs_multigrid_t     *mg,
+                            int                 n_max_cycles);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Indicate if a multigrid solver requires an MSR matrix input.
+ *
+ * \param[in]  mg  pointer to multigrid info and context
+ *
+ * \return   true if MSR is needed, false otherwise.
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_multigrid_need_msr(const cs_multigrid_t  *mg);
 
 /*----------------------------------------------------------------------------
  * Setup multigrid sparse linear equation solver.
@@ -272,8 +379,7 @@ cs_multigrid_setup(void               *context,
  *                 (actual type: cs_multigrid_t  *)
  *   name      <-- pointer to name of linear system
  *   a         <-- associated matrix
- *   a_conv    <-- associated matrix (convection)
- *   a_diff    <-- associated matrix (diffusion)
+ *   conv_diff <-- convection-diffusion mode
  *   verbosity <-- associated verbosity
  *----------------------------------------------------------------------------*/
 
@@ -281,8 +387,7 @@ void
 cs_multigrid_setup_conv_diff(void               *context,
                              const char         *name,
                              const cs_matrix_t  *a,
-                             const cs_matrix_t  *a_conv,
-                             const cs_matrix_t  *a_diff,
+                             bool                conv_diff,
                              int                 verbosity);
 
 /*----------------------------------------------------------------------------
@@ -294,12 +399,12 @@ cs_multigrid_setup_conv_diff(void               *context,
  *   name          <-- pointer to name of linear system
  *   a             <-- matrix
  *   verbosity     <-- associated verbosity
- *   rotation_mode <-- halo update option for rotational periodicity
  *   precision     <-- solver precision
- *   r_norm        <-- residue normalization
+ *   r_norm        <-- residual normalization
  *   n_iter        --> number of iterations
- *   residue       --> residue
+ *   residual      --> residual
  *   rhs           <-- right hand side
+ *   vx_ini        <-- initial solution (vx if nonzero, nullptr if zero)
  *   vx            <-> system solution
  *   aux_size      <-- number of elements in aux_vectors
  *   aux_vectors   --- optional working area (internal allocation if NULL)
@@ -313,12 +418,12 @@ cs_multigrid_solve(void                *context,
                    const char          *name,
                    const cs_matrix_t   *a,
                    int                  verbosity,
-                   cs_halo_rotation_t   rotation_mode,
                    double               precision,
                    double               r_norm,
                    int                 *n_iter,
-                   double              *residue,
+                   double              *residual,
                    const cs_real_t     *rhs,
+                   cs_real_t           *vx_ini,
                    cs_real_t           *vx,
                    size_t               aux_size,
                    void                *aux_vectors);
@@ -375,7 +480,6 @@ cs_multigrid_pc_create(cs_multigrid_type_t  mg_type);
  *   sles          <-> pointer to solver object
  *   state         <-- convergence status
  *   a             <-- matrix
- *   rotation_mode <-- halo update option for rotational periodicity
  *   rhs           <-- right hand side
  *   vx            <-> system solution
  *
@@ -387,7 +491,6 @@ bool
 cs_multigrid_error_post_and_abort(cs_sles_t                    *sles,
                                   cs_sles_convergence_state_t   state,
                                   const cs_matrix_t            *a,
-                                  cs_halo_rotation_t            rotation_mode,
                                   const cs_real_t              *rhs,
                                   cs_real_t                    *vx);
 
@@ -407,7 +510,7 @@ cs_multigrid_set_plot_options(cs_multigrid_t  *mg,
                               bool             use_iteration);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Query the global multigrid parameters for parallel grid merging.
  *
  * \param[in]   mg                   pointer to multigrid info and context
@@ -427,7 +530,7 @@ cs_multigrid_get_merge_options(const cs_multigrid_t  *mg,
                                cs_gnum_t             *rows_glob_threshold);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set global multigrid parameters for parallel grid merging behavior.
  *
  * \param[in, out]  mg                   pointer to multigrid info and context
@@ -447,7 +550,37 @@ cs_multigrid_set_merge_options(cs_multigrid_t  *mg,
                                cs_gnum_t        rows_glob_threshold);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Query the global multigrid parameters for parallel grid merging.
+ *
+ * \param[in]   mg              pointer to multigrid info and context
+ * \param[out]  n_max_ranks     maximum number of MPI ranks for bottom grid
+ * \param[out]  max_row_factor  maximum acceptable mean ratio of merged rows
+ *                              (per MPI rank) to finest rows.
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_multigrid_get_merge_bottom_options(const cs_multigrid_t  *mg,
+                                      int                   *n_max_ranks,
+                                      float                 *max_row_factor);
 
-#endif /* __CS_MULTIGRID_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set global multigrid parameters for parallel grid merging behavior.
+ *
+ * \param[in, out]  mg              pointer to multigrid info and context
+ * \param[in]       n_max_ranks     maximum number of MPI ranks for bottom grid
+ * \param[in]       max_row_factor  maximum acceptable mean ratio of merged rows
+ *                                  (per MPI rank) to finest rows.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_multigrid_set_merge_bottom_options(cs_multigrid_t  *mg,
+                                      int              n_max_ranks,
+                                      float            max_row_factor);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_MULTIGRID_H */

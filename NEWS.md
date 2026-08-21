@@ -1,7 +1,1530 @@
-Master (not on release branches yet)
+﻿Master (not on release branches yet)
 ------------------------------------
 
+### Architectural changes:
+
+- Mesh: revamp handling of hidden and appended boundary faces.
+  The `n_b_faces_all` member is replaced by `n_b_faces_appended`,
+  which is negative for hidden faces, positive for appended faces.
+
+- Move documentation directory back from `docs` to more standard `doc`.
+
+- Switch to C++17 by default for code_saturne
+
+### Mesh generation:
+
+- Add fully hexahedral conformed 5-block O-grid cylinder mesh generation
+  option in cartesian mesh generator.
+
+### Numerics:
+
+- Change the default settings for the SLES solver in CDO schemes
+  * Move to K-cycle as preconditioner of a GCR (Previously it was a
+    Jacobi as preconditioner)
+  * Add an aggressive coarsening for the finest level
+
+- Improve the level of logging for the linear algebra in the CDO part
+
+- Fix the settings of advanced parameters for in-house AMG
+  solvers/preconditioners
+
+- Change the default settings for AFS saddle-point solvers
+
+- Reshape the way to enforce boundary conditions for CDO face-based
+  schemes in Navier-Stokes systems. This work is related to the
+  integration of the turbulence modeling inside the CDO part.
+
+Release 9.2.0 (2026-07-06)
+--------------------------
+
+### Numerics:
+
+- Update to pressure reference face: it was previously stored in the `isostd`
+  array, it is now stored in `cs_glob_fluid_properties` under two new attributes:
+  `p0_face_id` contains the face id, while `p0_rank_id` contains the rank id. It
+  can therefore now be accessed by the user or any other place in the code. The
+  array isostd now has a size of n_b_faces (previously n_b_faces+1).
+
+- Update in pressure BCs is now done between prediction and correction
+  to avoid taking p^(n+1) bc and p^(n) field in prediction, thus
+  creating spurious pressure gradient in case of time dependent
+  pressure BC.
+  * The old behavior can be restored by setting
+    `cs_glob_velocity_pressure_param->update_pbc_after_prediction` to 0.
+
+- Scheme versioning: add `cs_convection_diffusion_set_scheme_version` function,
+  to make it possible to revert to schemes as similar as possible to those
+  used in older versions. This will allow making more significant updates
+  in the combination of diffusion and convection schemes while keeping
+  a safety net until sufficient feedback is available.
+
+- Gradients: added computation mode for cell-based gradient clipping,
+  to ensure reconstruction at I'/J' values does not break monotonicity
+  for scalars, and remains within the bounds of the maximum variation
+  between cell and neighbor values for vectors and tensors.
+  The cast of this new `CS_GRADIENT_LIMIT_RC` implementation is comparable
+  to that of the `CS_GRADIENT_LIMIT_FACE` one, but should provide for better
+  boundedness with less clipping (so higher precision).
+
+- CDO: Change the default algorithm to compute geometrical quantities in
+  CDO schemes. The new choice should be more robust on very low
+  quality meshes.
+
+- CDO: Several fixes in the order of building the cell system in CDOFb
+  monolithic schemes. A careful care has to be done between the
+  augmentation of the system, the static condensation and the way to
+  enforce Dirichlet boundary conditions.
+
+- CDO: Add mapped inlet option for Dirichlet boundary conditions.
+
+- CDO: Add pseudo-steady option when solving Navier-Stokes with unsteady
+  model in order to find a stationary solution. The computation is stopped
+  when the the stationary solution is found with respect to convergence
+  parameters.
+
+- A new algorithm for projection of nodal field using CFEMDEC from ParaMEDMEM
+  is implemented. This is fully distributed in memory and CPU. This new
+  projection is now used for coupling with code_aster to receive mesh
+  displacement and optionally to send boundary stress.
+
+### User changes:
+
+- Introduce an exponentially weighted average (EWA) accumulator type with a
+  user-specified time scale T. The EWA is selected by passing
+  `CS_TIME_MOMENT_EWA` to any existing `cs_time_moment_define_by_*` function,
+  with the time scale T given via an optional "trailing" `ewa_time_scale`
+  argument. It defaults to -1 (unset), so all existing call sites remain
+  unchanged and only EWA moments need to pass T.
+
+- 1D wall thermal module:
+  * Users can now use `cs_user_1d_wall_thermal_setup` to define a 1D wall
+    thermal condition using high-level API based on boundary zones.
+    - Allow postprocessing of the thermal field. Currently, the output
+      is linked to the default writer, but future work will provide access
+      through the GUI for these parameters.
+    - This is part of an ongoing modernization work of the module.
+  This update now sets `cs_user_1d_wall_thermal` as deprecated.
+  The function is not yet removed to allow update by users.
+
+- Expand use of optional `CATALYST_IMPLEMENTATION_NAME` environment variable
+  from "stub", "paraview", and "legacy" to "ensight", "med", and "cgns".
+  This is useful when running or debugging an existing case on a build where
+  Catalyst is not available, or when loading Catalyst under a debugger is
+  very slow.
+
+- Add high level API which is GPU compatible for users. This allows not having
+  to specify a context directly. This modification also now defines a
+  default context which is reachable in all routines.
+  As an example, users can now simply write:
+  `cs::parallel_for(n_values, CS_LAMBDA (cs_lnum_t e_id) {...});`
+
+- Restart: selection of further mesh preprocessing behavior and/or
+  restarting from another mesh is now more explicit and consistent.
+  When restarting from another mesh, it should now always be
+  in `restart/mesh_input.csm`.
+
+- Histograms: replace PNG format output option with SVG.
+  This allows removing the dependency on Catalyst for this option.
+
+- Separate mesh refinement element level and generation extraction functions.
+  This allows visualizing both refinement level and generation for
+  interior faces.
+
+### Architectural changes:
+
+- Add the possibility to suppress compiler warnings which are generated by the
+  inclusion of header files of external libraries (when the warning is within
+  the library). This suppression can be deactivated by using the
+  `-DCS_DONT_SUPPRESS_EXTERNAL_WARNINGS` compilation flag at the configure
+  step.
+
+- Add extra debugging options for `cs_mdspan` and `cs_array classes`. These
+  options can be activated using compilation flags provided at the configure
+  step or during compilation.
+  * `-DCS_ARRAY_DBG_BOUNDS`: adds a check bounds whenever one's tries to use
+    an access operator, () or [], which results in an error if the provided
+    indices are out of bounds. This option is compatible with both CPU and GPU
+    runtimes.
+  * For cs_array only, the `-DCS_ARRAY_DBG_INIT` option forces an initialization
+    at signaling NaN whenever a new array is created with a data allocation.
+    Thus, an error is generated if the array is used uninitialized in a
+    mathematical operation.
+
+- Drop C language compatibility for user-defined functions.
+
+- Add a HIP, AMD GPUs, backend to code_saturne.
+
+- Make Fortran compiler an optional prerequisite
+  * Fortran dependency is now only required for the Atmo module, and more
+    specifically for the Polyphemus chemistry functions.
+  * Disabling Fortran at configure step is done using the `--disable-fortran`
+    configure flag.
+  * If Fortran is disable in configure step, the corresponding code is not
+    compiled, and if any Fortran functions are needed from the atmospheric
+    flows module, based on the user defined parameters, then the code exits
+    with a specific error message.
+
+- Add multi-dimensional arrays for "linked" fields.
+  * It is now possible to define, for a `cs_field_t` object, that it is a part
+    of a series. By doing so, one of the linked fields is defined as the owner
+    of the series, and handles the data allocation. The other fields then
+    only use a view of the data (non owners).
+  * This new mechanism uses `cs_array_3d` objects which are owned and managed
+    by the series' owner. The other fields have their `_vals` (`cs_array_2d`)
+    objects pointing to sub_arrays of the `cs_array_3d` owner.
+
+- Mesh refinement: restructured handling of polyhedral cells refinement,
+  based on the hypothesis than in most cases, only a small subset of all
+  cells require refinement with a polyhedral template, but that this refinement
+  is more complex and costly than that of other types of cells.
+  * Add a `cs_cell_refine_helper` class which can handle local refinement
+    of a single polyhedron, allowing future refinement template improvements
+    independently from the array sizes computation stage.
+  * Preallocate arrays specific to polyhedra which must be refined.
+  * At the counting stage, the refinement of polyhedra is actually computed
+    (using a `cs_cell_refine_helper` object per thread), and stored in buffers.
+  * At the actual refinement stage, data is copied.
+
+### SMGR
+
+- SLURM batch mode: read batch example from installation config on cluster
+- The postprocessing step now copy data used to display results into the
+  destination POST folder with the following structure:
+  `POST/CURRENT/<case>/<run_id>`
+
+Release 9.1.0 (2025-12-30)
+--------------------------
+
+### User changes:
+
+- Particle diameter in Lagrangian module now follow a log-normal distribution
+  when a variance is given.
+
+- Added a `cs_mesh_cut` mesh operator, allowing a cut of mesh cells
+  by planes (one per cell, with independent normals and origins for
+  each cell).
+
+- Enable use of anisotropic conductivity with the CDO based Heat transfer
+  solver of code_saturne. The conductivity must still be defined through
+  the `cs_user_parameters` function, but the model can be activated
+  through the GUI.
+
+- Time moments: use reference time step instead of local time step.
+  * This changes the behavior only when using a local (pseudo-steady)
+    time step, where the average cannot be interpreted as a true time
+    average, but as an "ensemble" mean.
+  * Compatibility with older checkpoints is maintained.
+
+- Add a `FOR_RANGE` operator to the mathematical equations editor of the GUI.
+  Users can now define "for" loops in the formulae in the GUI using the
+  following syntax: `FOR_RANGE(var_name, var_start, var_stop)`.
+  For example, `FOR_RANGE(i, 0, 5)` will be translated in to
+  `for (int i = 0; i < 5; i++)`.
+
+- Removed last remaining Fortran user-defined functions
+  (`cs_f_user_boundary_conditions`, `cs_f_user_extra_operations`,
+  `cs_user_f_initialization`, `usppmo`, `usipsu`, and `usipes`).
+  * Also removed Fortran-based `findpt` function.
+
+- Fluid structure interaction: allows the possibility to use external solver
+  by using user functions.
+  * `cs_user_fsi_external_displacement`: compute the displacement to impose.
+  * `cs_user_fsi_external_cvg`: compute convergence status of external solver.
+  * `cs_user_fsi_structure_num` API has been modified.
+
+### Numerics:
+
+- Add Runge-Kutta schemes for time integration of some variables.
+
+- Remove `idilat` 4 and 5 weakly compressible algorithm options.
+  * The validity domain of these options using a semi-analytic scheme
+    was too limited for future uses of the Burke-Schuman model for
+    fire modeling (gas combustion), so `idilat` 2 should be used now.
+
+- Advection schemes with CDO-Fb scheme are completely rewritten.
+
+- In the Lagrangian approach, add a cell wise integration for the particle
+  (see Balvet, Minier, Henry, Roustan, Ferrand 2023, "A time-step-robust
+  algorithm to compute particle trajectories in 3-D unstructured meshes for
+  Lagrangian stochastic methods").
+  This option is now by default.
+
+### Physical modelling
+
+- Major change in rough wall function. It is now merge with rough-smooth
+  wall functions.
+
+- Add a new plant model in the soil model. See J. Vernier et al. 2026
+  "A Soil-Plant-Atmosphere Continuum model coupled to CFD to simulate plant
+  energy and water exchanges in heterogeneous microclimates" for further
+  information.
+
+- Refurbish 1D atmospheric radiative model.
+
+- Allow the usage of Cooling tower module with Lagrangian particle tracking
+  for the rain zone. Particles position, velocity and velocity
+  seen from the fluid, heat and mass (diameters) are solved for instantaneous
+  quantities, benefiting from the power of PDF methods.
+
+- In the Lagrangian stochastic approach for dispersed flows,
+  the Lagrangian-time anisotropy computation is now based on <Ur> = <Up-Us>
+  (see Minier, Ferrand, Henry 2015).
+  Also, Coriolis effects are now taken into account if needed.
+
+- Add models to take fluid particle temperature into account.
+  See Balvet, Roustan, Ferrand 2025: "Derivation of model-consistent universal
+  functions for second-order turbulence models and their implications on
+  Lagrangian stochastic methods for thermally stratified atmospheric
+  surface boundary layer flows" for more information.
+
+### Architectural changes:
+
+- Add `cs::array`, `cs::span` and `cs::mdspan` data classes to handle data
+  storage, in owner and non-owner modes, compatible with multi-dimensional
+  getters and with the dispatch mechanism.
+
+- Use templated C++ functions instead of `CS_MIN`, `CS_MAX`, and `CS_ABS`
+  macros, for better safety and performance.
+
+### Bug fixes:
+
+- Fixes related to notebook variables: modification in smgr now dominates over
+  reading in checkpoint also fix incoherence between read and restart parameters
+
+- Fix periodicity with CDO-Fb scheme. It is now forbidden to have more than
+  one periodic face by cell.
+
+- Fix the time used to solve CDO equations after FV-NSE since there is a
+  constant offset between them.
+
+- Fix treatments of BC conditions with CDO-FB. If imposed pressure is used on
+  a face, it can missed other boundary faces of the same cells.
+
+- Reintroduce `CS_BC_HMG_NEUMANN` since it is really different from
+  `CS_BC_SYMMETRY` for CDO.
+
+- Fix symmetry boundary conditions defined inside GUI. Not read before.
+
+Release 9.0.0 (2025-06-27)
+--------------------------
+
+### User changes:
+
+- Add a predefined function to compute vorticity based on a velocity
+  field (`cs_function_define_vorticity`).
+
+- Replace use of "boundary_forces" field (which is extensive), with
+  "boundary_stress" (which is intensive).
+   The `cs_function_define_boundary_stress` is removed, as it is not
+  needed anymore.
+  * User-defined functions using the "boundary_forces" field will
+    need to be updated.
+
+### Architectural changes:
+
+- Add the class "cs_array_2dspan" which allows handling of 2D arrays.
+  The class automatically allocates and frees the underlying data array.
+
+- Time moments:
+  * Add `cs_time_moment_define_by_function` and `cs_time_moment_define_by_field`
+    time moment definitions based on evaluation of cs_function_t objects
+    or existing `cs_field_t` values.
+  * Add `time_moment_start_time_step` and `time_moment_start_time_value`
+    options to `control_file` syntax to dynamically change time step at
+    which time moment accumulation is started.
+
+### Numerics:
+
+- Compute boundary value reconstruction ahead of calls to lower-level operators
+  such as gradients and balances.
+  * This leads to removal of the `CS_GRADIENT_LSQ_BOUNDARY` environment variable,
+    which allowed switching to an older algorithm for least-squares vector
+    and tensor gradients.
+
+- Advection scheme with CDO-Fb scheme: Replace the former centered scheme
+  by a new one close to the CDO-Vb centered scheme. Also, former centered
+  and upwind schemes are post-fixed by _v8 for comparison. Moreover, a mixed
+  mixed centered/hybrid scheme is introduced with a fixed ratio or a variable
+  ratio using Sharfetter-Gummel weight function which is Peclet-robust.
+
+### Bug fixes:
+
+- Fix an incorrect quadrature rule for the computation of source terms
+  in CDO-Vb schemes defined by an analytic function on the dual
+  mesh. Case of a barycentric approximation. The barycentric
+  approximation relying on a subdivision into tetrahedra is not
+  impacted by this fix.
+
+Release 8.3.0 (2024-12-20)
+--------------------------
+
+### Numerics:
+
+- Add `b_diff_flux_rc` equation parameter, to allow disabling of
+  diffusion flux reconstruction at boundaries only.
+
+- Add several interfaces for AMG (algebraic multigrid methods)
+  including the in-house version of the V-cycle, K-cycle, GAMG if
+  PETSc is available and BoomerAMG if HYPRE is available in a
+  stand-alone mode or through PETSc. These interfaces make easier the
+  settings of the (many) options available to tune an AMG method.
+
+- Add the support of HMG (Hybrid multigrid methods) when PETSc is
+  available. This allows one to use HYPRE boomerAMG (if available) for
+  the grid coarsening and PETSc solver/smoothers as well as the
+  Fieldsplit preconditioners.
+
+- Saddle-point solvers for the resolution of the Navier-Stokes
+  equations with CDO schemes: Add the possibility to add an
+  augmentation term when a (tuned) GCR algorithm is used in
+  combination of a block preconditioning strategy. The settings of the
+  velocity block can benefit from the AMG interfaces along with a
+  second level of block preconditioning when used with PETSc solvers.
+
+- Add new option settings for MUMPS including the possibility to share
+  the initial ordering during the computation to save CPU time.
+
+- Add the possibility to use HPDDM through the PETSc library if all
+  the requested packages are available (HPDDM and SLEPc)
+
+- Add an algebraic SIMPLE algorithm for CDO schemes.
+
+### User changes:
+
+- The CDO based Heat Transfer solver is now usable through the GUI, allowing
+  an easier definition of CHT problems using only code_saturne functionalities.
+  This functionality is still experimental, some GUI options may be unavailable,
+  mainly for postprocessing, but will be extended in v9.0.
+
+- Conjugate Heat Transfer can now be conducted with the CDO based Heat transfer
+  solver of code_saturne. This is handled in the same manner as a Syrthes
+  coupling in the GUI for the user.
+
+- Rename all cs_user_XXX.c functions to cs_user_XXX.cpp thus allowing calls
+  to C++ functions within these functions.
+
+- Add a runtime option for `run` and `submit` commands to check for memory leaks.
+  User can now run `code_saturne run --mem-log` which will position the
+  environment variable `CS_MEM_LOG=cs_mem.log` automatically, and will
+  print in the std output messages a warning if memory leaks are detected
+  within the log file(s) for any rank.
+
+### Physical modeling
+
+- "Groundwater flow" module: The two-phase flow model in porous media
+   has been reshaped. The way to set the numerical options has been
+   modified. A new incremental algorithm relying on a modified Picard
+   algorithm has been added. This solves some positiveness issues
+   encountered in the first introduced algorithm.
+
+### Studymanager:
+
+- Add a specific `studymanager` section in the `code_saturne.cfg` configuration
+  file. This new section now contains an option, `postprocessing_exec`, which
+  when used, makes studymanager use another `code_saturne` executable when
+  launching the postprocessing step.
+  This was added since for some systems, such as HPC clusters, all available
+  prerequisites are not always available, hence requiring the use of a container
+  or a different loaded environment.
+
+- Only the command line `--submit` can be used to submit batches of cases using
+  the SLURM resource manager on cluster. Expected times can now be set in the
+  run.cfg file of a given case. Specific resources can also be specified in the
+  run.cfg file using the run_id `[<resource>/run_id=<run_id>]`.
+
+- The default smgr file name is smgr.xml so the option `-f smgr.xml` can be
+  omitted when using this name.
+
+- Script, plot and report functions now use the graph of cases. These functions
+  can now process several studies (useful when launched with launch_vnv).
+
+- Compute, compare and post keywords are no longer read in smgr xml file. Smgr
+  option --update-smgr remove them in the smgr xml file of the repository.
+
+### Architectural changes:
+
+- GPU: add device memory pool to avoid costly memory frees.
+  This can be activated by exporting CS_DEVICE_MEM_POOL=1,
+  and further parametrized by additional calls in cs_mem.
+
+- Allow memory allocation statistics using `CS_MEM_LOG=performance.log`.
+
+- Modify the python layer (CLI and GUI) installation process to now use
+  setup.py instead of Makefile scripts.
+
+### Bug fixes:
+
+- Fix incorrect weighting of Gauss-Seidel solver for block-diagonal
+  linear systems (i.e. Velocity and Rij).
+
+Release 8.2.0 (2024-06-17)
+--------------------------
+
+### Numerics:
+
+- Reshape the interface with the MUMPS library (sparse direct solver)
+  to make the usage of common MUMPS options easier. Take benefit from
+  optimizations available in the latest 5.6.2 version.
+- Add a higher-level interface for settings algebraic multigrid (AMG)
+  thanks to `cs_param_sles_t` structure
+  * Context parameters for in-house K-cycle and V-cycle
+  * Context parameters for boomerAMG included in the HYPRE library
+- Reshape the way to set the strategy and the related options to solve
+  a saddle-point problem. This induces also many modifications in the
+  way to set linear solvers inside the CDO/HHO framework. The
+  user-defined settings related to the linear algebra have to be
+  modified.
+- Mutualize saddle-point solvers between CDO cell-based schemes for
+  scalar-valued equation and CDO face-based schemes for the monolothic
+  coupling of the Navier-Stokes equations.
+- V-cycle is now the default option when an AMG technique is set
+  inside the CDO/HHO framework (previously it was a K-cycle)
+- Add MAC scheme for steady Stokes and Navier-Stokes problems on Cartesian grids
+  (using CDO framework)
+
+### User changes:
+
+- Removed Fortran versions of user-defined subroutines.
+  * `usipph` (replaced by `cs_user_model` and `cs_user_parameters`).
+  * `usphyv` (replaced by `cs_user_physical_properties`).
+  * `ustssc` (replaced by `cs_user_source_terms`).
+  * `cs_user_combustion` (associated settings may now be
+    defined in `cs_user_parameters` and `cs_user_finalize_setup`).
+
+- Add a calculator mode to the mathematical expressions editor of the GUI.
+  The layout also contains a combo-box with the available fields and/or
+  notebook parameters.
+
+- Add a calculator function in the GUI.
+  * This adds a new subpage in the "Postprocessing" section.
+  * User can define a postprocessing mathematical formula using the MEG editor
+    of the GUI. The defined formulae are then evaluated on the corresponding
+    support (cells, faces,...) and can be used for 3D/2D postprocessing, probes,
+    profiles.
+  * listing file output can be activated in a user defined function.
+  * Values are only computed when needed, hence avoiding unnecessary calculations.
+
+- Logging: add automatic logging frequency, with increasing intervals.
+
+- Add postprocessing functions to allow users to easily visualize intersection
+  between postprocessing slices and the mesh.
+
+- Combustion models: change activation mode.
+  * In user-defined functions, gas and coal combustion models should now be
+    activated using `cs_combustion_gas_set_model` and
+    `cs_coal_model_set_model` respectively, and cannot be activated
+    directly by setting values in `cs_glob_physical_model_flag`
+    (or `ippmod` in Fortran), as the activation functions must be called
+    to allocate the required structures.
+  * The name of the thermochemical data file and JANAF indicator can
+    now be set from C, and not from Fortran anymore.
+  * Separate structures (`cs_glob_combustion_gas_model` and
+    (`cs_glob_coal_model`) are used for each combustion type, with
+    no shared member or substructure (compared to the previous
+    `cs_glob_combustion_model` structure).
+  * Some module variables have been moved to different modules, to better
+    align with the models actually using them.
+
+- Combustion models: remove diftl0 keyword. The corresponding value
+  should be handled directly using the "diffusivity_ref" keyword
+  for the Enthalpy field.
+
+- Compressible flows: remove uscfx1 and uscfx2 user-defined functions.
+  Standard functions such as cs_user_parameters can be used instead.
+
+- Documentation: reshape the documentation related to CDO/HHO
+  schemes. Add new pages explaining how to set a CDO face-based scheme
+  for solving Stokes and Navier-Stokes equations. Add several examples
+  for settings the linear solvers inside the CDO framework.
+
+### Studymanager:
+
+- Both options --slurm-batch-wtime=H and --slurm-batch-size=N allow to submit
+  batches of cases using the SLURM resource manager on cluster. New keywork
+  expected_time (HH:MM) can be used in smgr xml file to define expected
+  computation time.
+
+### Bug fixes:
+
+- Fix issues when restarting without additional preprocessing:
+  - When using "code_saturne submit", the behavior was different from
+    "code_saturne run" and unwanted extra preprocessing could occur.
+  - In all cases, the `mesh_input.csm` from a previous run was not
+    linked into that of the new run, so preprocessing would be needed
+    every other run.
+- Boundary layer insertion: limiter could reduce insertion at wrong
+  vertices due to incorrect indirection.
+- Fix computation of Hodge operator with Voronoï algorithm and
+  anisotropic property (CDO framework)
+
+Release 8.1.0 (2023-12-13)
+--------------------------
+
+### Physical modeling
+
+- Remove obsolete and experimental heavy fuel combustion model
+  (`cs_glob_physical_model[CS_COMBUSTION_FUEL]` / `ippmod(icfuel)`).
+  That model was not accessible using the GUI, and not covered in the
+  validation suite, with no known successful use in at least 10 years.
+
+- Remove old pulverized coal combustion model with Lagrangian reciprocal
+  approach (`cs_glob_physical_model[CS_COMBUSTION_PCLC]` / `ippmod(icpl3c)`).
+  That model was not accessible using the GUI, and not covered in the
+  validation suite, so probably unused since 10 years at least.
+
+- Cooling towers model: Adding rain drift velocity equation solving.
+  New keyword solve_rain_velocity has been added to allow the solving of
+  rain drops drift velocity equation. The model has been adapted from
+  existing one related to coal combustion.
+
+- "Groundwater flow" module: Two models (miscible and immiscible) for
+   two-phase flows in porous media have been validated thanks to two
+   test cases belonging to the code_aster's VnV basis.
+
+### User changes:
+
+- GUI: add access to various "per variable" equation parameters.
+  * Handling of convection schemes is revamped, allowing selection
+    of "true SOLU" (with upwind gradient), blended, and TVD/NVD schemes.
+  * Most individual gradient options are now available in a new tab.
+
+- Add high-level objects to handle open (inlet/outlet) boundary conditions
+  in the general boundary conditions mechanism.
+  * This is an evolution the the handling of BC's with the GUI, now
+    usable also with user-defined functions.
+  * This will allow sharing contexts wich may be used by CDO-type
+    functions such as cs_dof_function_t in a shared manner between
+    variables.
+  * The coal combustion model now uses this mechanism for inlet conditions.
+
+- run.cfg: the user can now always use global sections to define entries,
+  with the syntax [key] for a key among "run_prologue", "run_epilogue",
+  "compute_prologue" and "compute_epilogue".
+  By doing so the defined entries are either used if nothing is defined
+  for the computation resource or are prepended to the resource based options.
+  This allows defining case specific and resource independent entries.
+
+- GUI: when adding a postprocessing mesh, it is associated to the default
+  writer automatically (and this can be modified as usual).
+
+- Postprocessing: add the possibility of viewing interior face data at
+  face centers, so as to have the data at correct location but keep it light
+  on rendering (using a "Point Gaussian" view under ParaView for example).
+
+- When running mesh quality checks, interior face values are now output
+  at those locations, if the user has defined a postprocessing mesh based
+  on interior faces or interior face centers.
+  * The "per cell" and "per vertex" maxima are removed.
+
+- Modifications in the way to set MUMPS solvers using cs_sles_param_t
+  structure. Advanced settings can now be set thanks to the two functions
+  cs_param_sles_mumps() and cs_param_sles_mumps_advanced(). More advanced
+  settings can still be specified using the user-defined function
+  cs_user_sles_mumps_hook
+
+### Numerics:
+
+- Use local fixed-point algorithm for vector and tensor least-squares
+  gradient reconstruction at boundary.
+  * Improves the performance of this operator, without changing
+    the formulation.
+  * To revert to the previous algorithm, set the following
+     environment variable:
+    `CS_GRADIENT_LSQ_BOUNDARY=legacy`.
+
+- Do not activate gradient clipping by default even for least-squares
+  gradients; allow its use (as an option) for all gradient types.
+
+### Architectural changes:
+
+- Remove support for freesteam (IAPWS-IF97 steam tables) library,
+  as this library has not been maintained since 2013, and its build
+  system is based on scons with Python 2 files, so is not usable
+  anymore. Use EOS (if available) or CoolProp instead.
+
+### Bug fixes:
+
+- Preprocessor: workaround for CGNS incompatibility with files generated with
+  CGNS 3.4.1 and with 3.4 version info (confused with 3.4.0, whose polygon and
+  polyhedra representations are incompatible). That version should be avoided
+  but it seems that Star-CCM+ 2022 uses it.
+
+- Preprocessor: fix reading of polygons in MED files, broken in v7.3.
+
+- Fix numerical settings for Navier-Stokes problems with CDO schemes. User
+  modifications may not be taken into account and one remains to the default
+  settings (e.g. Hodge parameters for the viscous term)
+
+Release 8.0.0 (2023-06-30)
+--------------------------
+
+### User changes:
+
+- Add user postprocessing functions to compute mean and/or integrals of
+  scalars over selections of boundary faces or over boundary zones.
+
+- Add a user postprocessing function to compute total pressure over a
+  selection of boundary faces.
+
+- Postprocessing over a slice (plane, disc, annulus) can now be done
+  * Slices are defined using a user function.
+  * User can compute integral or mean values using scalar and/or vectorial
+    weights of a scalar.
+  * This uses medcoupling as an underlying building brick, and thus only
+    available if the prerequisite is available.
+
+- Add the functionality of "time tables".
+  * User can now define a time table, based on a data file, either using the
+    GUI or an advanced user function.
+  * The time table can then be used directly in mathematical formulae in the
+    GUI (if the table is defined in the GUI), or in the different user
+    functions.
+
+- Add basic immersed boundary method features based on the
+  neptune_cfd approach.
+
+- CoolProp support now actually works with tabular properties.
+
+- Cartesian mesher can now handle multiple blocks
+  * This requires modification of basic API, specifically by adding
+    an additional input argument for some functions (name of id).
+  * A Cartesian block can now have a name, which will lead to a renaming
+    of boundary groups such as instead of "X0" the user will have
+    "<name>_X0".
+
+- The API for the definition by array has been modified to handle more
+  complex cases. This induces a modification of some user settings,
+  for instance when defining a property, a boundary condition or a
+  source term by array. This mainly occurs when using CDO schemes.
+
+- The user can now specify a custom thermodynamic pressure.
+
+### Architectural changes:
+
+- Update and improve build configuration automation, especially
+  when using the `--with-salome` option with SALOME 9.9 or 9.10 CAS builds.
+  * For ParaView Catalyst, the `--enable-dlopen-rtld-global` option is no
+    longer necessary, as the matching option is handled automatically
+    when loading the matching plugin.
+
+- Add and deploy several functions in cs_array.[c,h] to centralize
+  simple operations on arrays (fill with zero, set a constant value on
+  the whole array or partly, copy partly or fully an array into
+  another one and so on). These operations take into account OpenMP if
+  available.
+
+Release 7.3.0 (2022-12-20)
+--------------------------
+
+### User changes:
+
+- Now allow handling vertex-based fields when restarting from a different
+  mesh. This can be useful for ALE.
+
+- Add `cs_function` API to refactor pre and user-defined location data
+  evaluation. This defines function objects which can be evaluated
+  on the fly, on the required mesh subset, and be otherwise used similarly
+  to fields for postprocessing and logging.
+  * This is a first step. Logging output is still missing, and most
+    candidate functions are not migrated yet.
+
+- Documentation: user guide fully migrated to HTML (based on Doxygen
+  and Markdown).
+
+- Preprocessor (mesh import): allow removal of cells with negative volume
+  or incorrect topology.
+
+- Groundwater flows: for the legacy module, now use global gravity
+  definition rather than module-specific (`darcy_gravity`) variables;
+  This may require updating case setups: using the GUI is recommended,
+  but otherwise, the gravity may be defined in `cs_user_physical_model`.
+
+- Add new optimized extended neighborhood reduction method;
+  An additional option to keep a complete extended neighborhood on the
+  boundary was improved and made available in the GUI.
+
+- Change cs_user_boundary_conditions function arguments for cleaner
+  icodcl/rcodcl access: pointers to the array sections associated to
+  each field are now available in that field's bc_coeffs sub-structure,
+  simplifying the index arithmetic.
+
+- Simplify the use of soil-atmosphere model of the atmospheric module.
+
+- Add experimental immersed boundary features. This can be computed from
+  cloud of points.
+
+- Groundwater flows: for the CDO module, modify the way the dispersive
+  tensor is defined. Remove the theta scaling in front of the
+  molecular diffusivity.
+
+- Groundwater flows: Modify the default settings for a tracer equation
+  (unsteady/reaction terms to Voronoï Hodge, advection scheme - hybrid
+  upwind/centered, linear solvers: Jacobi preconditioner and tolerance
+  to 10^-8). This follows from a first feedback on the VnV cases of the
+  default options.
+
+- Groundwater flows: Add a radioactive tracer. The default tracer has
+  no first order decay coefficient from now. The first order decay
+  coefficient is not anymore associated to a couple (tracer, soil) but
+  only to a tracer.
+
+- Groundwater flows: Easier handling of a radioactive decay chain. Add
+  a function following the Bateman's solution to define the initial
+  state of each radioactive tracer.
+
+### Physical modeling:
+
+- Add hybrid RANS/LES turbulence model (HTLES) from V. Duffal PhD.
+
+- Add some atmospheric universal functions for large scale idealized wind
+  profiles.
+
+- Groundwater flows: Modify the precipitation model (add radioactive
+  decay, work with mass of precipitate rather than concentration)
+
+### Bug fixes:
+
+- Restart from different mesh: fix values shift in variable exchange when
+  some points are not located (updated PLE library).
+
+- Fix performance issues with K-cycle and pairwise aggregation and MSR
+  matrices in case of penalized diagonal entries or isolated diagonal
+  values.
+
+- Fix the stopping criterion for Uzawa-CG algorithm (used by CDO
+  schemes for Stokes problems).
+
+- Fix the precipitation model for radionuclide tracers in the GWF
+  module (CDO). Add the missing radioactive decay phenomenon.
+
+- Fix the treatment of Robin BCs in CDO schemes.
+
+### Architectural changes:
+
+- Completed migration of turbulence models source code from Fortran to C.
+
+- Remove libtool dependency.
+
+- FMI: modified FMU client and code_saturne controller communication
+  protocol to regroup input/output variables exchange and reduce latency.
+
+- Drop support for older EOS versions (prior to 1.8.0).
+
+- Add the possibility to define the values at the boundary faces for a
+  cs_property_t structure
+
+### Studymanager:
+
+- New option (--slurm-batch-size=N with N>0) to submit batches of cases using
+  the SLURM resource manager on cluster. Cases are sorted by number of
+  processors and level of dependency.
+
+- New option (--report) to generate description report of studies based on latex
+  file in the STUDY/REPORT folder.
+
+### Numerics:
+
+- Add MUMPS as a preconditioner of a Krylov method.
+
+- Add SPD matrices as a new type of input matrices for MUMPS. This
+  distinction corresponds to the key SYM in MUMPS. Now, "mumps" refers
+  to SYM=0 (not symmetric), "mumps_sym" refers to SYM=2 (general
+  symmetric) and "mumps_ldlt" refers to SYM=1 (SPD matrices). The same
+  behavior applies to the single-precision version.
+
+- Several optimizations/fixes for MUMPS (zero-value entries are not
+  sent to MUMPS for instance).
+
+- MUMPS user hook API has been changed
+
+- Add a scaled pressure mass matrix as a Schur approximation for Uzawa
+  CG algorithm (used by CDO schemes)
+
+### CDO:
+
+- Setup: Fix inconsistencies between cs_navsto_param_t and
+  cs_equation_param_t for the momentum equation when settings a
+  Navier-Stokes problem. This may induce a modification of user source
+  files.
+
+
+Release 7.2.0 (2022-06-30)
+--------------------------
+
 User changes:
+
+- Fixes errors with Python >= 3.10 due to non-robust version tests.
+
+- Add external matrix type for PETSc, handled in cs_matrix_petsc, so no
+  additional copy of coefficients is needed in code_saturne.
+  * Native matrices in the legacy code automatically switch to this mode,
+    while matrices can still be provided in MSR or CSR form, as assembly is
+    expected to be faster (though no copy is saved in this case).
+  * Some PETSc structures are cas as (void *) pointers to avoid propagating
+    compile warnings due to PETSc headers, which can now be included
+    more sparingly.
+
+- Subdivision of warped faces now only modifies boundary faces.
+
+- Major changes to the studymanager GUI tool, which is now more complete
+  and especially more robust.
+
+- Replace `ussmag` Fortran user-defined subroutine with
+  `cs_user_physical_properties_smagorinsky_c` C function.
+
+- Remove legacy `cs_user_mass_source_terms` function.
+
+Bug fixes:
+
+- Balance by zone: fix crash in some configurations.
+
+- Probes and profiles: fix possible location error on hybrid meshes
+  depending on order of appearance of cell types.
+
+- Preprocessor: automatically detect CGNS file type (ADF or HDF5).
+
+- Preprocessor: fix crash when reading CGNS files with NGON (polyhedra)
+  sections and vertex-based boundary condition definitions.
+
+- Fix gradient reconstruction for anisotropic cases using
+  Green-Gauss with least-squares gradient face values algorithm.
+
+- Solidification/CDO: Several fixes to handle the melting process.
+
+- CDO: Fix to handle properly the Neumann and full Neumann boundary conditions.
+
+- Boundary layer insertion: Take properly into account vertices with a
+  prescribed displacement.
+
+Architectural changes:
+
+- Debug wrapper and other tool wrappers are now configured in the
+  `run.cfg` file, and can be directly defined through the
+  `code_saturne run` command-line arguments.
+
+- Drop support of AMD ACML (which is end-of-life) and IBM ESSL BLAS libraries,
+  which were only used in unit tests comparisons.
+
+Numerics:
+
+- CDO: *Major reshape* Add a generic framework to manipulate linear systems
+  arising from CDO schemes. This framework handles classical linear systems
+  (scalar- or vector-valued) but also (2x2) saddle-point systems and linear
+  systems of coupled equations (NxN). The notion of block is at the core of the
+  framework and it can handle matrix in the standard way (cs_matrix_t) but also
+  a collection of cs_matrix_t structures or a matrix which is unassembled in a
+  part of the system or for the full system. The aim is to get a framework to
+  manipulate block matrices and apply to it either external libraries or
+  in-house algorithms to solve these systems.
+
+- CDO: Add a resolution by increment in scalar-valued CDO-Vb schemes useful to
+  handle non-linear algorithm (steady and unsteady cases are available)
+
+- CDO: Add new ways to define source terms in CDO-Vb schemes (array defined on
+  different locations)
+
+- velocity-pressure algorithm: Add an option to solve the pressure correction
+  with a CDO face-based scheme while still using the legacy FV scheme for the
+  velocity prediction
+
+Physical modeling:
+
+- For VoF, add a surface tension force, accessible from the GUI. If null, one
+  recovers previous behaviour.
+
+- GWF/CDO: Add two new models for two-phase flows in porous media: an immiscible
+  and a miscible model. Solved variables are the liquid and gas pressures. Only
+  user-defined laws are available in this case to define the behavior of the
+  soil. Several numerical algorithms are currently under tests (coupled or
+  segregated solver; different ways of treating the non-linearities). This
+  functionality is still under development and may evolve in depth.
+
+Release 7.1.0 (2021-12-21)
+--------------------------
+
+User changes:
+
+- UI: Add optional `--notebook-args [key1=val1] [key2=val]> ...`,
+  `--parametric-args [arg1] [arg2] ...`, and `--kw-args [arg1] [arg2] ...`
+  arguments to `code_saturne run` and `code_saturne submit` commands.
+  * If provided, they are available as the `notebook` and `kw_args`
+    attributes of each case domain object (as a Python dictionary
+    and list respectively). Otherwise, these attributes are `None`.
+  * These options are applied when running the case, and allow modifying
+    the setup "on the fly" at run initialization.
+  * In the studymanager module, these options can be passed using
+    the `<notebook>`, `<parametric>`, and `<kw_args>` tags respectively,
+    providing a safe replacement to the `<prepro>` tag, which is now
+    deprecated due to its possible side effects in the case directory.
+
+- Turbulence: RSM models now default to isotropic (Shir) diffusivity model.
+
+- Gas mix now accepts user definitions, using the
+  `cs_gas_mix_add_species_with_properties` function.
+  * The model currently still assumes that of n associated species,
+    n-1 will be solved variables, and the last one will be
+    of property field, deduced from the others so the sum of
+    mass fractions is 1.
+
+Physical modeling:
+
+- Solidification: Add a Stefan model for taking into account the phase
+  change in a purely thermal model.
+- Solidification: Add a non-linear update of the thermal source term
+  with the Voller model relying on the variation of enthalpy.
+- Solidification: Add a new strategy to update the thermal source term
+  in the Voller (linear or non-linear) model relying on the
+  solidification path.
+- GWF: Major change in the way to use this module.
+
+Numerics:
+
+- Major change to the uncoupled RSM solver (`irijco = 0`):
+  * The Rij components are handled as a single tensor, similarly to
+    the coupled mode.
+  * Extra-diagonal terms in local Rij component coupling matrices
+    (such as boundary condition components) are set to zero
+    in this uncoupled mode.
+  * The numerical behavior should be basically unchanged, but switching
+    from the coupled to the uncoupled solver does not require specific
+    tests in user code any more.
+
+- Add support for HYPRE solvers.
+  * Most general purpose solvers and preconditioners supported by HYPRE
+    for the IJ interface are supported. See
+    [HYPRE documentation](https://hypre.readthedocs.io/en/latest/ch-solvers.html)
+    for details.
+  * GPU use may be enabled using the `cs_sles_hypre_set_host_device` function.
+  * HYPRE uses its own matrices, handled in cs_matrix_hypre, so no additional
+    copy of coefficients is needed in code_saturne.
+
+- Add GCR (Generalized Conjugate Residual) which enables a flexible
+  preconditioning for non-symmetric linear system. Equivalent to a flexible
+  GMRES.
+
+- Several improvements for the MUMPS interface
+  * Add a MUMPS interface for native matrices (with or without symmetric
+    storage).
+  * Add a MUMPS interface to handle single-precision arithmetic. This
+  functionality allows one to get a better efficiency without degrading
+  the accuracy when considering MUMPS as a preconditioner while reducing
+  the memory consumption.
+
+- CDO: Add block preconditioning for symmetric saddle-point problem and a
+  MINRES algorithm (relying on a tuned storage of the saddle-point system).
+  GCR algorithm for more complex block preconditionning such upper/lower Schur
+  block preconditioning or Symmetric Gauss-Seidel block preconditioning.
+  Several approximations of the Schur complement are available.
+
+- CDO: Add an Uzawa algorithm accelerated with a CG (conjuguate gradient)
+  strategy and preconditioned with a Cahouet-Chabard technique. This is
+  another solver to solve saddle-point problem arising from the monolithic
+  coupling of CDO face-based schemes for the (Navier-)Stokes equations.
+
+- CDO: Add a transformation of saddle-point problem using the Notay's
+  change of variable. Available only with a link to the PETSc library.
+  This is a based on a common work with the ALGO team at CERFACS.
+
+- CDO: The default settings for solving an equation is now a GCR
+  algorithm using a 1st order Neumann polynomial preconditioner. Moreover,
+  the tolerance is set to 1e-6 instead of 1e-8.
+
+- CDO: Optimized pre-defined settings for Hypre/BoomerAMG and
+  PETSc/GAMG.  This enables a significant improvement in terms of
+  elapsed time when solving (at least) symmetric positive systems.
+
+- CDO: Extend the notion of block preconditioning when solving
+  vector-valued equations with PETSc. Now multiplicative and symmetric
+  Gauss-Seidel block preconditioners can be easily defined. Previously,
+  only additive block preconditioning was easily available.
+
+- CDO: Add the Anderson acceleration algorithm to improve the
+  convergence of the Picard algorithm when a non-linear problem has to
+  be solved. Joint work with Qingqing FENG.
+
+Architectural changes:
+
+- Add optional MPI one-sided communications mode for ghost cells
+  synchronization, using active target RMA "get" semantics.
+
+- Simplify handling of timers, focusing on wall-time.
+
+Release 7.0.0 (2021-06-15)
+--------------------------
+
+User changes:
+
+- GUI: add the possibility to specify meteo profiles input directly in
+  code_saturne rather than with a meteo file.
+
+- Run script: `define_domain_parameters` from `cs_user_scripts.py` is
+  now called after copying initial data to the case's execution directory,
+  so as to allow case and run id-specific modifications to be done, avoiding
+  modification of the base data and user sources.
+
+- GUI: for gas combustion, allow creation of a thermochemistry data file
+  based on user inputs.
+
+- GUI: Remove legacy definitions of Syrthes coupling when opening old XML file:
+  * Starting from v7.0 a Syrthes coupling is defined as a boundary
+    condition and no longer as an independent model.
+  * Pre v7.0 definitions are saved to a file
+    'deprecated_syrthes_coupling_data.txt' and are then removed from the
+    XML file.
+  * A warning pop-up informs the user of the change.
+
+- GUI: Add more options for probes/profiles:
+  * User can now choose whether or not to snap a probe/profile point
+    which is currently the default behavior. When snap is activated for
+    a set of points and several are contained within the same cell, we
+    only keep the one closest to the cell center.
+  * User can now activate the interpolation for probes/profiles, hence
+    providing an interpolated value at the chosen coordinate instead of
+    the value of the closest cell center.
+  * For better robustness for the interpolation, users can now only
+    define fields as output for probes/profiles, and no longer only a
+    component. For example, for the velocity, all 3 components will be
+    written. For older xml files which contained components, the latter
+    are kept for the sake of compatibility.
+
+- GUI: User formulae for physical properties can now be defined
+  over multiple zones.
+  * This changes the handling of physical properties.
+  * Physical properties are now defined as a volume condition, with
+    the zone "all_cells" as the default one.
+  * User-laws for physical properties can now be defined over multiple
+    zones using the MEG mechanism. This requires the definition of a
+    variable property over the main zone ("all_cells").
+  * A zone can now be defined as solid, which then allows activating the
+    internal coupling functions for a given set of scalars (see the
+    "Coupling parameters" page).
+  * The internal coupling function is now available in the GUI.
+
+- Add a `cs_base_get_run_identity` utility function, allowing the
+  user to query the run_id, case and study name from a running
+  computation's user-defined functions.
+
+- Major evolution concerning coupling with external codes
+  * Create a generic "Coupling parameters" page after boundary
+    conditions in the tree view. This page gathers the parameters for
+    Syrthes, code_aster and Cathare couplings.
+  * The definition of a coupling with Syrthes is now done directly as a
+    thermal boundary condition (like flux or temperature).
+  * Display external coupling tab as deprecated.
+
+- GUI: Change available options for time-stepping.
+  * Previous steady option ("Steady (constant relaxation coefficient)"),
+    `idtvar` = -1, is now only available if it is activated in the
+    opened xml file. It is then named "Deprecated: Steady ..."
+    to indicate its new status.
+  * Previous "pseudo steady" option, `idtvar` = 2, is renamed as
+    "Steady (local time step)" and is now the de-facto steady algorithm.
+
+- Rename and reorganize `cs_stokes_model_t` and `cs_piso_t` structures.
+  * Structures are renamed to `cs_velocity_coupling_model_t` and
+    `cs_velocity_coupling_param_t`, and members are distributed in a more
+    logical and consistent manner.
+
+- When solving for enthalpy, multiplying a face's boundary condition
+  code (icodcl) by -1 allows defining it by temperature instead.
+  This option is also available for prescribed values using the GUI.
+
+- Add a `code_saturne symbol2line` command.
+  This command can be used with debug symbols from a stack trace in order
+  to find the origin of the call.
+  Usage example for the line:
+  1: 0x55834c6102d7 <cs_function+0x17>             (cs_solver)
+  Run:
+  code_saturne symbol2line -s cs_function+0x17
+  Additional info is provided using 'code_saturne symbol2line --help'
+
+Bug fixes:
+
+- Fix halo construction deadlock for some rare partitioning cases.
+
+- Compressible: fix imposed inlet/outlet boundary condition.
+  Boundary mass flux was not computed using the Rusanov scheme,
+  and was not consistent with momentum and energy convective fluxes on
+  the boundary faces with imposed inlet/outlet boundary condition.
+
+- Fix overwrite of user-defined function settings for probe writer
+  by GUI or default settings.
+
+- GUI: fix incomplete handling of compressible boundary conditions
+  preventing run unless completed in user subroutines.
+
+- Fix off-by-one return values in cs_selector_get_family_list
+  (advanced user selection).
+
+- Gas combustion: do not ignore handle GUI-defined settings of model scalar
+  numerical parameters.
+
+- Avoid division by zero in parallel when trying to output empty profiles.
+
+Numerics and physical modeling:
+
+- Allow LES with Lagrangian module.
+
+- Allow combination of radiative transfer and internal coupling.
+
+- Change default precision for linear solvers
+  from 1e-8 to 1e-5 except for the pressure field.
+
+- Activate improved hydrostatic pressure interpolation (iphydr) by default.
+
+- Add an explicit treatment of the advection term in CDO face-based equations.
+
+- Atmo: Major modification the scheme for Solar radiation done the PhD of
+  L. Asmar.
+  In a previous version of the 1D solar radiation scheme of code_saturne, the
+  effect of aerosols has been introduced by making the approximation that
+  aerosols are purely diffusive. The same approximation was taken for
+  water vapor absorption in the UV-visible band (O3 band) but with
+  different optical properties.
+  In this new version, the aerosols are taken into account as absorbing
+  and diffusive particles characterized by their optical properties:
+  aerosol optical depth, single scattering albedo and asymmetry factor. To
+  do that, the adding method for multiple scattering has been added in the
+  UV-Visible band.
+  Other improvements have been made for:  the optical air mass, the
+  Rayleigh diffusion and the direct radiation estimation. In addition,
+  the absorption by minor gases has been introduced.
+
+Architectural changes:
+
+- Move salome_cfd extensions (CFDSTUDY module) to a separate repository.
+  It should allow both simplifying installation in some cases
+  and improving  maintainability.
+
+Release 6.3.0 (2020-12-21)
+--------------------------
+
+User changes:
+
+- GUI: volume and boundary zones are now defined under the "Mesh"
+  section, so that their selection can be used in a consistent
+  manner in all following sections.
+  * some specific boundary conditions, such as those for the Lagrangian
+    model, are now grouped with standard zone boundary conditions rather
+    than appearing in a separate "Additional BC models" section.
+
+- Add `--dest` option to `code_saturne run` and `code_saturne submit`
+  commands. This allows specifying a top directory separate from the
+  one in which a case is present.
+
+- Change default options for the VOF model (convective scheme is now
+  CICSAM by default, with a continuous limiter ensuring
+  bounds).
+
+- Make dynamic relaxation option for pure diffusion equation default option.
+  (iswdyn = 2). This make the iterative process solving of the legacy
+  solver more robust (especially for pressure).
+
+- Add a `code_saturne parametric` command which currently allows the
+  modification of several parameters of a case and the creation of a
+  case  based on a reference case.
+  Integration with studymanager and cfdstudy (for parametric studies)
+  is to be added soon (before v7.0 release).
+
+- Preprocessing: added mesh modification flag types to more easily
+  activate re-partitioning.
+
+- LES inflow synthetic turbulence configuration is now zone-based, with
+  a new, more consistent user API.
+
+- Add `cs_runaway_check` functions to try to detect diverging computations
+  early enough for clean stop.
+  * Default check is on velocity > 1e4 for incompressible computations,
+    1e5 for compressible computations.
+
+- Add possibility to generate a Cartesian mesh on the fly
+  * The GUI now allows to define a Cartesian mesh which will be
+    generated during runtime.
+  * Needed parameters are minimal and maximal values for X,Y and Z
+    coordinates, and number of cells per direction.
+  * User can define the progression law for cells' size:
+    - Constant step
+    - Geometric step
+    - Parabolic step (Geometric step with a symmetry w.r.t center-coordinate
+      of the direction)
+  * The newly created mesh contains 6 groups for boundary faces: X0, X1, Y0,
+    Y1, Z0 and Z1 for the respectively the min and max coordinate of each
+    direction (X,Y and Z)
+
+- When creating a case with `code_saturne create`, the `--noref` option is
+  enabled by default. It can be canceled using the `--copy-ref` option.
+
+- GUI: user source file editor can now also use reference files from the
+  installation directory.
+
+- code_saturne mesh format (.csm) is now treated in the same way as external
+  formats.
+  * Multiple meshes can be added in the "Mesh" page.
+  * Preprocessor (read operation) is not done for these mesh, though mesh
+    modification is.
+  * For back compatibility matters, '.csm' files can still be used as a
+    "mesh_input"
+
+- When no boundary condition is provided for some boundary faces, a default
+  (wall or symmetry) is used. This can be set using `cs_boundary_set_default`.
+
+- Modify the way the code is handling input file.
+  * If no xml file is provided by the 'run.cfg' file and a 'setup.xml' exists,
+    the latter is used (previous behavior). If it does not exist, the
+    code prints a warning message indicating that no xml was found.
+  * If an input file, other than 'setup.xml', is provided using the 'run.cfg'
+    or '-p' option (for code_saturne run only), and a 'setup.xml' exists inside
+    the DATA folder, the provided input file is used. Before this change
+    'setup.xml' was the one used. A warning is printed to warn the user that
+    having the two is against code_saturne BPG.
+
+- Modify available C-API for usage of ParaMEDMEM coupling (MEDCoupling MPI).
+  Specific user functions are added (cs_user_paramedmem_coupling.c) to allow
+  an easier definitions of coupling. Examples are provided in the
+  'cs_user_paramedmem_coupling-base.c' user_example file.
+  Send/receive operations still need to be done by the user, but are simplified
+  by allowing send/recv based on a cs_field_t pointer.
+
+- GUI: present volume and boundary conditions using sub-nodes in the
+  left-hand tree for the appropriate zones. This is a first step in
+  a change of zone setup presentation.
+
+Bug fixes:
+
+- GUI: Fix backward compatibility update function for NCFD v6.1 and later.
+
+Numerics and physical modeling:
+
+- CDO schemes: Add different strategies for the treatment of the advection term
+  in Navier-Stokes equations (linearized implicit and explicit treatment). The
+  Picard algorihtm (implicit) is the default as in the previous version. This is
+  based on results obtained during R. Milani's PhD.
+
+- Amtospheric module: Major modification the scheme for Solar radiation based
+  on the PhD of L. Asmar.
+
+  In a previous version of the 1D solar radiation scheme of code_saturne, the
+  effect of aerosols has been introduced by making the approximation that
+  aerosols are purely diffusive. The same approximation was taken for
+  water vapor absorption in the UV-visible band (O3 band) but with
+  different optical properties.
+
+  In this new version, the aerosols are taken into account as absorbing
+  and diffusive particles characterized by their optical properties:
+  aerosol optical depth, single scattering albedo and asymmetry factor. To
+  do that, the adding method for multiple scattering has been added in the
+  UV-Visible band.
+
+  Other improvements have been made for:  the optical air mass, the
+  Rayleigh diffusion and the direct radiation estimation. In addition,
+  the absorption by minor gases has been introduced.
+
+- Atmospheric module: add 3D radiative transfer for solar wave (shortwaves):
+  direct and diffuse.
+  The 1D atmospheric model is solved before to get boundary conditions at
+  the top of the CFD domain. It is also used for the absorption
+  coefficients.
+  This work is part of M. Millez PhD, Y. Qu PhD and Y. Maanane internship.
+  Also rename verbose mode for Radiative transfer (iimlum -> verbosity).
+
+- Remove "extrag" option for the pressure gradient, as its use was
+  limited to orthogonal meshes and was long superseded by the
+  `iphydr=1` option.
+
+Architectural changes:
+
+- For parallel IO, allow ranks stepping at the `cs_file` level so as to
+  allow using rank steps > 1 with all blocks, reducing the overhead
+  of using fewer and larger blocks.
+
+- In-situ postprocessing: add support for ParaView 5.9/Catalyst 2 pipelines.
+
+- Add AmgX library support for linear system resolution on NVIDIA GPU's.
+  * Associated matrices should be forced in CSR format.
+  * In parallel, Mesh renumbering should be set
+    to use `CS_RENUMBER_ADJACENT_LOW`.
+
+- Extend `cs_xdef_t` structure with definitions by DoF (degrees of freedom) for
+  advection fields, boundary and initial conditions (CDO schemes). This allow
+  one to add more generic/complex definitions at the user level or in existing
+  modules.
+
+Release 6.2.0 (2020-08-27)
+--------------------------
+
+User changes:
+
+- Volume mass injections can now be defined using zone and
+  equation parameter based cs_equation_add_volume_mass_injection_*
+  functions.
+  * Previous definitions remain compatible but are deprecated.
+  * Using the legacy method, if at least one zone is defined using
+    the `CS_VOLUME_ZONE_MASS_SOURCE_TERM` flag, these zones will be used
+    and the first 2 calls to cs_user_mass_source_terms are not needed.
+
+- Add possibility to edit coupling parameters in the GUI using an editor.
+  * Editor can be launched from the GUI of any Code_Saturne coupled case
+    (CASE/DATA/code_saturne).
+  * Editor can be launched from the top-level directory by launching the
+    top-level 'code_saturne' launcher using the following command:
+    code_saturne [gui|cplgui] run.cfg
+
+- Thermal model:
+  * The iscacp(iscal) array is replaced by the field key-word "is_temperature".
+    This allows using it also from C code.
+
+- Various improvements to CGNS output:
+  * Added output of boundary condition sections (on by default)
+  * Allow discarding steady data (to avoid issues with ParaView when both
+    steady and unsteady data s present)
+  * Use single precision by default for variables (leads to smaller files).
+
+- Add example for computing porosity values from a CAD shape.
+
+- When a non-transient probe set is clipped to cell centers and multiple
+  probes located in a given cell, only the one closest to the cell center
+  is retained.
+  * This is similar to the behavior of the old GUI-defined profile system,
+     but is cleaner and more controlled.
+  * When the mash changes over time, all probes are kept as they may not
+    be in the same cell on the next call.
+
+- Allow activating P1 interpolation for probes and profiles using a simple
+  function call: `cs_probe_set_option(pset, "interpolation", "1");`
+
+- Add the possibility of defining fields to output with a given
+  postprocessing mesh using the new `cs_post_mesh_attach_field`
+  and `cs_probe_set_associate_field` functions.
+  * This allows a finer control than the global 'auto_var' options
+  * For profiles, the curvilinear and cartesian coordinates may also
+    be output using the `cs_probe_set_auto_curvilinear_coords` and
+    `cs_probe_set_auto_cartesian_coords` functions.
+
+- Removed the `cs_user_turbulence_source_terms` user subroutine.
+  Turbulent source terms can be added using the generic (C)
+  `cs_user_source_terms` function.
+
+- Add a code_saturne FMU example with full implementation of the methods
+  allowing to operate with it from a master FMU. extras/FMI/README.md provides
+  brief indications on how to create a code_saturne FMU. The example is based
+  on the simulation of a stratified flow upstream and downstream a T-junction.
+
+- Add new features to control file API aiming at using code_saturne as an FMU
+  through socket communications:
+  * retrieve a notebook parameter value ("get")
+  * send back a message if an iteration has been done subsequently
+    to an "advance" message to allow a finer control.
+
+Numerics and physical modeling:
+
+- Convection-diffusion multigrid: restore original aggregation criteria.
+  * This criteria seemed to strangely limit the grid hierarchy depth
+    on a provided test case, but seems to provide much better performance
+    on Rij-epsilon-EBRSM test cases during the initial iterations (with
+    no purely diffusive zone, but we assume a solver adapted to both
+    convection and diffusion should behave well in convective zones).
+  * This solver may now also be selected in the GUI for non-scalar variables.
+
+- Turbulence: remove the vortex method for LES.
+
+- CDO: Add the treatment of the non-linear advection term in
+  Artificial Compressibility coupling algorithm with a Picard
+  algorithm. This enables to treat incompressible Navier-Stokes
+  equations with this coupling algorithm (based on the work performed
+  during Riccardo Milani's PhD).
+
+- CDO: Add the treatment of segregation of binary alloys. More
+  validations are required but first results are promising.
+
+- CDO: Add _solid cells_ for the treatment of permanent solid walls
+  (by opposition to cells in the fluid domain which may become
+  solid/mushy/fluid w.r.t. the thermophysical constraints) during the
+  solidification or melting process.
+
+- Add a first interface with the MUMPS library to get access to sparse
+  direct solvers without the PETSc library (experimental).
+
+Architectural changes:
+
+- Add cs_array.c/cs_array.h for array utility functions.
+
+- For coupled cases, replace `coupling_parameters.py` file by settings
+  in the top-level `run.cfg` (see Doxygen documentation for details).
+  Cases must be updated manually.
+
+- Documentation: add optional MathJax support for Doxygen. Currently
+  uses an external MathJax server, so works on-line only.
+
+- [GUI]: enable Qt translation mechanism.
+  Translation files are not maintained, but may be built using `pylupdate5`,
+  `linguist-qt5`, and `lrelease`, and files named `code_saturne_<lang>.qm`
+  under `<install_prefix>/share/translation` will be handled.
+
+- Use `cs_probe_t` type profiles for GUI-defined profiles.
+
+- Fully replace MEI by generated (MEG) code. This removed the bootstrap
+  dependency on Bison and Flex.
+
+- Add pragmas in reference C user file to try to assign weak linkage
+  to those files. This seems to work with gcc and clang, and is also
+  mentioned in the IBM xl C documentation. This is a cleaner approach
+  than allowing multiple definitions and should work on systems whose
+  dynamic linkers cause issues with this.
+
+- Documentation: move the installation documentation to a top-level
+  INSTALL.md file. This replaces both the matching sections in the
+  README.md and the LaTeX-based install.pdf file.
+
+- Replace `SCRIPTS/runcase` with `DATA/run.cfg` logic.
+  * DATA/SaturneGUI is replaced by DATA/code_saturne, which can both launch
+    the GUI or run the code (using "./code_saturne" or "./code_saturne run").
+  * The new logic allows keeping sections specific to various batch systems
+    or named resource environments in the "run.cfg" file, as well as better
+    align the "run" and "submit" commands, and is more easily extensible.
+
+- Now require Python 3.4 or higher.
+  Python 2 is still supported for the moment, but the configure checks
+  require Python 3 to "strongly encourage" migration if not done yet.
+
+- Add the possibility to create a desktop shortcut on Linux systems.
+  Creation is done using the `make install-shortcut` command after the
+  `make install` command. A `code_saturne_($version).desktop` file is
+  created in the desktop folder and double-clicking on it launches
+  the GUI.
+
+Bug fixes:
+
+- Fix convective outlet operator setting boundary coefficients for vectors
+  (with or without anisotropic diffusion) and tensors.
+
+- Major fix in hydrostatic pressure algorithm in the Rhie and Chow filter.
+  It only impact cases where external force is not colinear to boundary
+  faces where pressure Dirichlets are imposed (e.g. in atmospheric flows
+  at the top of the domain with automatic BCs).
+
+- Fix field output numbering on polyhedra or polygons when writer
+  subdivision is activated in serial mode.
+
+- Fix computation of Rhie & Chow first term in cases where diffusion in
+  pressure correction step is anisotropic.
+  This could have an impact on calculations with either head losses,
+  tensorial porosity or the pseudo-coupled velocity-pressure solver.
+
+Release 6.1.0 (2020-04-15)
+--------------------------
+
+User changes:
+
+- Add lambda0 field for thermal conductivity to the
+  cs_physical_properties structure. This is used by the GUI, but
+  not yet used for the general setup, where visls0 is still used
+  directly, and lambda0 left to 1. Usage of lambda0 instead of
+  direct usage of visls0 should be generalized.
+
+- Add the possibility of adding partial mesh modifications after the
+  main mesh preprocessing stage (cs_user_mesh_modify_partial).
+  This allows separating selected boundary faces (such as symmetry faces)
+  from others, so as to ignore them in the main finite volume scheme.
 
 - Add the possibility to keep more than just the last checkpoint file.
 
@@ -9,7 +1532,7 @@ User changes:
   if loops.
 
 - Add cs_mesh_remove_cells and cs_mesh_remove_cells_negative_volumes
-  functions to allow removal of selected or degenrate cells in preprocessing.
+  functions to allow removal of selected or degenerate cells in preprocessing.
 
 - Add P1 interpolation function and associated example for probes output.
 
@@ -30,7 +1553,24 @@ User changes:
   the Reynolds tensor and/or the turbulent flux of an additional transported
   variable when performing an LES simulation.
 
-Numerics and physical modelling:
+- Merge rough and smooth wall functions.
+  User setting of roughness is now using the dedicated fields
+  ("boundary_roughness" and "boundary_thermal_roughness").
+  Buoyancy modification for atmospheric flows (Louis) are also available for
+  dry and humid atmosphere for rough-smooth wall functions.
+
+Numerics and physical modeling:
+
+- Remove former slope test option for vector variable (component by component,
+  isstpc = -1).
+
+- Atmospheric model: add 3D radiative transfer for solar wave (shortwaves),
+  with direct and diffuse components.
+  The 1D atmospheric model is solved first to get boundary conditions at
+  the top of the CFD domain. It is also used for the absorption
+  coefficients.
+  This is based on the PhD work of M. Millez and Y. Qu PhD and on
+  the internship of Y. Maanane.
 
 - The GMRES solver may now also be used for vector or tensor fields.
   The maximum number of restarts is set at 40 instead of 75
@@ -65,18 +1605,42 @@ Numerics and physical modelling:
 - Add the resolution of Oseen and Navier-Stokes equations with CDO
   face-based schemes (based on the work of Milani's PhD).
 
+- Remove the files related to the Uzawa velocity-pressure coupling
+  algorithm as well as the ones related to the Vector Penalty
+  Projection (VPP) algorithm. The uzawa coupling is now merged to the
+  monolithic approach.
+
 - Add several new features for solving linear systems arising from a
   discretization of (Navier--)Stokes with CDO face-based schemes:
   Golub--Kahan biorthogonalization, Augmented Lagrangian--Uzawa
   algorithm (in incremental form), MUMPS with the PETSc interface,
   block preconditioning through PETSc
 
-- Add the first pieces of a thermal module based on CDO schemes.
+- Add a thermal module based on CDO schemes.
+
+- Add a solidification module relying on CDO schemes (this module
+  calls the thermal and the Navier-Stokes modules as well as the
+  enforcement of internal degrees of freedom). A specific treatment of
+  the phase changing is performed in this module which induces source
+  terms and reaction terms in the related equations.
 
 - Add new Hodge operators for vertex-based and face-based schemes based on a
   bubble stabilization or a sub-stabilization.
 
 Architectural changes:
+
+- Allow short path 'salome' for medcoupling, coolprop, metis and
+  scotch in installation script.
+
+- Move some parts of the user documentation to Doxygen.
+
+- Remove support for atmospheric aerosol library SIREAM. Replaced by the
+  aerosol library SSH-aerosol (EDF - ENPC - INRIA). The latter is released
+  under GNU GPL v3, see https://sshaerosol.wordpress.com/ and
+  https://github.com/sshaerosol/ssh-aerosol/
+
+- Removed localization (French or English), as it was very incomplete
+  and limited to a log file.
 
 - Change the writing process of checkpoint files: when a checkpoint
   already exists, the previous one is renamed before writing the new one.
@@ -124,6 +1688,8 @@ Architectural changes:
 
 Default option changes:
 
+- Set clipping at zero for atmospheric chemical species
+
 - Set k-epsilon turbulence models to uncoupled option by default
   (it was already uncoupled by default for all models except standard k-epsilon)
 
@@ -131,6 +1697,10 @@ Default option changes:
   for hydro. pressure treatment at walls (disabled by default now).
 
 Bug fixes:
+
+- Fix reconstruction gradient weighting in computation of face diffusion
+  fluxes from pressure increment in pressure correction step. Impacts,
+  for example, VoF calculation on non cartesian meshes.
 
 - Fix launching of ncfd doxygen from GUI (help menu).
 
@@ -144,8 +1714,8 @@ Bug fixes:
 
 - Fix to set number of iterations to 0 by studymanager command line (option -n).
 
-Release 6.0.0 (September 26 2019)
----------------------------------
+Release 6.0.0 (2019-09-26)
+--------------------------
 
 User changes:
 
@@ -208,7 +1778,7 @@ User changes:
 Physical modeling:
 
 - Add an option to disable dynamics in solid cells for internal coupling or for
-  porous modelling.
+  porous modeling.
 
 - Add non-linear (quadratic) eddy viscosity model k-epsilon of Baglietto et al.
   * to enable it, set cs_glob_turb_model->iturb = 23
@@ -263,7 +1833,7 @@ Default option changes:
 
 - Disable CS_FACE_RECONSTRUCTION_CLIP bad cells correction by default
   (clipping of face reconstruction distances |II'| and |JJ'|).
-  This reduces precision (consistancy loss) and can impair space convergence
+  This reduces precision (consistency loss) and can impair space convergence
   on several verification test cases run on tetrahedral meshes
   (INTERNAL_COUPLING, PERMEABILITY_GRADIENT, PLANE_COUETTE_FLOW).
 
@@ -282,7 +1852,7 @@ Bug fixes:
   This fixes mass conservation for cases:
   * with gravity and hydrostatic pressure treatment
   * without gravity and without hydrostatic pressure treatment.
-  Note that the default behaviour (GUI) was to enable the hydro. pressure
+  Note that the default behavior (GUI) was to enable the hydro. pressure
   treatment at walls. Hence in all cases with this default setting and no
   gravity, this fix has no impact.
 
@@ -369,8 +1939,8 @@ Architectural changes:
 
 - Remove VOFI (VoF initialization) library detection as it is not used anymore.
 
-Release 5.3.0 - October 26, 2018
---------------------------------
+Release 5.3.0 (2018-10-26)
+--------------------------
 
 User changes:
 
@@ -412,7 +1982,7 @@ User changes:
 
 - Add postprocessing of temperature and flux at internal coupling interface.
 
-Physical modelling:
+Physical modeling:
 
 - Make particle tracking compatible with transient turbomachinery model.
 
@@ -442,13 +2012,13 @@ Numerics:
     2nd order is activated, velocity is solved from time n-1/2 to n+1/2.
     A special care should be done for time averaged quantities.
 
-- Porous modelling: adapte the numerics to discontinous porosity.
+- Porous modeling: adapt the numerics to discontinous porosity.
   * The velocity is interpolated at faces using mass conservation and the
     momentum is corrected so that the steady state of Euler equations is
     retrieved.
     This can be activated using iporos = 3, the improved hydrostatic treatment
     will then be activated.
-    This was developped in the PhD of C. Colas.
+    This was developed in the PhD of C. Colas.
 
 - Improvements in mesh quantity computations.
   * Previous face center adjustment for volume removed. Adjustment
@@ -478,7 +2048,7 @@ Numerics:
 - Add choice of inexact (flexible) preconditioned congugate gradient.
   * When using multiple threads and multigrid preconditioning with a
     Gauss-Seidel smoother, this choice is set by default over the
-    standard preconditioned congugate gradient.
+    standard preconditioned conjugate gradient.
 
 - Add vector-valued Laplacian for HHO schemes (case k=1). Based on
   Daniel Castenon's work.
@@ -541,7 +2111,7 @@ Default option changes:
 
 Bug fixes:
 
-- Fix initialisation of some turbulence constants. Constant/Models concerned:
+- Fix initialization of some turbulence constants. Constant/Models concerned:
   * sigmae (for all RSM models)
   * csrij (EB-RSM model).
 
@@ -557,20 +2127,20 @@ Bug fixes:
   scalar or tensorial volume porosity models (iporos=1, 2).
 
 - Fix in the Lagrangian particle tracking:
-  * some minor inconsistencies were introduced on wraped faces
+  * some minor inconsistencies were introduced on warped faces
   * local normal (of the crossed sub-triangle of the crossed face) is stored for
     particle rebound at the boundary
   * if the maximum number of sweeps is reached, the put the particle at the last
     cell center.
 
-Release 5.2.0 - March 30, 2018
-------------------------------
+Release 5.2.0 (2018-03-30)
+--------------------------
 
-Physical modelling:
+Physical modeling:
 
 - Atmospheric model: add new BCs for open-boundary flow such as atmospheric
   flows. It consists in changing the solved pressure. This change result
-  in adding a (constant over space) momentum source terme. This momentum
+  in adding a (constant over space) momentum source term. This momentum
   source term is designed to reach a target bulk momentum.
   The solved pressure has a zero Dirichlet as BC in case of constant
   density. In case of dry atmosphere, an hydrostatic pressure is
@@ -648,10 +2218,10 @@ Bug fixes:
 
 - Fix spurious mapping of previous mass flux with order 1 in time scheme.
 
-Release 5.1.0 - October 10, 2017
---------------------------------
+Release 5.1.0 (2017-10-10)
+--------------------------
 
-Physical modelling:
+Physical modeling:
 
 - Turbulence: add DDES tubulence model
   * Activated using k-w SST model (iturb = 60) with keyword IDDES = 1
@@ -771,8 +2341,8 @@ Bug fixes:
 
 - Fix for idilat>3 algo. and isstpp>1 (beta or NVD/TVD limiters) compatibility.
 
-Release 5.0.0 - June 2, 2017
-----------------------------
+Release 5.0.0 (2017-06-02)
+--------------------------
 
 User changes:
 
@@ -808,7 +2378,7 @@ Numerics:
 
 - Add a convection-diffusion equation solver for additional vector variables.
 
-Physical modelling:
+Physical modeling:
 
 - Add a Volume Of Fluid algorithm:
   * partly merge cavitation algorithm with VOF algorithm.
@@ -833,7 +2403,7 @@ Physical modelling:
 - Lagrangian module:
   * add deposition and resuspension models on internal faces.
     The user can the impose the motion of deposited particles. If integral
-    approach for porous modelling is set up (iporos=3), then the internal fluid
+    approach for porous modeling is set up (iporos=3), then the internal fluid
     section is reduced by particle deposition.
   * injection is now pseudo-continuous when injecting at every time step.
     To revert to the previous behavior, the CS_LAGR_RESIDENCE_TIME value
@@ -852,7 +2422,7 @@ GUI changes:
 - Add a notebook to add global variables to be used in the GUI (such as variables
   in the physical laws).
 
-- Add fans modelling (represented as momentum source terms) in the GUI.
+- Add fans modeling (represented as momentum source terms) in the GUI.
 
 - Add "mapped inlet" boundary condition (for recycled inlets) in the GUI.
 
@@ -918,7 +2488,7 @@ Architectural changes:
   * irom, iviscl, etc.. are now directly field indices (hence starting from 0)
   * test on variability of specific heat (icp), isochoric specific heat (icv)
     and volumetric viscosity (iviscv) are consequently shifted of 1
-    (-1 : uniform field, >=0: non uniform)
+    (-1: uniform field, >=0: non uniform)
   * renamed _owner utility subroutines
   * renamed most used add_property_field into add_property_field_1d
   * mesh viscosity now a 3-dimensional field when strictly orthotropic
@@ -945,7 +2515,7 @@ Bug fixes:
 
 - Allow mesh joining when no vertices are modified.
 
-- Allow use of Modak absorption using the GUI for gas combustion.
+- Allow use of Grey Body absorption using the GUI for gas combustion.
 
 - Fix turbulent exchange coefficient of condensation in case of forced
   convection (the wall function computes Sch*y+/Y+ and not y+/Y+).
@@ -956,8 +2526,8 @@ Bug fixes:
 - Fix initialisation of flux and divergence boundary coefficients for coupled
   vector variables (field with dim=3).
 
-Release 4.3.0 - July 29, 2016
------------------------------
+Release 4.3.0 (2016-07-29)
+--------------------------
 
 User changes:
 
@@ -1068,8 +2638,8 @@ Architectural changes:
   in this version, MEDCoupling is a full standalone library and may
   be used separately from the MED module.
 
-Release 4.2.0 - December 23, 2015
----------------------------------
+Release 4.2.0 (2015-12-23)
+--------------------------
 
 User changes:
 
@@ -1099,7 +2669,7 @@ User changes:
 
 - Add boundary cell thickness computation to mesh quality criteria.
 
-Physical modelling:
+Physical modeling:
 
 - Add gas mix thermo. and fix mass source term with the compressible module
   (internship of A. Menasria):
@@ -1129,7 +2699,10 @@ Physical modelling:
   with iadded_mass=1).
 
 - Add FSCK radiative model for coal combustion.
-  Activate it in cs_user_parameters.f90 with imfsck=1.
+  Activate it in cs_user_parameters.f90 with imfsck=1 or using the GUI.
+
+- Add RCFSK radiative model for gas combustion.
+  Activate it in cs_user_parameters.f90 with imrcfsk=1 or using the GUI.
 
 - Add a wall function for the velocity based on scalable wall function
   which is valid for both rough and smooth walls (activate it with
@@ -1225,8 +2798,8 @@ Architectural changes:
   using it requires providing its path to "--with-blas" anyways.
 
 
-Release 4.1.0 - July 31, 2015
------------------------------
+Release 4.1.0 (2015-07-31)
+--------------------------
 
 User changes:
 
@@ -1257,7 +2830,7 @@ User changes:
   This allows moving tests on the current turbulence model inside
   the user-callable functions, for more concise and safer programming.
 
-Physical modelling:
+Physical modeling:
 
 - Add 2-scales wall function (with V. Driest mixing length) and its consistant
   wall function on scalars (keyword iwallf in the doc.).
@@ -1320,8 +2893,8 @@ Architectural changes:
   for MED and CGNS should now be relatively straightforward.
 
 
-Release 4.0.0 - April 30, 2015
-------------------------------
+Release 4.0.0 (2015-04-30)
+--------------------------
 
 Changes:
 
@@ -1345,7 +2918,7 @@ Changes:
 - Add a "slope_test_upwind_id" field keyword, allowing postprocessing output
   of the contribution of slope tests to convected variables.
 
-- Add a new dilatable (non conservative) algorithm for fire modelling.
+- Add a new dilatable (non conservative) algorithm for fire modeling.
   Activate it with idilat=4 (the formulation is in div(u) instead of
   div(rho u)). You can access to the previous dedicated algorithm by
   setting idilat to 5.
@@ -1375,7 +2948,7 @@ Changes:
   available for standard LSQ gradients and can be activated with
   the keyword iwgrec(ivar) = 1.
 
-- Add drift modelling for coal combustion, and clean up the module:
+- Add drift modeling for coal combustion, and clean up the module:
   * Now, the enthalpy of the continuous phase (gas phase, h1) is transported
     rather than deduced (to be precises, X1.h1 is transported)
   * The convective flux for the gas phase is deduced from the convective fluxes
@@ -1483,8 +3056,8 @@ Bug fixes:
 - Many more bug changes (see ChangeLog for details)
 
 
-Release 3.3.0 - May 16, 2014
-----------------------------
+Release 3.3.0 (2014-05-16)
+--------------------------
 
 Changes:
 
@@ -1572,8 +3145,8 @@ Bug fixes:
         (this model induces a GGDH on Rij and epsilon).
 
 
-Release 3.2.0 - December 4, 2013
---------------------------------
+Release 3.2.0 (2013-12-04)
+--------------------------
 
 Changes:
 
@@ -1687,8 +3260,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 3.1.0 - June 11 2013
-----------------------------
+Release 3.1.0 (2013-06-11)
+--------------------------
 
 Changes:
 
@@ -1815,8 +3388,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 3.0.0 - March 22, 2013
-------------------------------
+Release 3.0.0 (2013-03-22)
+--------------------------
 
 Changes:
 
@@ -2078,7 +3651,7 @@ Architectural changes:
   size than the main calculation communicator.
   These additions are part of a "Performance Tuning" group of user options.
 
-- First version of the Windows port of Code_Saturne.
+- First version of the Windows port of code_saturne.
   This brings up the following adaptations: the installation can now be relocated
   (also available on Unix systems), the scripts (SaturneGUI, runcase,
   run_solver.sh) are now generated on the fly and depend on the underlying
@@ -2113,8 +3686,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 2.3.0 - July 23, 2012
------------------------------
+Release 2.3.0 (2012-07-23)
+--------------------------
 
 Changes:
 
@@ -2351,8 +3924,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 2.2.0 - March 30, 2012
-------------------------------
+Release 2.2.0 (2012-03-30)
+--------------------------
 
 Changes:
 
@@ -2559,8 +4132,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 2.1.0 - October 20, 2011
---------------------------------
+Release 2.1.0 (2011-10-20)
+--------------------------
 
 Changes:
 
@@ -2583,8 +4156,8 @@ Changes:
   compatible with every feature (use with caution...).
 
 - Add an experimental combustion model for coal and heavy fuel oil
-  with a unified gas-combustion modelling.
-  This new modelling replaces the previous fuel modelling (which is
+  with a unified gas-combustion modeling.
+  This new modeling replaces the previous fuel modeling (which is
   still available as a backup).
 
 - Add thin wall insertion.
@@ -2860,7 +4433,7 @@ Architectural changes:
   RPATHs that should be understood by at least GNU and SOLARIS linkers.
 
 - Split the base directory into 4 directories with 3 new ones dedicated
-  to the mesh handling, the turbulence modelling, and the Finite Volume
+  to the mesh handling, the turbulence modeling, and the Finite Volume
   schemes and resolution.
 
 - Major memory management update: a dynamic allocation when
@@ -2994,7 +4567,7 @@ Architectural changes:
 - Migrate the FVM (Finite Volume Mesh) library to the Code_Saturne tree.
 
 - Replace the FVM coupling library by the new PLE one, which may be installed
-  either as part of Code_Saturne, or separately (Code_Saturne may use either
+  either as part of code_saturne, or separately (Code_Saturne may use either
   its internal PLE library or an external build).
 
 - Replace the SWIG dependency for the syntax checking in the graphical
@@ -3013,8 +4586,8 @@ Bug fixes:
 - Many bug fixes (see ChangeLog for details).
 
 
-Release 2.0.0 - August 20, 2010
--------------------------------
+Release 2.0.0 (2010-08-20)
+--------------------------
 
 Code_Saturne 2.0 is a major (fully validated) production release, replacing
 version 1.3 (which is to be maintained until the release of version 3.0).
@@ -3029,8 +4602,8 @@ version 1.3 (which is to be maintained until the release of version 3.0).
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 2.0.0-rc2 - June 22, 2010
----------------------------------
+Release 2.0.0-rc2 (2010-06-22)
+------------------------------
 
 - By-pass a possible bug with the flush Fortran 2003 statement on BG systems.
 
@@ -3049,8 +4622,8 @@ Release 2.0.0-rc2 - June 22, 2010
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 2.0.0-rc1 - February 19, 2010
--------------------------------------
+Release 2.0.0-rc1 (2010-02-19)
+------------------------------
 
 - English translation of more Fortran subroutines headers.
 
@@ -3064,9 +4637,9 @@ Release 2.0.0-rc1 - February 19, 2010
   calculation.
 
 - Add new interpolation schemes to code/code coupling for
-  rotor/stator interaction modelling.
+  rotor/stator interaction modeling.
 
-- Improve robustness for wall boundary conditions for atmospheric modelling.
+- Improve robustness for wall boundary conditions for atmospheric modeling.
 
 - Use new discovery mechanism for coupling applications.
 
@@ -3104,8 +4677,8 @@ Release 2.0.0-rc1 - February 19, 2010
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 2.0.0-beta1 - July 29, 2009
------------------------------------
+Release 2.0.0-beta1 (2009-07-29)
+--------------------------------
 
 - Move loop on velocity/pressure system so that it includes
   the boundary conditions calculation.
@@ -3140,8 +4713,8 @@ Release 2.0.0-beta1 - July 29, 2009
 - Add parall mesh joining feature in the Kernel (by default, the legacy
   joining feature from the Preprocessor is still used.
 
-- Add non-neutral atmosphere modelling (both dry and humid, though
-  humid atmosphere modelling is not yet fully functional).
+- Add non-neutral atmosphere modeling (both dry and humid, though
+  humid atmosphere modeling is not yet fully functional).
 
 - When detecting a divergence in the linear system solver stage, abort
   and write graphical data of the given matrix (rhs, diagonal, ...).
@@ -3169,8 +4742,8 @@ Release 2.0.0-beta1 - July 29, 2009
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 2.0.0-beta1 - May 26, 2009
-----------------------------------
+Release 2.0.0-beta1 (2009-05-26)
+--------------------------------
 
 - Add a quick reference card documentation.
 
@@ -3206,13 +4779,13 @@ Release 2.0.0-beta1 - May 26, 2009
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 1.4.0 - November 28, 2008
----------------------------------
+Release 1.4.0 (2008-11-28)
+--------------------------
 
 Code_Saturne 1.4 is an intermediate development release, very similar to
 version 1.3.3 except for the items below:
 
-- Add atmospheric flow modelling for neutral atmosphere flows.
+- Add atmospheric flow modeling for neutral atmosphere flows.
 
 - Always set the head loss tensor to be a full symmetric tensor
   in order to ease the setup within the Graphical User Interface
@@ -3258,8 +4831,8 @@ version 1.3.3 except for the items below:
 - Several bug fixes and minor improvements (see ChangeLog for details).
 
 
-Release 1.3.3 - November 27, 2008
----------------------------------
+Release 1.3.3 (2008-11-27)
+--------------------------
 
 - Upgrade dependencies to FVM 0.12.0 and BFT 1.0.8.
 
@@ -3267,7 +4840,7 @@ Release 1.3.3 - November 27, 2008
   from SYRTHES 3.3 is not possible due to incompatible format.
 
 - Add a QUALITY_ASSURANCE file which precises if the current
-  version of Code_Saturne is validated under EDF quality
+  version of code_saturne is validated under EDF quality
   assurance.
 
 - Portability updates.
@@ -3286,8 +4859,8 @@ Release 1.3.3 - November 27, 2008
 - Several bug fixes (see ChangeLog for details).
 
 
-Release 1.3.2 - April 16, 2008
-------------------------------
+Release 1.3.2 (1008-04-16)
+--------------------------
 
 - Port to BlueGene/P and Cray XT
 
@@ -3332,8 +4905,8 @@ Release 1.3.2 - April 16, 2008
 - Several bug fixes (see ChangeLog for details).
 
 
-Release 1.3.1 - November 28, 2007
----------------------------------
+Release 1.3.1 (2007-11-28)
+--------------------------
 
 - Storage on preprocessor files in a subdirectory of
   the temporary execution directory.
@@ -3355,13 +4928,13 @@ Release 1.3.1 - November 28, 2007
 - Several bug fixes (see ChangeLog for details).
 
 
-Release 1.3.0 - August 2, 2007
-------------------------------
+Release 1.3.0 (2007-08-02)
+--------------------------
 
 Code_Saturne 1.3 is a major (fully validated) production release.
 Release 1.3.0 is the feature-freeze release, and versions 1.3.1
 and 1.3.2 are validation bug-fix versions. 1.3.3 is the first production
-version of Code_Saturne 1.3.
+version of code_saturne 1.3.
 
-This version of the code is also the first version of Code_Saturne distributed
+This version of the code is also the first version of code_saturne distributed
 under a free software (GPL + LGPL) licence.

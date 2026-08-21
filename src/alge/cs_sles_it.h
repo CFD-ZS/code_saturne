@@ -1,14 +1,14 @@
-#ifndef __CS_SLES_IT_H__
-#define __CS_SLES_IT_H__
+#ifndef CS_SLES_IT_H
+#define CS_SLES_IT_H
 
 /*============================================================================
  * Sparse Linear Equation Solvers
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo_perio.h"
-#include "cs_matrix.h"
-#include "cs_time_plot.h"
-#include "cs_sles.h"
-#include "cs_sles_pc.h"
+#include "base/cs_base.h"
+#include "alge/cs_matrix.h"
+#include "alge/cs_sles.h"
+#include "alge/cs_sles_pc.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -56,6 +54,8 @@ BEGIN_C_DECLS
 
 typedef enum {
 
+  /* Iterative solvers */
+
   CS_SLES_PCG,                 /*!< Preconditioned conjugate gradient */
   CS_SLES_FCG,                 /*!< Preconditions flexible conjugate gradient,
                                     described in \cite Notay:2015 */
@@ -64,14 +64,23 @@ typedef enum {
   CS_SLES_BICGSTAB,            /*!< Preconditioned BiCGstab
                                     (biconjugate gradient stabilized) */
   CS_SLES_BICGSTAB2,           /*!< Preconditioned BiCGstab2 */
+  CS_SLES_GCR,                 /*!< Generalized conjugate residual  */
   CS_SLES_GMRES,               /*!< Preconditioned GMRES
                                     (generalized minimal residual) */
-  CS_SLES_P_GAUSS_SEIDEL,      /*!< Process-local Gauss-Seidel */
-  CS_SLES_P_SYM_GAUSS_SEIDEL,  /*!< Process-local symmetric Gauss-Seidel */
+  CS_SLES_P_GAUSS_SEIDEL,      /*!< Hybrid Gauss-Seidel */
+  CS_SLES_P_SYM_GAUSS_SEIDEL,  /*!< Hybrid symmetric Gauss-Seidel */
   CS_SLES_PCR3,                /*!< 3-layer conjugate residual */
+  CS_SLES_USER_DEFINED,        /*!< User-defined iterative solver */
 
   CS_SLES_N_IT_TYPES,          /*!< Number of resolution algorithms
-                                    excluding smoother only*/
+                                    excluding smoother only */
+
+  /* Multigrid smoothers */
+
+  CS_SLES_L1_JACOBI,           /*!< L1-Jacobi smoother */
+  CS_SLES_R_JACOBI,            /*!< Weighted (relaxed) Jacobi smoother */
+  CS_SLES_SRJ2,                /*!< Scheduled relaxed Jacobi smoother, M=2 */
+  CS_SLES_SRJ3,                /*!< Scheduled relaxed Jacobi smoother, M=3 */
 
   CS_SLES_TS_F_GAUSS_SEIDEL,   /*!< Truncated forward Gauss-Seidel smoother */
   CS_SLES_TS_B_GAUSS_SEIDEL,   /*!< Truncated backward Gauss-Seidel smoother */
@@ -89,13 +98,54 @@ typedef struct _cs_sles_it_t  cs_sles_it_t;
 
 typedef struct _cs_sles_it_convergence_t  cs_sles_it_convergence_t;
 
+/* Names for backwards compatibility */
+
+#define  CS_SLES_RJ2  CS_SLES_SRJ2
+#define  CS_SLES_RJ3  CS_SLES_SRJ3
+
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Names for iterative solver types */
 
 extern const char *cs_sles_it_type_name[];
+
+/*=============================================================================
+ * User function prototypes
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------
+ * Solution of A.vx = Rhs using a user-defined iterative solver
+ *
+ * On entry, vx is considered initialized.
+ *
+ * parameters:
+ *   c               <-- pointer to solver context info
+ *   a               <-- matrix
+ *   diag_block_size <-- diagonal block size (unused here)
+ *   convergence     <-- convergence information structure
+ *   rhs             <-- right hand side
+ *   vx_ini          <-- initial system solution
+ *                       (vx if nonzero, nullptr if zero)
+ *   vx              <-> system solution
+ *   aux_size        <-- number of elements in aux_vectors (in bytes)
+ *   aux_vectors     --- optional working area (allocation otherwise)
+ *
+ * returns:
+ *   convergence state
+ *----------------------------------------------------------------------------*/
+
+cs_sles_convergence_state_t
+cs_user_sles_it_solver(cs_sles_it_t              *c,
+                       const cs_matrix_t         *a,
+                       cs_lnum_t                  diag_block_size,
+                       cs_sles_it_convergence_t  *convergence,
+                       const cs_real_t           *rhs,
+                       cs_real_t                 *vx_ini,
+                       cs_real_t                 *vx,
+                       size_t                     aux_size,
+                       void                      *aux_vectors);
 
 /*=============================================================================
  * Public function prototypes
@@ -209,12 +259,12 @@ cs_sles_it_setup(void               *context,
  *   name          <-- pointer to system name
  *   a             <-- matrix
  *   verbosity     <-- verbosity level
- *   rotation_mode <-- halo update option for rotational periodicity
  *   precision     <-- solver precision
- *   r_norm        <-- residue normalization
+ *   r_norm        <-- residual normalization
  *   n_iter        --> number of iterations
- *   residue       --> residue
+ *   residual      --> residual
  *   rhs           <-- right hand side
+ *   vx_ini        <-- initial solution (vx if nonzero, nullptr if zero)
  *   vx            <-> system solution
  *   aux_size      <-- number of elements in aux_vectors (in bytes)
  *   aux_vectors   --- optional working area (internal allocation if NULL)
@@ -228,13 +278,13 @@ cs_sles_it_solve(void                *context,
                  const char          *name,
                  const cs_matrix_t   *a,
                  int                  verbosity,
-                 cs_halo_rotation_t   rotation_mode,
                  double               precision,
                  double               r_norm,
                  int                 *n_iter,
-                 double              *residue,
+                 double              *residual,
                  const cs_real_t     *rhs,
                  cs_real_t           *vx,
+                 cs_real_t           *vx_ini,
                  size_t               aux_size,
                  void                *aux_vectors);
 
@@ -280,7 +330,7 @@ cs_sles_it_type_t
 cs_sles_it_get_type(const cs_sles_it_t  *context);
 
 /*----------------------------------------------------------------------------
- * Return the initial residue for the previous solve operation with a solver.
+ * Return the initial residual for the previous solve operation with a solver.
  *
  * This is useful for convergence tests when this solver is used as
  * a preconditioning smoother.
@@ -293,11 +343,11 @@ cs_sles_it_get_type(const cs_sles_it_t  *context);
  *   context <-- pointer to iterative solver info and context
  *
  * returns:
- *   initial residue from last call to \ref cs_sles_solve with this solver
+ *   initial residual from last call to \ref cs_sles_solve with this solver
  *----------------------------------------------------------------------------*/
 
 double
-cs_sles_it_get_last_initial_residue(const cs_sles_it_t  *context);
+cs_sles_it_get_last_initial_residual(const cs_sles_it_t  *context);
 
 /*----------------------------------------------------------------------------
  * Return a preconditioner context for an iterative sparse linear
@@ -317,18 +367,17 @@ cs_sles_pc_t  *
 cs_sles_it_get_pc(cs_sles_it_t  *context);
 
 /*----------------------------------------------------------------------------
- * Assign a preconditioner to an iterative sparse linear equation
- * solver, transfering its ownership to to solver context.
+ * \brief Assign a preconditioner to an iterative sparse linear equation
+ *        solver, transfering its ownership to the solver context.
  *
  * This allows assigning a non default (Jacobi or polynomial) preconditioner.
  *
  * The input pointer is set to NULL to make it clear the caller does not
  * own the preconditioner anymore, though the context can be accessed using
- * cs_sles_it_get_cp().
+ * \ref cs_sles_it_get_pc.
  *
- * parameters:
- *   context <->  pointer to iterative solver info and context
- *   pc      <->  pointer to preconditoner context
+ * \param[in, out]  context   pointer to iterative solver info and context
+ * \param[in, out]  pc        pointer to preconditoner context
  *----------------------------------------------------------------------------*/
 
 void
@@ -386,7 +435,7 @@ cs_sles_it_set_shareable(cs_sles_it_t        *context,
 /*!
  * \brief Set MPI communicator for global reductions.
  *
- * The system is solved only on ranks with a non-NULL communicator or
+ * The system is solved only on ranks with a non-null communicator or
  * if the caller communicator has less than 2 ranks. convergence info
  * is broadcast across the caller communicator.
  *
@@ -422,70 +471,78 @@ cs_sles_it_assign_order(cs_sles_it_t   *context,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Retrieve the threshold value under which a breakdown happens in
+ *        solvers like BiCGStab or BiCGStab2
+ *
+ * \return the value of the threshold
+ */
+/*----------------------------------------------------------------------------*/
+
+double
+cs_sles_it_get_breakdown_threshold(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define the threshold value under which a breakdown happens in
+ *        solvers like BiCGStab or BiCGStab2
+ *
+ * \param[in]  threshold  value of the threshold
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sles_it_set_breakdown_threshold(double  threshold);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Define convergence level under which the fallback to another
  *        solver may be used if applicable.
  *
- * Currently, this mechanism is only by default used for BiCGstab and
- * 3-layer conjugate residual solvers with scalar matrices, which may
- * fall back to a preconditioned GMRES solver. For those solvers, the
- * default threshold is \ref CS_SLES_BREAKDOWN, meaning that divergence
- * (but not breakdown) will lead to the use of the fallback mechanism.
+ * Currently, this mechanism is used by default for solvers which may exhibit
+ * breakdown, such as BiCGstab and 3-layer conjugate residual solvers, which
+ * may fall back to a more robust preconditioned GMRES solver.
  *
- * \param[in, out]  context    pointer to iterative solver info and context
- * \param[in]       threshold  convergence level under which fallback is used
+ * For those solvers, the default threshold is \ref CS_SLES_MAX_ITERATION,
+ * meaning that reaching breakdown will lead to the use of the
+ * fallback mechanism.
+ *
+ * \param[in, out] context     pointer to iterative solver info and context
+ * \param[in]      threshold   convergence level under which fallback is used
+ * \param[in]      n_iter_max  maximum number of iterations fo fallback solver
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_sles_it_set_fallback_threshold(cs_sles_it_t                 *context,
-                                  cs_sles_convergence_state_t   threshold);
+                                  cs_sles_convergence_state_t   threshold,
+                                  int                           n_iter_max);
 
-/*----------------------------------------------------------------------------
- * Query mean number of rows under which Conjugate Gradient algorithm
- * uses the single-reduction variant.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define the number of iterations to be done before restarting the
+ *        solver. Useful only for GCR or GMRES algorithms.
  *
- * The single-reduction variant requires only one parallel sum per
- * iteration (instead of 2), at the cost of additional vector operations,
- * so it tends to be more expensive when the number of matrix rows per
- * MPI rank is high, then becomes cheaper when the MPI latency cost becomes
- * more significant.
- *
- * This option is ignored for non-parallel runs, so 0 is returned.
- *
- * return:
- *   mean number of rows per active rank under which the
- *   single-reduction variant will be used
- *----------------------------------------------------------------------------*/
-
-cs_lnum_t
-cs_sles_it_get_pcg_single_reduction(void);
-
-/*----------------------------------------------------------------------------
- * Set mean number of rows under which Conjugate Gradient algorithm
- * should use the single-reduction variant.
- *
- * The single-reduction variant requires only one parallel sum per
- * iteration (instead of 2), at the cost of additional vector operations,
- * so it tends to be more expensive when the number of matrix rows per
- * MPI rank is high, then becomes cheaper when the MPI latency cost becomes
- * more significant.
- *
- * This option is ignored for non-parallel runs.
- *
- * parameters:
- *   threshold <-- mean number of rows per active rank under which the
- *                 single-reduction variant will be used
- *----------------------------------------------------------------------------*/
+ * \param[in, out]  context   pointer to iterative solver info and context
+ * \param[in]       interval  convergence level under which fallback is used
+ */
+/*----------------------------------------------------------------------------*/
 
 void
-cs_sles_it_set_pcg_single_reduction(cs_lnum_t  threshold);
+cs_sles_it_set_restart_interval(cs_sles_it_t  *context,
+                                int            interval);
 
-/*----------------------------------------------------------------------------
- * Log the current global settings relative to parallelism.
- *----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define the max. number of iterations before stopping the algorithm
+ *
+ * \param[in, out]  context     pointer to iterative solver info and context
+ * \param[in]       n_max_iter  max. number of iterations
+ */
+/*----------------------------------------------------------------------------*/
 
 void
-cs_sles_it_log_parallel_options(void);
+cs_sles_it_set_n_max_iter(cs_sles_it_t  *context,
+                          int            n_max_iter);
 
 /*----------------------------------------------------------------------------
  * Error handler for iterative sparse linear equation solver.
@@ -498,7 +555,6 @@ cs_sles_it_log_parallel_options(void);
  *   sles          <-> pointer to solver object
  *   state         <-- convergence state
  *   a             <-- matrix
- *   rotation_mode <-- halo update option for rotational periodicity
  *   rhs           <-- right hand side
  *   vx            <-> system solution
  *
@@ -510,7 +566,6 @@ bool
 cs_sles_it_error_post_and_abort(cs_sles_t                    *sles,
                                 cs_sles_convergence_state_t   state,
                                 const cs_matrix_t            *a,
-                                cs_halo_rotation_t            rotation_mode,
                                 const cs_real_t              *rhs,
                                 cs_real_t                    *vx);
 
@@ -529,8 +584,27 @@ cs_sles_it_set_plot_options(cs_sles_it_t  *context,
                             const char    *base_name,
                             bool           use_iteration);
 
+/*----------------------------------------------------------------------------
+ * Convergence test.
+ *
+ * parameters:
+ *   c           <-- pointer to solver context info
+ *   n_iter      <-- Number of iterations done
+ *   residual    <-- Non normalized residual
+ *   convergence <-> Convergence information structure
+ *
+ * returns:
+ *   convergence status.
+ *----------------------------------------------------------------------------*/
+
+cs_sles_convergence_state_t
+cs_sles_it_convergence_test(cs_sles_it_t              *c,
+                            unsigned                   n_iter,
+                            double                     residual,
+                            cs_sles_it_convergence_t  *convergence);
+
 /*----------------------------------------------------------------------------*/
 
 END_C_DECLS
 
-#endif /* __CS_SLES_IT_H__ */
+#endif /* CS_SLES_IT_H */

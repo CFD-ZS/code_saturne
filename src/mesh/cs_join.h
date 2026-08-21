@@ -1,14 +1,14 @@
-#ifndef __CS_JOIN_H__
-#define __CS_JOIN_H__
+#ifndef CS_JOIN_H
+#define CS_JOIN_H
 
 /*============================================================================
  * Structure and function headers handling with joining operation
  *===========================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *---------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_join_util.h"
-#include "cs_mesh.h"
-
-/*---------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_join_util.h"
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -140,6 +136,4 @@ cs_join_mark_selected_faces(const cs_mesh_t  *mesh,
 
 /*---------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_JOIN_H__ */
+#endif /* CS_JOIN_H */

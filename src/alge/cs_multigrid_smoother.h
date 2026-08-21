@@ -1,14 +1,14 @@
-#ifndef __CS_MULTIGRID_SMOOTHER_H__
-#define __CS_MULTIGRID_SMOOTHER_H__
+#ifndef CS_MULTIGRID_SMOOTHER_H
+#define CS_MULTIGRID_SMOOTHER_H
 
 /*============================================================================
  * Sparse Linear Equation Solvers
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,14 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo_perio.h"
-#include "cs_matrix.h"
-#include "cs_sles.h"
-#include "cs_sles_it.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_halo_perio.h"
+#include "alge/cs_matrix.h"
+#include "alge/cs_sles.h"
+#include "alge/cs_sles_it.h"
 
 /*============================================================================
  * Macro definitions
@@ -54,7 +50,7 @@ BEGIN_C_DECLS
 typedef struct _cs_multigrid_smoother_t  cs_multigrid_smoother_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -62,7 +58,7 @@ typedef struct _cs_multigrid_smoother_t  cs_multigrid_smoother_t;
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create iterative sparse linear system solver info and context used as
  *        a smoother in a multigrid solver
  *
@@ -73,17 +69,18 @@ typedef struct _cs_multigrid_smoother_t  cs_multigrid_smoother_t;
  *                             see \ref sles_it for details)
  * \param[in]  n_iter          number of iterations to perform
  *
- * \return a pointer to newly created smoother info object.
+ * \return a pointer to newly created smoother info object, or NULL
+ *         if not available for this solver type.
  */
 /*----------------------------------------------------------------------------*/
 
-cs_sles_it_t *
+extern "C" cs_sles_it_t *
 cs_multigrid_smoother_create(cs_sles_it_type_t     smoother_type,
                              int                   poly_degree,
                              int                   n_iter);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Destroy iterative sparse linear system solver info and context used
  *        as a smoother in a multigrid solver
  *
@@ -92,7 +89,7 @@ cs_multigrid_smoother_create(cs_sles_it_type_t     smoother_type,
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_multigrid_smoother_destroy(void  **context);
 
 /*----------------------------------------------------------------------------
@@ -106,7 +103,7 @@ cs_multigrid_smoother_destroy(void  **context);
  *   verbosity <-- verbosity level
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_multigrid_smoother_setup(void               *context,
                             const char         *name,
                             const cs_matrix_t  *a,
@@ -121,12 +118,12 @@ cs_multigrid_smoother_setup(void               *context,
  *   name          <-- pointer to system name
  *   a             <-- matrix
  *   verbosity     <-- verbosity level
- *   rotation_mode <-- halo update option for rotational periodicity
  *   precision     <-- solver precision
- *   r_norm        <-- residue normalization
+ *   r_norm        <-- residual normalization
  *   n_iter        --> number of iterations
- *   residue       --> residue
+ *   residual      --> residual
  *   rhs           <-- right hand side
+ *   vx_ini        <-- initial solution (vx if nonzero, nullptr if zero)
  *   vx            <-> system solution
  *   aux_size      <-- number of elements in aux_vectors (in bytes)
  *   aux_vectors   --- optional working area (internal allocation if NULL)
@@ -135,17 +132,17 @@ cs_multigrid_smoother_setup(void               *context,
  *   convergence state
  *----------------------------------------------------------------------------*/
 
-cs_sles_convergence_state_t
+extern "C" cs_sles_convergence_state_t
 cs_multigrid_smoother_solve(void                *context,
                             const char          *name,
                             const cs_matrix_t   *a,
                             int                  verbosity,
-                            cs_halo_rotation_t   rotation_mode,
                             double               precision,
                             double               r_norm,
                             int                 *n_iter,
-                            double              *residue,
+                            double              *residual,
                             const cs_real_t     *rhs,
+                            cs_real_t           *vx_ini,
                             cs_real_t           *vx,
                             size_t               aux_size,
                             void                *aux_vectors);
@@ -162,7 +159,7 @@ cs_multigrid_smoother_solve(void                *context,
  *               (actual type: cs_multigrid_smoother_t  *)
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_multigrid_smoother_free(void  *context);
 
 /*----------------------------------------------------------------------------
@@ -174,7 +171,7 @@ cs_multigrid_smoother_free(void  *context);
  *   log_type <-- log type
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_multigrid_smoother_log(const void  *context,
                           cs_log_t     log_type);
 
@@ -188,11 +185,9 @@ cs_multigrid_smoother_log(const void  *context,
  *   selected solver type
  *----------------------------------------------------------------------------*/
 
-cs_sles_it_type_t
+extern "C" cs_sles_it_type_t
 cs_multigrid_smoother_get_type(const cs_multigrid_smoother_t  *context);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MULTIGRID_SMOOTHER_H__ */
+#endif /* CS_MULTIGRID_SMOOTHER_H */

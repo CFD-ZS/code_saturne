@@ -1,14 +1,14 @@
-#ifndef __CS_XDEF_CW_EVAL_H__
-#define __CS_XDEF_CW_EVAL_H__
+#ifndef CS_XDEF_CW_EVAL_H
+#define CS_XDEF_CW_EVAL_H
 
 /*============================================================================
  * Manage the (generic) evaluation of extended definitions
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -25,22 +25,16 @@
   Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_cdo_connect.h"
-#include "cs_cdo_local.h"
-#include "cs_cdo_quantities.h"
-#include "cs_mesh.h"
-#include "cs_quadrature.h"
-#include "cs_xdef.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_cdo_local.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_quadrature.h"
+#include "cdo/cs_xdef.h"
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Local macro definition (unset at the end of file)
@@ -61,7 +55,7 @@ BEGIN_C_DECLS
  *
  * \param[in]  cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]  time_eval  physical time at which one evaluates the term
- * \param[in]  input      pointer to an input structure
+ * \param[in]  input      null or pointer to an input structure
  * \param[out] eval       result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
@@ -196,6 +190,32 @@ cs_xdef_cw_eval_vector_by_val(const cs_cell_mesh_t     *cm,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Evaluate a tensor-valued quantity with a symmetric storage by a
+ *         cellwise process
+ *
+ * \param[in]  cm         pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]  time_eval  physical time at which one evaluates the term
+ * \param[in]  input      pointer to an input structure
+ * \param[out] eval       result of the evaluation
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_xdef_cw_eval_symtens_by_val(const cs_cell_mesh_t     *cm,
+                               cs_real_t                 time_eval,
+                               void                     *input,
+                               cs_real_t                *eval)
+{
+  CS_UNUSED(cm);
+  CS_UNUSED(time_eval);
+
+  const cs_real_t  *constant_val = (const cs_real_t *)input;
+  for (int k = 0; k < 6; k++)
+    eval[k] = constant_val[k];
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Evaluate a tensor-valued quantity by a cellwise process
  *
  * \param[in]  cm         pointer to a \ref cs_cell_mesh_t structure
@@ -252,72 +272,38 @@ cs_xdef_cw_eval_vector_at_xyz_by_val(const cs_cell_mesh_t       *cm,
   for (int i = 0; i < n_points; i++) {
     eval[3*i    ] = constant_val[0];
     eval[3*i + 1] = constant_val[1];
-    eval[2*i + 2] = constant_val[2];
+    eval[3*i + 2] = constant_val[2];
   }
 }
 
-
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by values.
+ *         defined by a vector-valued flux for the face f
  *         Use of a \ref cs_cell_mesh_t structure.
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f          local face id
  * \param[in]      time_eval  physical time at which one evaluates the term
  * \param[in]      input      pointer to an input structure
- * \param[in, out] eval       result of the evaluation (set inside)
+ * \param[in, out] eval       result of the evaluation (a scalar)
  */
 /*----------------------------------------------------------------------------*/
 
 static inline void
-cs_xdef_cw_eval_flux_by_val(const cs_cell_mesh_t     *cm,
-                            short int                 f,
-                            cs_real_t                 time_eval,
-                            void                     *input,
-                            cs_real_t                *eval)
-{
-  CS_UNUSED(time_eval);
-
-  /* Sanity check */
-  assert(cs_eflag_test(cm->flag, CS_FLAG_COMP_PFQ));
-
-  const cs_real_t  *flux = (cs_real_t *)input;
-  const cs_quant_t  fq = cm->face[f];
-
-  eval[f] = fq.meas * _dp3(fq.unitv, flux);
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by values.
- *         Use of a \ref cs_cell_mesh_t structure.
- *
- * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      f          local face id
- * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
- * \param[in, out] eval       result of the evaluation (set inside)
- */
-/*----------------------------------------------------------------------------*/
-
-static inline void
-cs_xdef_cw_eval_tensor_flux_by_val(const cs_cell_mesh_t     *cm,
+cs_xdef_cw_eval_flux_by_vector_val(const cs_cell_mesh_t     *cm,
                                    short int                 f,
                                    cs_real_t                 time_eval,
                                    void                     *input,
                                    cs_real_t                *eval)
 {
   CS_UNUSED(time_eval);
+  assert(cs_eflag_test(cm->flag, CS_FLAG_COMP_PFQ));
 
-  cs_real_t  *flux = (cs_real_t *)input;
+  const cs_real_t  *flux = (cs_real_t *)input;
   const cs_quant_t  fq = cm->face[f];
 
-  cs_math_33_3_product((const cs_real_t (*)[3])flux, fq.unitv, eval);
-  for (int k = 0; k < 3; k++)
-    eval[3*f+k] *= fq.meas;
+  eval[f] = fq.meas * _dp3(fq.unitv, flux);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -388,13 +374,12 @@ cs_xdef_cw_eval_scalar_face_avg_by_array(const cs_cell_mesh_t       *cm,
               " %s: Array storing the evaluation should be allocated before"
               " the call to this function.", __func__);
 
-  const cs_xdef_array_input_t *array_input
-    = (const cs_xdef_array_input_t *)input;
+  const cs_xdef_array_context_t *cx = (const cs_xdef_array_context_t *)input;
 
   assert(input != NULL);
-  assert(cs_flag_test(array_input->loc, cs_flag_primal_face));
+  assert(cs_flag_test(cx->value_location, cs_flag_primal_face));
 
-  eval[0] = array_input->values[cm->f_ids[f]];
+  eval[0] = cx->values[cm->f_ids[f]];
 }
 
 /*----------------------------------------------------------------------------*/
@@ -415,15 +400,15 @@ cs_xdef_cw_eval_scalar_face_avg_by_array(const cs_cell_mesh_t       *cm,
 /*----------------------------------------------------------------------------*/
 
 static inline void
-cs_xdef_cw_eval_face_drhm_by_analytic(const cs_cell_mesh_t       *cm,
-                                      short int                   f,
-                                      cs_real_t                   t_eval,
-                                      void                       *input,
-                                      cs_quadrature_type_t        qtype,
-                                      cs_real_t                  *eval)
+cs_xdef_cw_eval_face_drham_by_analytic(const cs_cell_mesh_t       *cm,
+                                       short int                   f,
+                                       cs_real_t                   t_eval,
+                                       void                       *input,
+                                       cs_quadrature_type_t        qtype,
+                                       cs_real_t                  *eval)
 {
   CS_UNUSED(qtype);
-  cs_xdef_analytic_input_t *anai = (cs_xdef_analytic_input_t *)input;
+  cs_xdef_analytic_context_t *anai = (cs_xdef_analytic_context_t *)input;
 
   anai->func(t_eval, 1, NULL, cm->face[f].center, false, anai->input, eval);
 }
@@ -463,7 +448,7 @@ cs_xdef_cw_eval_vector_face_avg_by_value(const cs_cell_mesh_t     *cm,
 
   assert(input != NULL);
 
-  memcpy(eval, (const cs_real_t *)input, 3*sizeof(cs_real_t));
+  std::memcpy(eval, (const cs_real_t *)input, 3 * sizeof(cs_real_t));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -497,13 +482,12 @@ cs_xdef_cw_eval_vector_face_avg_by_array(const cs_cell_mesh_t     *cm,
               " %s: Array storing the evaluation should be allocated before"
               " the call to this function.", __func__);
 
-  const cs_xdef_array_input_t *array_input
-    = (const cs_xdef_array_input_t *)input;
+  const cs_xdef_array_context_t *cx = (const cs_xdef_array_context_t *)input;
 
   assert(input != NULL);
-  assert(cs_flag_test(array_input->loc, cs_flag_primal_face));
+  assert(cs_flag_test(cx->value_location, cs_flag_primal_face));
 
-  memcpy(eval, array_input->values + 3*cm->f_ids[f], 3*sizeof(cs_real_t));
+  std::memcpy(eval, cx->values + 3 * cm->f_ids[f], 3 * sizeof(cs_real_t));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -577,13 +561,12 @@ cs_xdef_cw_eval_tensor_face_avg_by_array(const cs_cell_mesh_t     *cm,
               " %s: Array storing the evaluation should be allocated before"
               " the call to this function.", __func__);
 
-  const cs_xdef_array_input_t *array_input
-    = (const cs_xdef_array_input_t *)input;
+  const cs_xdef_array_context_t *cx = (const cs_xdef_array_context_t *)input;
 
   assert(input != NULL);
-  assert(cs_flag_test(array_input->loc, cs_flag_primal_face));
+  assert(cs_flag_test(cx->value_location, cs_flag_primal_face));
 
-  memcpy(eval, array_input->values + 9*cm->f_ids[f], 9*sizeof(cs_real_t));
+  std::memcpy(eval, cx->values + 9 * cm->f_ids[f], 9 * sizeof(cs_real_t));
 }
 
 /*============================================================================
@@ -594,8 +577,9 @@ cs_xdef_cw_eval_tensor_face_avg_by_array(const cs_cell_mesh_t     *cm,
 /*!
  * \brief  Integrate an analytic function over a face
  *
- * \param[in]      cm       pointer to \ref cs_cell_mesh_t structure
+ * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      t_eval   time at which the function is evaluated
+ * \param[in]      f        face id in the local cell numbering
  * \param[in]      ana      analytic function to integrate
  * \param[in]      input    pointer to an input structure
  * \param[in]      qfunc    quadrature function to use
@@ -662,16 +646,16 @@ cs_xdef_cw_eval_fc_int_by_analytic(const cs_cell_mesh_t            *cm,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Function pointer for evaluating the average on a face of a scalar
- *         function defined through a descriptor (\ref cs_xdef_t structure) by
- *         a cellwise process (usage of a \ref cs_cell_mesh_t structure)
+ * \brief Function pointer for evaluating the average on a face of a scalar
+ *        function defined through a descriptor (\ref cs_xdef_t structure) by a
+ *        cellwise process (usage of a \ref cs_cell_mesh_t structure)
  *
- * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      f          local face id
- * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
- * \param[in]      qtype      level of quadrature to use
- * \param[in, out] eval       result of the evaluation
+ * \param[in]      cm          pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      f           local face id
+ * \param[in]      time_eval   physical time at which one evaluates the term
+ * \param[in]      context     pointer to a context structure
+ * \param[in]      qtype       level of quadrature to use
+ * \param[in, out] eval        result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
@@ -679,7 +663,7 @@ void
 cs_xdef_cw_eval_scalar_face_avg_by_analytic(const cs_cell_mesh_t   *cm,
                                             short int               f,
                                             cs_real_t               time_eval,
-                                            void                   *input,
+                                            void                   *context,
                                             cs_quadrature_type_t    qtype,
                                             cs_real_t              *eval);
 
@@ -692,7 +676,7 @@ cs_xdef_cw_eval_scalar_face_avg_by_analytic(const cs_cell_mesh_t   *cm,
  * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f        local face id
  * \param[in]      t_eval   physical time at which one evaluates the term
- * \param[in]      input    pointer to an input structure
+ * \param[in]      context  pointer to a context structure
  * \param[in]      qtype    level of quadrature to use
  * \param[in, out] eval     result of the evaluation
  */
@@ -702,7 +686,7 @@ void
 cs_xdef_cw_eval_vector_face_avg_by_analytic(const cs_cell_mesh_t    *cm,
                                             short int                f,
                                             cs_real_t                t_eval,
-                                            void                    *input,
+                                            void                    *context,
                                             cs_quadrature_type_t     qtype,
                                             cs_real_t               *eval);
 
@@ -715,7 +699,7 @@ cs_xdef_cw_eval_vector_face_avg_by_analytic(const cs_cell_mesh_t    *cm,
  * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f        local face id
  * \param[in]      t_eval   physical time at which one evaluates the term
- * \param[in]      input    pointer to an input structure
+ * \param[in]      context  pointer to a context structure
  * \param[in]      qtype    level of quadrature to use
  * \param[in, out] eval     result of the evaluation
  */
@@ -725,7 +709,7 @@ void
 cs_xdef_cw_eval_tensor_face_avg_by_analytic(const cs_cell_mesh_t    *cm,
                                             short int                f,
                                             cs_real_t                t_eval,
-                                            void                    *input,
+                                            void                    *context,
                                             cs_quadrature_type_t     qtype,
                                             cs_real_t               *eval);
 
@@ -739,7 +723,7 @@ cs_xdef_cw_eval_tensor_face_avg_by_analytic(const cs_cell_mesh_t    *cm,
  * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      t_eval   physical time at which one evaluates the term
  * \param[in]      qtype    quadrature type
- * \param[in]      input    pointer to an input structure
+ * \param[in]      context  pointer to a context structure
  * \param[in, out] eval     result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
@@ -747,7 +731,7 @@ cs_xdef_cw_eval_tensor_face_avg_by_analytic(const cs_cell_mesh_t    *cm,
 void
 cs_xdef_cw_eval_scalar_avg_by_analytic(const cs_cell_mesh_t     *cm,
                                        cs_real_t                 t_eval,
-                                       void                     *input,
+                                       void                     *context,
                                        cs_quadrature_type_t      qtype,
                                        cs_real_t                *eval);
 
@@ -759,18 +743,18 @@ cs_xdef_cw_eval_scalar_avg_by_analytic(const cs_cell_mesh_t     *cm,
  *         This evaluation hinges on the computation of integrals
  *         Vector-valued case.
  *
- * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      t_eval   physical time at which one evaluates the term
- * \param[in]      qtype    quadrature type
- * \param[in]      input    pointer to an input structure
- * \param[in, out] eval     result of the evaluation
+ * \param[in]      cm        pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      t_eval    physical time at which one evaluates the term
+ * \param[in]      qtype     quadrature type
+ * \param[in]      context   pointer to a context structure
+ * \param[in, out] eval      result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_xdef_cw_eval_vector_avg_by_analytic(const cs_cell_mesh_t     *cm,
                                        cs_real_t                 t_eval,
-                                       void                     *input,
+                                       void                     *context,
                                        cs_quadrature_type_t      qtype,
                                        cs_real_t                *eval);
 
@@ -782,18 +766,18 @@ cs_xdef_cw_eval_vector_avg_by_analytic(const cs_cell_mesh_t     *cm,
  *         This evaluation hinges on the computation of integrals
  *         Tensor-valued case.
  *
- * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      t_eval   physical time at which one evaluates the term
- * \param[in]      qtype    quadrature type
- * \param[in]      input    pointer to an input structure
- * \param[in, out] eval     result of the evaluation
+ * \param[in]      cm        pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      t_eval    physical time at which one evaluates the term
+ * \param[in]      qtype     quadrature type
+ * \param[in]      context   pointer to a context structure
+ * \param[in, out] eval      result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_xdef_cw_eval_tensor_avg_by_analytic(const cs_cell_mesh_t     *cm,
                                        cs_real_t                 t_eval,
-                                       void                     *input,
+                                       void                     *context,
                                        cs_quadrature_type_t      qtype,
                                        cs_real_t                *eval);
 
@@ -802,35 +786,36 @@ cs_xdef_cw_eval_tensor_avg_by_analytic(const cs_cell_mesh_t     *cm,
  * \brief  Evaluate a  quantity by a cellwise process using a definition by
  *         time function
  *
- * \param[in]  cm         pointer to a \ref cs_cell_mesh_t structure
- * \param[in]  time_eval  physical time at which one evaluates the term
- * \param[in]  input      pointer to an input structure
- * \param[out] eval       result of the evaluation
+ * \param[in]  cm          pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]  time_eval   physical time at which one evaluates the term
+ * \param[in]  context     pointer to a context structure
+ * \param[out] eval        result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_xdef_cw_eval_by_time_func(const cs_cell_mesh_t     *cm,
                              cs_real_t                 time_eval,
-                             void                     *input,
+                             void                     *context,
                              cs_real_t                *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Evaluate a quantity defined using an analytic function by a
- *         cellwise process (usage of a \ref cs_cell_mesh_t structure)
+ * \brief  Evaluate a quantity at the cell center defined using an analytic
+ *         function by a cellwise process (usage of a \ref cs_cell_mesh_t
+ *         structure)
  *
- * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
- * \param[in, out] eval       result of the evaluation at cell center
+ * \param[in]      cm          pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      time_eval   physical time at which one evaluates the term
+ * \param[in]      context     pointer to a context structure
+ * \param[in, out] eval        result of the evaluation at cell center
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_xdef_cw_eval_by_analytic(const cs_cell_mesh_t       *cm,
                             cs_real_t                   time_eval,
-                            void                       *input,
+                            void                       *context,
                             cs_real_t                  *eval);
 
 /*----------------------------------------------------------------------------*/
@@ -841,7 +826,7 @@ cs_xdef_cw_eval_by_analytic(const cs_cell_mesh_t       *cm,
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in, out] eval       result of the evaluation at cell center
  */
 /*----------------------------------------------------------------------------*/
@@ -849,7 +834,7 @@ cs_xdef_cw_eval_by_analytic(const cs_cell_mesh_t       *cm,
 void
 cs_xdef_cw_eval_by_array(const cs_cell_mesh_t      *cm,
                          cs_real_t                  time_eval,
-                         void                      *input,
+                         void                      *context,
                          cs_real_t                 *eval);
 
 /*----------------------------------------------------------------------------*/
@@ -859,16 +844,16 @@ cs_xdef_cw_eval_by_array(const cs_cell_mesh_t      *cm,
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in, out] eval       value of the property at the cell center
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_by_field(const cs_cell_mesh_t        *cm,
-                         cs_real_t                    time_eval,
-                         void                        *input,
-                         cs_real_t                   *eval);
+cs_xdef_cw_eval_by_field(const cs_cell_mesh_t      *cm,
+                         cs_real_t                  time_eval,
+                         void                      *context,
+                         cs_real_t                 *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -880,7 +865,7 @@ cs_xdef_cw_eval_by_field(const cs_cell_mesh_t        *cm,
  * \param[in]      n_points   number of points where to compute the evaluation
  * \param[in]      xyz        where to compute the evaluation
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in, out] eval       result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
@@ -890,7 +875,7 @@ cs_xdef_cw_eval_at_xyz_by_analytic(const cs_cell_mesh_t       *cm,
                                    cs_lnum_t                   n_points,
                                    const cs_real_t            *xyz,
                                    cs_real_t                   time_eval,
-                                   void                       *input,
+                                   void                       *context,
                                    cs_real_t                  *eval);
 
 /*----------------------------------------------------------------------------*/
@@ -904,18 +889,18 @@ cs_xdef_cw_eval_at_xyz_by_analytic(const cs_cell_mesh_t       *cm,
  * \param[in]      n_points   number of points where to compute the evaluation
  * \param[in]      xyz        where to compute the evaluation
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in, out] eval       result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_vector_at_xyz_by_array(const cs_cell_mesh_t       *cm,
-                                       cs_lnum_t                   n_points,
-                                       const cs_real_t            *xyz,
-                                       cs_real_t                   time_eval,
-                                       void                       *input,
-                                       cs_real_t                  *eval);
+cs_xdef_cw_eval_vector_at_xyz_by_array(const cs_cell_mesh_t     *cm,
+                                       cs_lnum_t                 n_points,
+                                       const cs_real_t          *xyz,
+                                       cs_real_t                 time_eval,
+                                       void                     *context,
+                                       cs_real_t                *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -928,7 +913,7 @@ cs_xdef_cw_eval_vector_at_xyz_by_array(const cs_cell_mesh_t       *cm,
  * \param[in]      n_points   number of points where to compute the evaluation
  * \param[in]      xyz        where to compute the evaluation
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in, out] eval       result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
@@ -938,99 +923,170 @@ cs_xdef_cw_eval_vector_at_xyz_by_field(const cs_cell_mesh_t    *cm,
                                        cs_lnum_t                n_points,
                                        const cs_real_t         *xyz,
                                        cs_real_t                time_eval,
-                                       void                    *input,
+                                       void                    *context,
                                        cs_real_t               *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by values. The normal flux is then added to each portion of
- *         face related to a vertex.
- *         Use of a \ref cs_cell_mesh_t structure.
- *
- * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
- * \param[in]      f          local face id
- * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
- * \param[in, out] eval       result of the evaluation (updated inside)
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_xdef_cw_eval_flux_at_vtx_by_val(const cs_cell_mesh_t     *cm,
-                                   short int                 f,
-                                   cs_real_t                 time_eval,
-                                   void                     *input,
-                                   cs_real_t                *eval);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by analytic function. The normal flux is then added to each
+ * \brief  Function pointer for evaluating the normal flux defined by
+ *         scalar-valued quantities. The normal flux is then added to each
  *         portion of face related to a vertex.
  *         Use of a \ref cs_cell_mesh_t structure.
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f          local face id
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
- * \param[in]      qtype      level of quadrature to use
- * \param[in, out] eval       result of the evaluation (updated inside)
+ * \param[in]      context    pointer to a context structure
+ * \param[in, out] eval       array of Neumann fluxes at DoFs
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_flux_at_vtx_by_analytic(const cs_cell_mesh_t      *cm,
+cs_xdef_cw_eval_flux_v_by_scalar_val(const cs_cell_mesh_t     *cm,
+                                     short int                 f,
+                                     cs_real_t                 time_eval,
+                                     void                     *context,
+                                     cs_real_t                *eval);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Function pointer for evaluating the normal flux defined by
+ *         vector-valued quantities. The normal flux is then added to each
+ *         portion of face related to a vertex.
+ *         Use of a \ref cs_cell_mesh_t structure.
+ *
+ * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      f          local face id
+ * \param[in]      time_eval  physical time at which one evaluates the term
+ * \param[in]      context    pointer to a context structure
+ * \param[in, out] eval       array of Neumann fluxes at DoFs
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_xdef_cw_eval_flux_v_by_vector_val(const cs_cell_mesh_t     *cm,
+                                     short int                 f,
+                                     cs_real_t                 time_eval,
+                                     void                     *context,
+                                     cs_real_t                *eval);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Function pointer for evaluating the normal flux defined by a
+ *         scalar-valued quantities and relying on an analytic function. The
+ *         normal flux is then added to each portion of face related to a
+ *         vertex.
+ *         Use of a \ref cs_cell_mesh_t structure.
+ *
+ * \param[in]      cm         pointer to a cs_cell_mesh_t structure
+ * \param[in]      f          local face id
+ * \param[in]      time_eval  physical time at which one evaluates the term
+ * \param[in]      context    pointer to a context structure
+ * \param[in]      qtype      level of quadrature to use
+ * \param[in, out] eval       array of Neumann fluxes at DoFs
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_xdef_cw_eval_flux_v_by_scalar_analytic(const cs_cell_mesh_t      *cm,
+                                          short int                  f,
+                                          cs_real_t                  time_eval,
+                                          void                      *context,
+                                          cs_quadrature_type_t       qtype,
+                                          cs_real_t                 *eval);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Function pointer for evaluating the normal flux defined by a
+ *         vector-valued quantities and relying on an analytic function. The
+ *         normal flux is then added to each portion of face related to a
+ *         vertex.
+ *         Use of a \ref cs_cell_mesh_t structure.
+ *
+ * \param[in]      cm         pointer to a cs_cell_mesh_t structure
+ * \param[in]      f          local face id
+ * \param[in]      time_eval  physical time at which one evaluates the term
+ * \param[in]      context    pointer to a context structure
+ * \param[in]      qtype      level of quadrature to use
+ * \param[in, out] eval       array of Neumann fluxes at DoFs
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_xdef_cw_eval_flux_v_by_vector_analytic(const cs_cell_mesh_t      *cm,
+                                          short int                  f,
+                                          cs_real_t                  time_eval,
+                                          void                      *context,
+                                          cs_quadrature_type_t       qtype,
+                                          cs_real_t                 *eval);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Function pointer for evaluating the normal flux of a quantity
+ *         defined by analytic function (scalar-valued) at the face f.
+ *         Use of a \ref cs_cell_mesh_t structure.
+ *
+ * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      f          local face id
+ * \param[in]      time_eval  physical time at which one evaluates the term
+ * \param[in]      context    pointer to a context structure
+ * \param[in]      qtype      level of quadrature to use
+ * \param[in, out] eval       array of values at DoFs
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_xdef_cw_eval_flux_by_scalar_analytic(const cs_cell_mesh_t      *cm,
                                         short int                  f,
                                         cs_real_t                  time_eval,
-                                        void                      *input,
+                                        void                      *context,
                                         cs_quadrature_type_t       qtype,
                                         cs_real_t                 *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by analytic function.
+ * \brief  Function pointer for evaluating the (scalar-valued) normal flux of
+ *         a quantity defined by an analytic function.
  *         Use of a \ref cs_cell_mesh_t structure.
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f          local face id
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in]      qtype      level of quadrature to use
- * \param[in, out] eval       result of the evaluation (set inside)
+ * \param[in, out] eval       array of evaluations at DoFs
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_flux_by_analytic(const cs_cell_mesh_t      *cm,
-                                 short int                  f,
-                                 cs_real_t                  time_eval,
-                                 void                      *input,
-                                 cs_quadrature_type_t       qtype,
-                                 cs_real_t                 *eval);
+cs_xdef_cw_eval_flux_by_vector_analytic(const cs_cell_mesh_t      *cm,
+                                        short int                  f,
+                                        cs_real_t                  time_eval,
+                                        void                      *context,
+                                        cs_quadrature_type_t       qtype,
+                                        cs_real_t                 *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Function pointer for evaluating the normal flux of a quantity
- *         defined by analytic function.
+ * \brief  Function pointer for evaluating the normal vector-valued flux of
+ *         a quantity defined by analytic function for the face f
  *         Use of a \ref cs_cell_mesh_t structure.
- *         Case of tensor-valued quantities.
+ *         Case of a vector-valued quantities.
  *
  * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      f          local face id
  * \param[in]      time_eval  physical time at which one evaluates the term
- * \param[in]      input      pointer to an input structure
+ * \param[in]      context    pointer to a context structure
  * \param[in]      qtype      level of quadrature to use
- * \param[in, out] eval       result of the evaluation (set inside)
+ * \param[in, out] eval       array of evaluations at DoFs
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_tensor_flux_by_analytic(const cs_cell_mesh_t      *cm,
+cs_xdef_cw_eval_vector_flux_by_analytic(const cs_cell_mesh_t      *cm,
                                         short int                  f,
                                         cs_real_t                  time_eval,
-                                        void                      *input,
+                                        void                      *context,
                                         cs_quadrature_type_t       qtype,
                                         cs_real_t                 *eval);
 
@@ -1046,17 +1102,17 @@ cs_xdef_cw_eval_tensor_flux_by_analytic(const cs_cell_mesh_t      *cm,
  * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      t_eval   physical time at which one evaluates the term
  * \param[in]      qtype    quadrature type
- * \param[in]      input    pointer to an input structure
+ * \param[in]      context  pointer to a context structure
  * \param[in, out] eval     result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_scal_avg_reduction_by_analytic(const cs_cell_mesh_t     *cm,
-                                               cs_real_t                 t_eval,
-                                               void                     *input,
-                                               cs_quadrature_type_t      qtype,
-                                               cs_real_t                *eval);
+cs_xdef_cw_eval_scal_avg_reduction_by_analytic(const cs_cell_mesh_t    *cm,
+                                               cs_real_t                t_eval,
+                                               void                    *context,
+                                               cs_quadrature_type_t     qtype,
+                                               cs_real_t               *eval);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -1070,22 +1126,51 @@ cs_xdef_cw_eval_scal_avg_reduction_by_analytic(const cs_cell_mesh_t     *cm,
  * \param[in]      cm       pointer to a \ref cs_cell_mesh_t structure
  * \param[in]      t_eval   physical time at which one evaluates the term
  * \param[in]      qtype    quadrature type
- * \param[in]      input    pointer to an input structure
+ * \param[in]      context  pointer to a context structure
  * \param[in, out] eval     result of the evaluation
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_xdef_cw_eval_vect_avg_reduction_by_analytic(const cs_cell_mesh_t     *cm,
-                                               cs_real_t                 t_eval,
-                                               void                     *input,
-                                               cs_quadrature_type_t      qtype,
-                                               cs_real_t                *eval);
+cs_xdef_cw_eval_vect_avg_reduction_by_analytic(const cs_cell_mesh_t    *cm,
+                                               cs_real_t                t_eval,
+                                               void                    *context,
+                                               cs_quadrature_type_t     qtype,
+                                               cs_real_t               *eval);
 
 /*----------------------------------------------------------------------------*/
 
 #undef _dp3
 
-END_C_DECLS
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Function pointer for evaluating the normal flux of a quantity
+ *         defined by values.
+ *         Use of a \ref cs_cell_mesh_t structure.
+ *
+ * \param[in]      cm         pointer to a \ref cs_cell_mesh_t structure
+ * \param[in]      f          local face id
+ * \param[in]      time_eval  physical time at which one evaluates the term
+ * \param[in]      input      pointer to an input structure
+ * \param[in, out] eval       result of the evaluation (set inside)
+ */
+/*----------------------------------------------------------------------------*/
 
-#endif /* __CS_XDEF_CW_EVAL_H__ */
+inline void
+cs_xdef_cw_eval_flux_by_tensor_val(const cs_cell_mesh_t     *cm,
+                                   short int                 f,
+                                   cs_real_t                 time_eval,
+                                   void                     *input,
+                                   cs_real_t                *eval)
+{
+  CS_UNUSED(time_eval);
+
+  cs_real_t  *flux = (cs_real_t *)input;
+  const cs_quant_t  fq = cm->face[f];
+
+  cs_math_33_3_product((const cs_real_t (*)[3])flux, fq.unitv, eval);
+  for (int k = 0; k < 3; k++)
+    eval[3*f+k] *= fq.meas;
+}
+
+#endif /* CS_XDEF_CW_EVAL_H */

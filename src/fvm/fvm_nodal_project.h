@@ -1,14 +1,14 @@
-#ifndef __FVM_NODAL_PROJECT_H__
-#define __FVM_NODAL_PROJECT_H__
+#ifndef FVM_NODAL_PROJECT_H
+#define FVM_NODAL_PROJECT_H
 
 /*============================================================================
  * Projection of nodal sections associated with a mesh
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*=============================================================================
  * Public function prototypes
@@ -45,6 +41,8 @@ BEGIN_C_DECLS
 
 /*----------------------------------------------------------------------------
  * Project an extruded mesh to its base plane.
+ *
+ * This is currently only possible for 2D element topologies.
  *
  * parameters:
  *   this_nodal  <-> pointer to structure that should be cut in edges
@@ -76,6 +74,4 @@ fvm_nodal_project_coords(fvm_nodal_t  *this_nodal,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_NODAL_PROJECT_H__ */
+#endif /* FVM_NODAL_PROJECT_H */

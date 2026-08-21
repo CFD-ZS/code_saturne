@@ -1,14 +1,14 @@
-#ifndef __CS_ATMO_HEADERS_H__
-#define __CS_ATMO_HEADERS_H__
+#ifndef CS_ATMO_HEADERS_H
+#define CS_ATMO_HEADERS_H
 
 /*============================================================================
- * Global Code_Saturne headers file for easier include
+ * Atmospheric code_saturne header file for easier include
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,14 +29,20 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_measures_util.h"
-
-#include "cs_air_props.h"
-#include "cs_at_data_assim.h"
-#include "cs_at_opt_interp.h"
-#include "cs_at_plugin.h"
-#include "cs_atmo.h"
+#include "atmo/cs_air_props.h"
+#include "atmo/cs_at_data_assim.h"
+#include "cs_atmo_1d_rad.h"
+#include "atmo/cs_atmo.h"
+#include "atmo/cs_atmo_aerosol_ssh.h"
+#include "atmo/cs_atmo_chemistry.h"
+#include "atmo/cs_atmo_imbrication.h"
+#include "atmo/cs_atmo_kinetic_rates.h"
+#include "atmo/cs_at_opt_interp.h"
+#include "atmo/cs_atmo_profile_std.h"
+#include "atmo/cs_at_opt_interp.h"
+#include "atmo/cs_atprke.h"
+#include "atmo/cs_intprf.h"
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __CS_ATMO_HEADERS_H__ */
+#endif /* CS_ATMO_HEADERS_H */

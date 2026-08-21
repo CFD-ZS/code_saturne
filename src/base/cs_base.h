@@ -1,14 +1,14 @@
-#ifndef __CS_BASE_H__
-#define __CS_BASE_H__
+#ifndef CS_BASE_H
+#define CS_BASE_H
 
 /*============================================================================
  * Definitions, global variables, and base functions
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,16 +27,16 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdio.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
 /*=============================================================================
@@ -45,37 +45,23 @@
 
 /* Application type name */
 
-#define CS_APP_NAME     "Code_Saturne"
+#define CS_APP_NAME     "code_saturne"
 #define CS_APP_VERSION  PACKAGE_VERSION  /* PACKAGE_VERSION from autoconf */
 
 /* System type name */
 
-#if defined(__bg__)
-#define _CS_ARCH_Blue_Gene
-
-#elif defined(__linux__) || defined(__linux) || defined(linux)
+#if defined(__linux__) || defined(__linux) || defined(linux)
 #define _CS_ARCH_Linux
-
-#elif defined(__sun__) || defined(__sun) || defined(sun)
-#define _CS_ARCH_SunOS
 
 #endif
 
 /* On certain architectures such as IBM Blue Gene, some operations may
  * be better optimized on memory-aligned data (if 0 here, no alignment
- * is leveraged). This alignment is not exploited yet in Code_Saturne. */
+ * is leveraged). This alignment is not exploited yet in code_saturne. */
 
-#if defined(__bgq__)
-#define CS_MEM_ALIGN 32
-#else
-#define CS_MEM_ALIGN 0
-#endif
+#define CS_MEM_ALIGN  0
 
-#define CS_BASE_STRING_LEN                             80
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#define CS_BASE_STRING_LEN  80
 
 /*============================================================================
  * Type definitions
@@ -86,9 +72,32 @@ BEGIN_C_DECLS
 
 typedef void (cs_base_atexit_t) (void);
 
+/* Function pointers for SIGINT (or similar) handler */
+
+typedef void (cs_base_sigint_handler_t) (int signum);
+
 /*=============================================================================
  * Global variable definitions
  *============================================================================*/
+
+#if defined(HAVE_ACCEL)
+
+extern int cs_mpi_device_support;
+
+#else
+
+#define cs_mpi_device_support 0
+
+#endif
+
+#if defined(HAVE_ACCEL)
+
+/* GPU: global working array for temporary device to host copies */
+
+extern size_t  cs_glob_pinned_host_work_buffer_size;
+extern void   *cs_glob_pinned_host_work_buffer;
+
+#endif
 
 /*=============================================================================
  * Public function prototypes
@@ -104,13 +113,13 @@ typedef void (cs_base_atexit_t) (void);
  */
 /*----------------------------------------------------------------------------*/
 
-static inline const char *
+inline const char *
 cs_base_strtf(bool  boolean)
 {
   if (boolean)
-    return "**True**";
+    return "*True*";
   else
-    return "**False**";
+    return "*False*";
 }
 
 /*----------------------------------------------------------------------------
@@ -155,7 +164,7 @@ cs_base_logfile_head(int    argc,
  *   argc  <-> number of command line arguments
  *   argv  <-> array of command line arguments
  *
- * Global variables `cs_glob_n_ranks' (number of Code_Saturne processes)
+ * Global variables `cs_glob_n_ranks' (number of code_saturne processes)
  * and `cs_glob_rank_id' (rank of local process) are set by this function.
  *----------------------------------------------------------------------------*/
 
@@ -170,12 +179,32 @@ cs_base_mpi_init(int    *argc,
  *
  * This updates the number of reduced communicators if necessary.
  *
- * \param[in]  n_ranks  number of ranks of reduced communicator
+ * \param[in]  rank_step  associated multiple of total ranks
  */
 /*----------------------------------------------------------------------------*/
 
 MPI_Comm
 cs_base_get_rank_step_comm(int  rank_step);
+
+/*----------------------------------------------------------------------------
+ * Return a reduced communicator matching a multiple of the total
+ * number of ranks, and given a parent communicator.
+ *
+ * Compared to \ref cs_base_get_rank_step_comm, this function is
+ * collective only on the provided communicator.
+ *
+ * This updates the number of reduced communicators if necessary.
+ *
+ * parameters:
+ *   parent_comm <-- associated parent communicator (must be either
+ *                   cs_glob_mpi_comm or a communicator returned by a
+ *                   previous
+ *   rank_step   <-- associated multiple of ranks of parent communicator
+ *----------------------------------------------------------------------------*/
+
+MPI_Comm
+cs_base_get_rank_step_comm_recursive(MPI_Comm  parent_comm,
+                                     int       rank_step);
 
 #endif /* defined(HAVE_MPI) */
 
@@ -197,7 +226,7 @@ cs_exit(int  status);
  * Initialize error and signal handlers.
  *
  * parameters:
- *   signal_defaults <-- leave default signal handlers in place if true.
+ *   signal_defaults <-- leave default signal handlers in place if true
  *----------------------------------------------------------------------------*/
 
 void
@@ -220,6 +249,13 @@ void
 cs_base_mem_finalize(void);
 
 /*----------------------------------------------------------------------------
+ * Restore signal handlers in case they were modified by another application.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_base_signal_restore(void);
+
+/*----------------------------------------------------------------------------
  * Print summary of running time, including CPU and elapsed times.
  *----------------------------------------------------------------------------*/
 
@@ -230,9 +266,9 @@ cs_base_time_summary(void);
 /*!
  * \brief Update status file.
  *
- * If the format string is NULL, the file is removed.
+ * If the format string is null, the file is removed.
 
- * \param[in]  format  format string, or NULL
+ * \param[in]  format  format string, or nullptr
  * \param[in]  ...     format arguments
  */
 /*----------------------------------------------------------------------------*/
@@ -244,13 +280,15 @@ cs_base_update_status(const char  *format,
 /*----------------------------------------------------------------------------
  * Set tracing of progress on or off.
  *
+ * This function should be called before cs_base_bft_printf_set() if tracing
+ * is activated.
+ *
  * parameters:
  *   trace  <-- trace progress to stdout
  *----------------------------------------------------------------------------*/
 
 void
-cs_base_trace_set(bool trace);
-
+cs_base_trace_set(bool  trace);
 
 /*----------------------------------------------------------------------------
  * Set output file name and suppression flag for bft_printf().
@@ -259,7 +297,6 @@ cs_base_trace_set(bool trace);
  *
  * parameters:
  *   log_name    <-- base file name for log
- *   rn_log_flag <-- redirection for ranks > 0 log:
  *   rn_log_flag <-- redirection for ranks > 0 log:
  *                   false: to "/dev/null" (suppressed)
  *                   true: to <log_name>_r*.log" file;
@@ -276,6 +313,9 @@ cs_base_bft_printf_init(const char  *log_name,
  *
  * parameters:
  *   log_name    <-- base file name for log
+ *   rn_log_flag <-- redirection for ranks > 0 log:
+ *                   false: to "/dev/null" (suppressed)
+ *                   true: to <log_name>_r*.log" file;
  *----------------------------------------------------------------------------*/
 
 void
@@ -335,31 +375,17 @@ void
 cs_base_atexit_set(cs_base_atexit_t  *const fct);
 
 /*----------------------------------------------------------------------------
- * Convert a character string from the Fortran API to the C API.
+ * Set handler function for SIGINT or similar.
  *
- * Eventual leading and trailing blanks are removed.
- *
- * parameters:
- *   f_str <-- Fortran string
- *   f_len <-- Fortran string length
- *
- * returns:
- *   pointer to C string
- *----------------------------------------------------------------------------*/
-
-char *
-cs_base_string_f_to_c_create(const char  *f_str,
-                             int          f_len);
-
-/*----------------------------------------------------------------------------
- * Free a string converted from the Fortran API to the C API.
+ * When first encountered, SIGINT will call that handler if present,
+ * then revert to the general handler if encountered again.
  *
  * parameters:
- *   str <-> pointer to C string
+ *   h <-- pointer to function to be called
  *----------------------------------------------------------------------------*/
 
 void
-cs_base_string_f_to_c_free(char  **c_str);
+cs_base_sigint_handler_set(cs_base_sigint_handler_t  *const h);
 
 /*----------------------------------------------------------------------------
  * Clean a string representing options.
@@ -450,7 +476,7 @@ cs_base_open_properties_data_file(const char  *base_name);
 /*!
  * \brief Load a dynamic library.
  *
- * \param[in]  filename  path to shared library file.
+ * \param[in]  filename  path to shared library file
  *
  * \return  handle to shared library
  */
@@ -507,7 +533,7 @@ cs_base_dlopen_set_flags(int flags);
  * the same number of times as \ref cs_base_dlopen.
  *
  * \param[in]  filename  optional path to shared library file name for error
- *                       logging, or NULL
+ *                       logging, or nullptr
  * \param[in]  handle    handle to shared library
  */
 /*----------------------------------------------------------------------------*/
@@ -533,7 +559,6 @@ cs_base_get_dl_function_pointer(void        *handle,
                                 const char  *name,
                                 bool         errors_are_fatal);
 
-
 #endif /* defined(HAVE_DLOPEN) */
 
 /*----------------------------------------------------------------------------*/
@@ -550,7 +575,58 @@ cs_base_backtrace_dump(FILE  *f,
                        int    lv_start);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Register a function to be called at the finalization stage.
+ *
+ * The finalization is done in the reverse (first in, last out) sequence
+ * relative to calls of \ref cs_base_at_finalize.
+ *
+ * \param[in]  func  finalization function to call.
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_base_at_finalize(cs_base_atexit_t  *func);
 
-#endif /* __CS_BASE_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Call sequence of finalization functions.
+ *
+ * The finalization is done in the reverse (first in, last out) sequence
+ * relative to calls of \ref cs_base_at_finalize.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_base_finalize_sequence(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Query run-time directory info, using working directory names.
+ *
+ * Returned names are allocated if non-null, so should be deallocated by
+ * the caller when no longer needed.
+ *
+ * Names are extracted from the working directory structure, which is expected
+ * to be of the form:
+ * <prefix>/study_name/case_name/RESU/run_id
+ *
+ * or, in the case of a coupled run:
+ * <prefix>/study_name/RESU_COUPLING/run_id/case_name
+ *
+ * If some names cannot be queried, nullptr is returned.
+ *
+ * \param[out]  run_id      run_id, or nullptr
+ * \param[out]  case_name   case name, or nullptr
+ * \param[out]  study_name  study name, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_base_get_run_identity(char  **run_id,
+                         char  **case_name,
+                         char  **study_name);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_BASE_H */

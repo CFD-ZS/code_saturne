@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_DLVO_H__
-#define __CS_LAGR_DLVO_H__
+#ifndef CS_LAGR_DLVO_H
+#define CS_LAGR_DLVO_H
 
 /*============================================================================
  * Functions and types for the clogging modeling
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_lagr_particle.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "lagr/cs_lagr_particle.h"
 
 /*============================================================================
  * Type definitions
@@ -85,22 +81,12 @@ void
 cs_lagr_dlvo_finalize(void);
 
 /*----------------------------------------------------------------------------
- * Compute the energy barrier for a smooth wall.
- *----------------------------------------------------------------------------*/
-
-void
-cs_lagr_barrier(const void                     *particle,
-                const cs_lagr_attribute_map_t  *attr_map,
-                cs_lnum_t                       iel,
-                cs_real_t                      *energy_barrier);
-
-/*----------------------------------------------------------------------------
  * Compute the energy barrier for two spheres.
  *----------------------------------------------------------------------------*/
 
 void
 cs_lagr_barrier_pp(cs_real_t                       dpart,
-                   cs_lnum_t                       iel,
+                   cs_lnum_t                       cell_id,
                    cs_real_t                      *energy_barrier);
 
 /*----------------------------------------------------------------------------
@@ -160,9 +146,25 @@ cs_lagr_edl_sphere_sphere(cs_real_t  distcc,
                           cs_real_t  debye_length,
                           cs_real_t  water_permit);
 
+/*=============================================================================
+ * C++ Function definitions
+ *============================================================================*/
+
+#if defined(__cplusplus)
+
+/*----------------------------------------------------------------------------
+ * Compute the energy barrier for a smooth wall.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_lagr_barrier(cs_lagr_particle_set_t   &p_set,
+                cs_lnum_t                 p_id,
+                cs_lnum_t                 cell_id,
+                cs_real_t                 *energy_barrier);
+
+#endif /* __cplusplus */
+
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_DLVO_H__ */
+#endif /* CS_LAGR_DLVO_H */
 

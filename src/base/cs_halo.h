@@ -1,14 +1,14 @@
-#ifndef __CS_HALO_H__
-#define __CS_HALO_H__
+#ifndef CS_HALO_H
+#define CS_HALO_H
 
 /*============================================================================
  * Structure and function headers handling with ghost cells
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,42 +28,45 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_interface.h"
-#include "cs_rank_neighbors.h"
+#include "base/cs_defs.h"
+#include "base/cs_array.h"
+#include "base/cs_base.h"
+#include "base/cs_base_accel.h"
+#include "base/cs_interface.h"
+#include "base/cs_rank_neighbors.h"
 
-#include "fvm_periodicity.h"
+#include "fvm/fvm_periodicity.h"
 
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+/*============================================================================
+ * Macro definitions
+ *============================================================================*/
 
 /*=============================================================================
  * Type definitions
  *============================================================================*/
 
-/* Halo type */
+/*!> Halo type */
 
 typedef enum {
 
-  CS_HALO_STANDARD,
-  CS_HALO_EXTENDED,
+  CS_HALO_STANDARD,   /*!< standard halo */
+  CS_HALO_EXTENDED,   /*!< extended halo (vertex-adjacent cells) */
   CS_HALO_N_TYPES
 
 } cs_halo_type_t;
 
-/* Options for cs_halo_sync_component(). */
+/* Halo communication mode */
 
 typedef enum {
 
-  CS_HALO_ROTATION_COPY,     /* Copy halo */
-  CS_HALO_ROTATION_ZERO,     /* Set rotation halo values to zero */
-  CS_HALO_ROTATION_IGNORE    /* Do not modify rotation halo values */
+  CS_HALO_COMM_P2P,      /*!< non-blocking point-to-point communication */
+  CS_HALO_COMM_RMA_GET   /*!< MPI-3 one-sided with get semantics and
+                           active target synchronization */
 
-} cs_halo_rotation_t ;
+} cs_halo_comm_mode_t;
 
 /* Structure for halo management */
 /* ----------------------------- */
@@ -97,11 +100,17 @@ typedef struct {
                                   have an index for standard halo and one
                                   for extended halo. */
 
-  cs_lnum_t  *send_perio_lst ; /* For each transformation and for each type of
+  cs_lnum_t  *send_perio_lst;  /* For each transformation and for each type of
                                   halo on each communicating rank, we store
                                   2 values:
                                    - start index,
                                    - number of elements. */
+
+  cs_lnum_t   std_send_block_size;  /* Send block size for packing */
+  cs_lnum_t   n_std_send_blocks;    /* Number of send blocks for packing with
+                                       standard exchange */
+  cs_lnum_t  *std_send_blocks;      /* Block start and end info for packing
+                                       with standard exchange */
 
   /* halo features : receive from distant ranks */
 
@@ -110,7 +119,7 @@ typedef struct {
                                  n_elts[1] = extended + standard elements */
 
   cs_lnum_t  *index;        /* Index on halo sections;
-                               Size = 2*n_c_domains. For each rank, we
+                               Size = 2*n_c_domains + 1. For each rank, we
                                have an index for the standard halo and one
                                for the extended halo. */
 
@@ -119,7 +128,7 @@ typedef struct {
                                  - start index,
                                  - number of elements. */
 
-  /* Organisation of perio_lst:
+  /* Organization of perio_lst:
 
          -------------------------------------------------
     T1:  |   |   |   |   |   |   |   |   |   |   |   |   |
@@ -152,14 +161,21 @@ typedef struct {
 
   */
 
+#if defined(HAVE_MPI)
+
+  MPI_Group   c_domain_group;    /* Group of connected domains */
+  cs_lnum_t  *c_domain_s_shift;  /* Target buffer shift for distant
+                                    ranks using one-sided get */
+#endif
+
 } cs_halo_t;
+
+/*! Structure to maintain halo exchange state */
+
+typedef struct _cs_halo_state_t  cs_halo_state_t;
 
 /*=============================================================================
  * Global static variables
- *============================================================================*/
-
-/*============================================================================
- *  Public function header for Fortran API
  *============================================================================*/
 
 /*=============================================================================
@@ -180,7 +196,24 @@ cs_halo_t *
 cs_halo_create(const cs_interface_set_t  *ifs);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Ready halo for use.
+ *
+ * This function should be called after building a halo using the
+ * cs_halo_create_function and defined locally.
+ * It is called automatically by cs_halo_create_from_ref and
+ * cs_halo_create_from_rank_neigbors so does not need to be called again
+ * using these functions.
+ *
+ * \param[in]  halo  pointer to halo structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_create_complete(cs_halo_t  *halo);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Create a halo structure, given a reference halo.
  *
  * \param[in]  ref  pointer to reference halo
@@ -195,24 +228,47 @@ cs_halo_create_from_ref(const cs_halo_t  *ref);
 #if defined(HAVE_MPI)
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create a halo structure from distant element distant ranks and ids.
- *
- * \remark  This function does not handle periodicity. For most matrix-vector,
- *          products and similar operations, periodicity of translation an
- *          even rotation could be handled with no specific halo information,
- *          simply by assigning an equivalence between two periodic elements.
- *          For rotation, this would require also applying a rotation through
- *          the matrix coefficients (this would have the advantage of being
- *          compatible with external libraries). An alternative would be
- *          to add rotation information to a given halo as a second stage,
- *          through a specialized operator which can be added in the future.
  *
  * \param[in]  rn              associated rank neighbors info
  * \param[in]  n_local_elts    number of elements for local rank
  * \param[in]  n_distant_elts  number of distant elements for local rank
- * \param[in]  elt_rank_id     distant element rank index in rank neighbors,
+ * \param[in]  elt_rank_idx    distant element rank index in rank neighbors,
  *                             ordered by rank (size: n_distant_elts)
+ * \param[in]  elt_id          distant element id (at distant rank),
+ *                             ordered by rank (size: n_distant_elts)
+ * \param[in]  elt_tr_id       distant element transform id (-1 for
+ *                             non-periodic elements), null if non-periodic
+ * \param[in]  periodicity     optional periodicity, or null
+ *
+ * \return  pointer to created cs_halo_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_halo_t *
+cs_halo_create_from_rank_neighbors
+(
+  const cs_rank_neighbors_t  *rn,
+  cs_lnum_t                   n_local_elts,
+  cs_lnum_t                   n_distant_elts,
+  const int                   elt_rank_idx[],
+  const cs_lnum_t             elt_id[],
+  const int16_t               elt_tr_id[],
+  const fvm_periodicity_t    *periodicity
+);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Create a halo structure from distant element distant ranks and ids.
+ *
+ * \param[in]  rn              associated rank neighbors info
+ * \param[in]  n_local_elts    number of elements for local rank
+ * \param[in]  n_distant_elts  number of distant elements for local rank
+ * \param[in]  elt_rank_idx    distant element rank index in rank neighbors,
+ *                             ordered by rank (size: n_distant_elts)
+ * \param[in]  elt_tr_id       distant element transform id, or null
+ *                             (-1 for non-periodic elements)
  * \param[in]  elt_id          distant element id (at distant rank),
  *                             ordered by rank (size: n_distant_elts)
  *
@@ -221,11 +277,14 @@ cs_halo_create_from_ref(const cs_halo_t  *ref);
 /*----------------------------------------------------------------------------*/
 
 cs_halo_t *
-cs_halo_create_from_rank_neighbors(const cs_rank_neighbors_t  *rn,
-                                   cs_lnum_t                   n_local_elts,
-                                   cs_lnum_t                   n_distant_elts,
-                                   const int                   elt_rank_id[],
-                                   const cs_lnum_t             elt_id[]);
+cs_halo_create_from_rank_neighbors
+(
+  const cs_rank_neighbors_t  *rn,
+  cs_lnum_t                   n_local_elts,
+  cs_lnum_t                   n_distant_elts,
+  const int                   elt_rank_idx[],
+  const cs_lnum_t             elt_id[]
+);
 
 #endif /* HAVE_MPI */
 
@@ -240,29 +299,62 @@ cs_halo_create_from_rank_neighbors(const cs_rank_neighbors_t  *rn,
 void
 cs_halo_destroy(cs_halo_t  **halo);
 
-/*----------------------------------------------------------------------------
- * Update global buffer sizes so as to be usable with a given halo.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Create a halo state structure.
  *
- * Calls to halo synchronizations with variable strides up to 3 are
- * expected. For strides greater than 3, the halo will be resized if
- * necessary directly by the synchronization function.
+ * \return  pointer to created cs_halo_state_t structure.
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_halo_state_t *
+cs_halo_state_create(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Destroy a halo state structure.
  *
- * This function should be called at the end of any halo creation,
- * so that buffer sizes are increased if necessary.
- *
- * parameters:
- *   halo <-- pointer to cs_halo_t structure.
- *---------------------------------------------------------------------------*/
+ * \param[in, out]  halo_state  pointer to pointer to cs_halo_state
+ *                              structure to destroy.
+ */
+/*----------------------------------------------------------------------------*/
 
 void
-cs_halo_update_buffers(const cs_halo_t  *halo);
+cs_halo_state_destroy(cs_halo_state_t  **halo_state);
 
-/*----------------------------------------------------------------------------
- * Free global halo backup buffer.
- *---------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get pointer to default halo state structure.
+ *
+ * \return]  halo  pointer to pointer to cs_halo structure to destroy.
+ */
+/*----------------------------------------------------------------------------*/
 
-void
-cs_halo_free_buffer(void);
+cs_halo_state_t *
+cs_halo_state_get_default(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute required size for packing send data into dense buffer.
+ *
+ * \param[in]   halo        pointer to halo structure
+ * \param[in]   data_type   data type
+ * \param[in]   stride       number of (interlaced) values by entity
+ *
+ * \return  required size, in bytes
+ */
+/*----------------------------------------------------------------------------*/
+
+inline size_t
+cs_halo_pack_size(const cs_halo_t  *halo,
+                  cs_datatype_t     data_type,
+                  int               stride)
+{
+  size_t elt_size = cs_datatype_size[data_type]*stride;
+  size_t pack_size = halo->n_send_elts[CS_HALO_EXTENDED] * elt_size;
+
+  return pack_size;
+}
 
 /*----------------------------------------------------------------------------
  * Apply local cells renumbering to a halo
@@ -287,6 +379,200 @@ cs_halo_renumber_cells(cs_halo_t        *halo,
 void
 cs_halo_renumber_ghost_cells(cs_halo_t        *halo,
                              const cs_lnum_t   old_cell_id[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Initialize halo state prior to packing halo data to send.
+ *
+ * A local state handler may be provided, or the default state handler will
+ * be used.
+ *
+ * This function is included in \ref cs_halo_sync_pack, but may be called
+ * separately for specific implementations, such as for accelerator devices.
+ *
+ * A local state and/or buffer may be provided, or the default (global) state
+ * and buffer will be used. If provided explicitely,
+ * the buffer must be of sufficient size.
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       data_type   data type
+ * \param[in]       stride      number of (interlaced) values by entity
+ * \param[out]      send_buf    pointer to send buffer, null for global buffer
+ * \param[in, out]  hs          pointer to halo state, null for global state
+ *
+ * \return  pointer to halo send buffer
+ */
+/*----------------------------------------------------------------------------*/
+
+void *
+cs_halo_sync_pack_init_state(const cs_halo_t  *halo,
+                             cs_halo_type_t    sync_mode,
+                             cs_datatype_t     data_type,
+                             int               stride,
+                             void             *send_buf,
+                             cs_halo_state_t  *hs);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Pack halo data to send into dense buffer.
+ *
+ * A local state handler may be provided, or the default state handler will
+ * be used.
+ *
+ * A local state and/or buffer may be provided, or the default (global) state
+ * and buffer will be used. If provided explicitely,
+ * the buffer must be of sufficient size.
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       data_type   data type
+ * \param[in]       stride      number of (interlaced) values by entity
+ * \param[in]       val         pointer to variable value array
+ * \param[out]      send_buf    pointer to send buffer, null for global buffer
+ * \param[in, out]  hs          pointer to halo state, null for global state
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync_pack(const cs_halo_t  *halo,
+                  cs_halo_type_t    sync_mode,
+                  cs_datatype_t     data_type,
+                  int               stride,
+                  void             *val,
+                  void             *send_buf,
+                  cs_halo_state_t  *hs);
+
+#if defined(HAVE_ACCEL)
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Pack halo data to send into dense buffer on accelerator device.
+ *
+ * A local state handler may be provided, or the default state handler will
+ * be used.
+ *
+ * A local state and/or buffer may be provided, or the default (global) state
+ * and buffer will be used. If provided explicitely,
+ * the buffer must be of sufficient size.
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       data_type   data type
+ * \param[in]       stride      number of (interlaced) values by entity
+ * \param[in]       val         pointer to variable value array (on device)
+ * \param[out]      send_buf    pointer to send buffer (on device),
+ *                              null for global buffer
+ * \param[in, out]  hs          pointer to halo state, null for global state
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync_pack_d(const cs_halo_t  *halo,
+                    cs_halo_type_t    sync_mode,
+                    cs_datatype_t     data_type,
+                    int               stride,
+                    void             *val,
+                    void             *send_buf,
+                    cs_halo_state_t  *hs);
+
+#endif /* defined(HAVE_ACCEL) */
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Launch update array of values in case of parallelism or periodicity.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * The cs_halo_sync_pack function should have been called before this function,
+ * using the same hs argument.
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       val         pointer to variable value array
+ * \param[in, out]  hs          pointer to halo state, null for global state
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync_start(const cs_halo_t  *halo,
+                   void             *val,
+                   cs_halo_state_t  *hs);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Wait for completion of update array of values in case of
+ *  parallelism or periodicity.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * The cs_halo_sync_start function should have been called before this function,
+ * using the same hs argument.
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       val         pointer to variable value array
+ * \param[in, out]  hs          pointer to halo state, null for global state
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync_wait(const cs_halo_t  *halo,
+                  void             *val,
+                  cs_halo_state_t  *hs);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Update array of values in case of parallelism or periodicity.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \param[in]   halo        pointer to halo structure
+ * \param[in]   sync_mode   synchronization mode (standard or extended)
+ * \param[in]   data_type   data type
+ * \param[in]   stride      number of (interlaced) values by entity
+ * \param[in]   val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync(const cs_halo_t  *halo,
+             cs_halo_type_t    sync_mode,
+             cs_datatype_t     data_type,
+             int               stride,
+             void             *val);
+
+#if defined(HAVE_ACCEL)
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Update array of values on device in case of parallelism
+ *        or periodicity.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \param[in]   halo        pointer to halo structure
+ * \param[in]   sync_mode   synchronization mode (standard or extended)
+ * \param[in]   data_type   data type
+ * \param[in]   stride      number of (interlaced) values by entity
+ * \param[in]   val         pointer to variable value array (on device)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_sync_d(const cs_halo_t  *halo,
+               cs_halo_type_t    sync_mode,
+               cs_datatype_t     data_type,
+               int               stride,
+               void             *val);
+
+#endif /* defined(HAVE_ACCEL) */
 
 /*----------------------------------------------------------------------------
  * Update array of any type of halo values in case of parallelism or
@@ -373,72 +659,6 @@ cs_halo_sync_var_strided(const cs_halo_t  *halo,
                          int               stride);
 
 /*----------------------------------------------------------------------------
- * Update array of vector variable component (floating-point) halo values
- * in case of parallelism or periodicity.
- *
- * This function aims at copying main values from local elements
- * (id between 1 and n_local_elements) to ghost elements on distant ranks
- * (id between n_local_elements + 1 to n_local_elements_with_halo).
- *
- * If rotation_op is equal to CS_HALO_ROTATION_IGNORE, halo values
- * corresponding to periodicity with rotation are left unchanged from their
- * previous values.
- *
- * If rotation_op is equal to CS_HALO_ROTATION_ZERO, halo values
- * corresponding to periodicity with rotation are set to 0.
- *
- * If rotation_op is equal to CS_HALO_ROTATION_COPY, halo values
- * corresponding to periodicity with rotation are exchanged normally, so
- * the behavior is the same as that of cs_halo_sync_var().
- *
- * parameters:
- *   halo        <-- pointer to halo structure
- *   sync_mode   <-- synchronization mode (standard or extended)
- *   rotation_op <-- rotation operation
- *   var         <-> pointer to variable value array
- *----------------------------------------------------------------------------*/
-
-void
-cs_halo_sync_component(const cs_halo_t    *halo,
-                       cs_halo_type_t      sync_mode,
-                       cs_halo_rotation_t  rotation_op,
-                       cs_real_t           var[]);
-
-/*----------------------------------------------------------------------------
- * Update array of strided vector variable components (floating-point)
- * halo values in case of parallelism or periodicity.
- *
- * This function aims at copying main values from local elements
- * (id between 1 and n_local_elements) to ghost elements on distant ranks
- * (id between n_local_elements + 1 to n_local_elements_with_halo).
- *
- * If rotation_op is equal to CS_HALO_ROTATION_IGNORE, halo values
- * corresponding to periodicity with rotation are left unchanged from their
- * previous values.
- *
- * If rotation_op is equal to CS_HALO_ROTATION_ZERO, halo values
- * corresponding to periodicity with rotation are set to 0.
- *
- * If rotation_op is equal to CS_HALO_ROTATION_COPY, halo values
- * corresponding to periodicity with rotation are exchanged normally, so
- * the behavior is the same as that of cs_halo_sync_var_strided().
- *
- * parameters:
- *   halo        <-- pointer to halo structure
- *   sync_mode   <-- synchronization mode (standard or extended)
- *   rotation_op <-- rotation operation
- *   var         <-> pointer to variable value array
- *   stride      <-- number of (interlaced) values by entity
- *----------------------------------------------------------------------------*/
-
-void
-cs_halo_sync_components_strided(const cs_halo_t    *halo,
-                                cs_halo_type_t      sync_mode,
-                                cs_halo_rotation_t  rotation_op,
-                                cs_real_t           var[],
-                                int                 stride);
-
-/*----------------------------------------------------------------------------
  * Return MPI_Barrier usage flag.
  *
  * returns:
@@ -460,6 +680,72 @@ cs_halo_get_use_barrier(void);
 void
 cs_halo_set_use_barrier(bool use_barrier);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get default communication mode for halo exchange.
+ *
+ * \return  allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_halo_comm_mode_t
+cs_halo_get_comm_mode(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set default communication mode for halo exchange.
+ *
+ * \param[in]  mode  allocation mode to set
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_set_comm_mode(cs_halo_comm_mode_t  mode);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get default host/device allocation mode for message packing arrays.
+ *
+ * \return  allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_alloc_mode_t
+cs_halo_get_buffer_alloc_mode(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set default host/device allocation mode for message packing arrays.
+ *
+ * \param[in]  mode  allocation mode to set
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_halo_set_buffer_alloc_mode(cs_alloc_mode_t  mode);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return pointer to working send buffer used by default halo state.
+ *
+ * This allows sharing the allocation with other operations which might be
+ * used frequently, such as range set scatters (which play a similar role to
+ * halos for data which can be on process boundaries, such as vertex or
+ * face-based data).
+ *
+ * If the current buffer's size is smaller than the requested size, it is
+ * increased.
+ *
+ * \warning The returned buffer should not be used while a halo exchange
+ *          using the default halo state is in progress.
+ *
+ * \return]  halo  pointer to pointer to cs_halo structure to destroy.
+ */
+/*----------------------------------------------------------------------------*/
+
+void *
+cs_halo_get_default_buffer(size_t  size);
+
 /*----------------------------------------------------------------------------
  * Dump a cs_halo_t structure.
  *
@@ -473,8 +759,409 @@ void
 cs_halo_dump(const cs_halo_t  *halo,
              int               print_level);
 
+/*=============================================================================
+ * Public C++ functions
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update array of values in case of parallelism or periodicity.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      Stride      number of (interlaced) values by entity
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+template <typename T>
+void
+cs_halo_sync(const cs_halo_t  *halo,
+             cs_halo_type_t    sync_mode,
+             bool              on_device,
+             T                 val[]);
 
-#endif /* __CS_HALO_H__ */
+template <int Stride, typename T>
+void
+cs_halo_sync(const cs_halo_t  *halo,
+             cs_halo_type_t    sync_mode,
+             bool              on_device,
+             T                 val[][Stride]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update array of values in case of parallelism or periodicity,
+ *        using the standard neighborhood.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      Stride      number of (interlaced) values by entity
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync(const cs_halo_t  *halo,
+             bool              on_device,
+             T                 val[]);
+
+template <int Stride, typename T>
+void
+cs_halo_sync(const cs_halo_t  *halo,
+             bool              on_device,
+             T                 val[][Stride]);
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage.
+ *        Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync
+(
+  const cs_halo_t       *halo,      /*!<[in] pointer to halo structure */
+  cs_halo_type_t         sync_mode, /*!<[in] synchronization mode (std or ext) */
+  [[maybe_unused]] bool  on_device, /*!<[in] run on accelerated device if possible */
+  cs_mdspan_r<T, N>      span       /*!<[in,out] reference to mdspan_r */
+)
+{
+  static_assert(N == 1 || N == 2,
+                "Only possible for arrays of dim 1 or 2.");
+
+  if (halo == nullptr)
+    return;
+
+  cs_datatype_t datatype = cs_datatype_from_type<T>();
+
+  T *val = span.data();
+
+  int Stride = (N == 1) ? 1 : span.extent(1);
+
+#if defined(HAVE_ACCEL)
+  if (on_device)
+    cs_halo_sync_pack_d(halo,
+                        sync_mode,
+                        datatype,
+                        Stride,
+                        val,
+                        nullptr,
+                        nullptr);
+  else
+#endif
+    cs_halo_sync_pack(halo,
+                      sync_mode,
+                      datatype,
+                      Stride,
+                      val,
+                      nullptr,
+                      nullptr);
+
+  cs_halo_sync_start(halo, val, nullptr);
+
+  cs_halo_sync_wait(halo, val, nullptr);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage,
+ *        and using the standard halo mode
+ *        Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync
+(
+  const cs_halo_t       *halo,      /*!<[in] pointer to halo structure */
+  [[maybe_unused]] bool  on_device, /*!<[in] run on accelerated device if possible */
+  cs_mdspan_r<T, N>&     span       /*!<[in,out] reference to mdspan_r */
+)
+{
+  cs_halo_sync<T, N>(halo, CS_HALO_STANDARD, on_device, span);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage,
+ *        will try to run on accelerated device if data pointer is recognized
+ *        as a device pointer.
+ *        Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync
+(
+  const cs_halo_t       *halo,      /*!<[in] pointer to halo structure */
+  cs_halo_type_t         sync_mode, /*!<[in] synchronization mode (std or ext) */
+  cs_mdspan_r<T, N>&     span       /*!<[in,out] reference to mdspan_r */
+)
+{
+  bool on_device = cs_mem_is_device_ptr(span.data());
+  cs_halo_sync<T, N>(halo, sync_mode, on_device, span);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage,
+ *        using the standard synchronization mode and
+ *        will try to run on accelerated device if data pointer is recognized
+ *        as a device pointer.
+ *        Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync
+(
+  const cs_halo_t       *halo, /*!<[in] pointer to halo structure */
+  cs_mdspan_r<T, N>&     span  /*!<[in,out] reference to mdspan_r */
+)
+{
+  bool on_device = cs_mem_is_device_ptr(span.data());
+  cs_halo_sync<T, N>(halo, CS_HALO_STANDARD, on_device, span);
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update ghost cell values of a spatial vector field,
+ *        including rotational periodicity if present.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync_r(const cs_halo_t  *halo,
+               cs_halo_type_t    sync_mode,
+               bool              on_device,
+               T                 val[][3]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update ghost cell values of a spatial vector field,
+ *        including rotational periodicity if present,
+ *        using the standard neighborhood.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync_r(const cs_halo_t  *halo,
+               bool              on_device,
+               T                 val[][3]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update ghost cell values of a symmetric tensor field,
+ *        including rotational periodicity if present.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync_r(const cs_halo_t  *halo,
+               cs_halo_type_t    sync_mode,
+               bool              on_device,
+               T                 val[][6]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update ghost cell values of a symmetric tensor field,
+ *        including rotational periodicity if present,
+ *        using the standard neighborhood.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync_r(const cs_halo_t  *halo,
+               bool              on_device,
+               T                 val[][6]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of a non-symmetric tensor field,
+ *        including rotational periodicity if present.
+ *
+ * This function aims at copying main values from local elements
+ * (id between 1 and n_local_elements) to ghost elements on distant ranks
+ * (id between n_local_elements + 1 to n_local_elements_with_halo).
+ *
+ * \tparam[in]      T           value type
+ *
+ * \param[in]       halo        pointer to halo structure
+ * \param[in]       sync_mode   synchronization mode (standard or extended)
+ * \param[in]       on_device   run on accelerated device if possible
+ * \param[in, out]  val         pointer to variable value array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+void
+cs_halo_sync_r(const cs_halo_t  *halo,
+               cs_halo_type_t    sync_mode,
+               bool              on_device,
+               T                 val[][3][3]);
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage,
+ *        including rotational periodicity if present.
+ *
+ * Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync_r
+(
+  const cs_halo_t       *halo,      /*!<[in] pointer to halo structure */
+  cs_halo_type_t         sync_mode, /*!<[in] synchronization mode (std or ext) */
+  [[maybe_unused]] bool  on_device, /*!<[in] run on accelerated device if possible */
+  cs_mdspan_r<T, N>      span       /*!<[in,out] reference to mdspan_r */
+)
+{
+  static_assert(N == 1 || N == 2,
+                "Only possible for arrays of dim 1 or 2.");
+
+  int stride = (N == 1) ? 1 : span.extent(1);
+
+  if (stride == 3) {
+    using t3_t = T[3];
+    t3_t *val_v = (t3_t *)span.data();
+    cs_halo_sync_r(halo, sync_mode, on_device, val_v);
+  }
+  else if (stride == 6) {
+    using t6_t = T[6];
+    t6_t *val_t = (t6_t *)span.data();
+    cs_halo_sync_r(halo, sync_mode, on_device, val_t);
+  }
+  else
+    cs_halo_sync(halo, sync_mode, on_device, span);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Update ghost cell values of an mdspan with layout right data storage,
+ *        including rotational periodicity if present.
+ *        Will try to run on accelerated device if data pointer is recognized
+ *        as a device pointer.
+ *
+ * Only callable for mdspan with N = 1 or N = 2.
+ *
+ * \tparam[in] T value type
+ * \tparam[in] N stride size
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename T, int N>
+void
+cs_halo_sync_r
+(
+  const cs_halo_t       *halo,      /*!<[in] pointer to halo structure */
+  cs_halo_type_t         sync_mode, /*!<[in] synchronization mode (std or ext) */
+  cs_mdspan_r<T, N>      span       /*!<[in,out] reference to mdspan_r */
+)
+{
+  static_assert(N == 1 || N == 2,
+                "Only possible for arrays of dim 1 or 2.");
+
+  bool on_device = cs_mem_is_device_ptr(span.data());
+  int stride = (N == 1) ? 1 : span.extent(1);
+
+  if (stride == 3) {
+    using t3_t = T[3];
+    t3_t *val_v = (t3_t *)span.data();
+    cs_halo_sync_r(halo, sync_mode, on_device, val_v);
+  }
+  else if (stride == 6) {
+    using t6_t = T[6];
+    t6_t *val_t = (t6_t *)span.data();
+    cs_halo_sync_r(halo, sync_mode, on_device, val_t);
+  }
+  else
+    cs_halo_sync(halo, sync_mode, on_device, span);
+}
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_HALO_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_RADIATIVE_TRANSFER_H__
-#define __CS_GUI_RADIATIVE_TRANSFER_H__
+#ifndef CS_GUI_RADIATIVE_TRANSFER_H
+#define CS_GUI_RADIATIVE_TRANSFER_H
 
 /*============================================================================
  * Management of the GUI parameters file: radiative transfer
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,11 +31,7 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Public function definitions
@@ -78,18 +74,12 @@ cs_gui_radiative_transfer_postprocess(void);
 
 void
 cs_gui_radiative_transfer_bcs(const    int   itypfb[],
-                              int            nvar,
-                              int            ivart,
                               int           *isothp,
                               double        *epsp,
                               double        *epap,
-                              double        *tintp,
                               double        *textp,
-                              double        *xlamp,
-                              double        *rcodcl);
+                              double        *xlamp);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_GUI_RADIATIVE_TRANSFER_H__ */
+#endif /* CS_GUI_RADIATIVE_TRANSFER_H */

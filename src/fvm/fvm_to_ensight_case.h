@@ -1,14 +1,14 @@
-#ifndef __FVM_TO_ENSIGHT_CASE_H__
-#define __FVM_TO_ENSIGHT_CASE_H__
+#ifndef FVM_TO_ENSIGHT_CASE_H
+#define FVM_TO_ENSIGHT_CASE_H
 
 /*============================================================================
  * Manage case files associated with the EnSight Gold writer
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,19 +27,15 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
 /*=============================================================================
  * Macro definitions
@@ -92,7 +88,7 @@ fvm_to_ensight_case_create(const char                   *const name,
  *   this_case  <-- case structure
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_to_ensight_case_t *
@@ -223,6 +219,4 @@ fvm_to_ensight_case_write_case(fvm_to_ensight_case_t  *this_case,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_TO_ENSIGHT_CASE_H__ */
+#endif /* FVM_TO_ENSIGHT_CASE_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_SLES_H__
-#define __CS_SLES_H__
+#ifndef CS_SLES_H
+#define CS_SLES_H
 
 /*============================================================================
  * Sparse Linear Equation Solver driver
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,14 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_log.h"
-#include "cs_halo_perio.h"
-#include "cs_matrix.h"
-#include "cs_matrix.h"
+#include "base/cs_base.h"
+#include "base/cs_log.h"
+#include "base/cs_halo_perio.h"
+#include "alge/cs_matrix.h"
+#include "alge/cs_matrix.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -53,13 +53,17 @@ BEGIN_C_DECLS
  * Convergence status
  *----------------------------------------------------------------------------*/
 
+/*! Convergence status indicator. */
 typedef enum {
 
-  CS_SLES_DIVERGED = -3,
-  CS_SLES_BREAKDOWN = -2,
-  CS_SLES_MAX_ITERATION = -1,
-  CS_SLES_ITERATING = 0,
-  CS_SLES_CONVERGED = 1
+  CS_SLES_DIVERGED = -3,      /*!< The solver has diverged */
+  CS_SLES_BREAKDOWN = -2,     /*!< The solver has broken down, and cannot make
+                                   any more progress*/
+  CS_SLES_MAX_ITERATION = -1, /*!< Maximum number of iterations has been
+                                   reached, without reaching the required
+                                   convergence */
+  CS_SLES_ITERATING = 0,      /*!< The solver is iterating */
+  CS_SLES_CONVERGED = 1       /*!< The solver has converged */
 
 } cs_sles_convergence_state_t;
 
@@ -106,20 +110,20 @@ typedef void
  * solves.
  *
  * The system is considered to have converged when
- * residue/r_norm <= precision, residue being the L2 norm of a.vx-rhs.
+ * residual/r_norm <= precision, residual being the L2 norm of a.vx-rhs.
  *
  * parameters:
  *   context       <-> pointer to solver context
  *   name          <-- pointer to name of linear system
  *   a             <-- matrix
  *   verbosity     <-- associated verbosity
- *   rotation_mode <-- halo update option for rotational periodicity
  *   precision     <-- solver precision
- *   r_norm        <-- residue normalization
+ *   r_norm        <-- residual normalization
  *   n_iter        --> number of "equivalent" iterations
- *   residue       --> residue
+ *   residual      --> residual
  *   rhs           <-- right hand side
- *   vx            <-- system solution
+ *   vx_ini        <-- initial solution (vx if nonzero, nullptr if zero)
+ *   vx            --> system solution
  *   aux_size      <-- number of elements in aux_vectors
  *   aux_vectors   <-- optional working area (internal allocation if NULL)
  *
@@ -132,12 +136,12 @@ typedef cs_sles_convergence_state_t
                    const char          *name,
                    const cs_matrix_t   *a,
                    int                  verbosity,
-                   cs_halo_rotation_t   rotation_mode,
                    double               precision,
                    double               r_norm,
                    int                 *n_iter,
-                   double              *residue,
+                   double              *residual,
                    const cs_real_t     *rhs,
+                   cs_real_t           *vx_ini,
                    cs_real_t           *vx,
                    size_t               aux_size,
                    void                *aux_vectors);
@@ -224,7 +228,6 @@ typedef void
  *   sles          <-> pointer to solver object
  *   state         <-- convergence status
  *   a             <-- matrix
- *   rotation_mode <-- Halo update option for rotational periodicity
  *   rhs           <-- Right hand side
  *   vx            <-- System solution
  *
@@ -236,7 +239,6 @@ typedef bool
 (cs_sles_error_handler_t) (cs_sles_t                    *sles,
                            cs_sles_convergence_state_t   state,
                            const cs_matrix_t            *a,
-                           cs_halo_rotation_t            rotation_mode,
                            const cs_real_t              *rhs,
                            cs_real_t                    *vx);
 
@@ -288,7 +290,7 @@ typedef int
                        const char  *name);
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -298,6 +300,27 @@ typedef int
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set the threshold value used in the detection of immediate exit
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sles_set_epzero(double  new_value);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get the current threshold value used in the detection of immediate
+ *        exit
+ *
+ * \return the value of the threshold
+ */
+/*----------------------------------------------------------------------------*/
+
+double
+cs_sles_get_epzero(void);
 
 /*----------------------------------------------------------------------------
  * \brief Initialize sparse linear equation solver API.
@@ -325,11 +348,11 @@ void
 cs_sles_log(cs_log_t  log_type);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to linear system object, based on matching field id or
  *        system name.
  *
- * If this system did not previously exist, NULL is returned.
+ * If this system did not previously exist, nullptr is returned.
  *
  * \param[in]  f_id  associated field id, or < 0
  * \param[in]  name  associated name if f_id < 0, or NULL
@@ -343,7 +366,7 @@ cs_sles_find(int          f_id,
              const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to linear system object, based on matching field id or
  *        system name.
  *
@@ -366,29 +389,28 @@ cs_sles_find_or_add(int          f_id,
                     const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Temporarily replace field id with name for matching calls
  * to \ref cs_sles_setup, \ref cs_sles_solve, \ref cs_sles_free, and other
  * operations involving access through a field id.
  *
- * \deprecated This function is provided to allow some peculiar
- * calling sequences, in which \ref codits is called with a nonzero
- * \c ivar value, but specific solver options must still be set.
- * In the future, a more consistent mechanism (using a zero \c ivar
- * value or designing a cleaner method to handle those exceptional cases)
- * is preferred. As such, only a stack depth of 1 is allowed.
+ * This function is provided to allow some peculiar calling sequences,
+ * in which \ref cs_equation_iterative_solve_scalar is called with a given
+ * field id, but specific solver options must still be set.
+ * In the future, a cleaner method to handle those exceptional cases
+ * would be preferred. As such, only a stack depth of 1 is allowed.
  *
  * \param[in]  f_id  associated field id, or < 0
  * \param[in]  name  associated name if f_id < 0, or NULL
  */
 /*----------------------------------------------------------------------------*/
 
-void
+[[deprecated]] void
 cs_sles_push(int          f_id,
              const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Restore behavior temporarily modified by \ref cs_sles_push.
  *
  * \deprecated This function matches \ref cs_sles_push, which is deprecated.
@@ -397,7 +419,7 @@ cs_sles_push(int          f_id,
  */
 /*----------------------------------------------------------------------------*/
 
-void
+[[deprecated]] void
 cs_sles_pop(int  f_id);
 
 /*----------------------------------------------------------------------------*/
@@ -483,7 +505,7 @@ int
 cs_sles_get_verbosity(cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Activate postprocessing output for a given linear equation solver.
  *
  * This allows the output of the residual at the end of each solution
@@ -500,7 +522,7 @@ cs_sles_set_post_output(cs_sles_t  *sles,
                         int         writer_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return the id of the associated writer if postprocessing output
  *        is active for a given linear equation solver.
  *
@@ -514,7 +536,7 @@ int
 cs_sles_get_post_output(cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return type name of solver context.
  *
  * The returned string is intended to help determine which type is associated
@@ -538,7 +560,7 @@ const char *
 cs_sles_get_type(cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to solver context structure pointer.
  *
  * The context structure depends on the type of solver used, which may in
@@ -555,7 +577,7 @@ void *
 cs_sles_get_context(cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return field id associated with a given sparse linear equation solver.
  *
  * \param[in]  sles  pointer to solver object
@@ -568,11 +590,11 @@ int
 cs_sles_get_f_id(const cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return name associated with a given sparse linear equation solver.
  *
  * This is simply a utility function which will return its name argument
- * if f_id < 0, and the associated field's name or label otherwise.
+ * if f_id < 0, and the associated field's name otherwise.
  *
  * \param[in]  sles  pointer to solver object
  *
@@ -584,7 +606,39 @@ const char *
 cs_sles_get_name(const cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Query if immediate_return ("no-op") is allowed when initial
+ * guess is zero (solve by increments) and the RHS is already zero within the
+ * normalized tolerance criteria.
+ *
+ * \param[in]  sles  pointer to solver object
+ *
+ * \return  true if immediate return is allowed, false if at least one
+ *          iteration is required
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_sles_get_allow_no_op(const cs_sles_t  *sles);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Indicate if immediate_return ("no-op") is allowed when initial
+ * guess is zero (solve by increments) and the RHS is already zero within the
+ * normalized tolerance criteria.
+ *
+ * \param[in, out]  sles         pointer to solver object
+ * \param[in]       allow_no_op  true if immediate return is allowed,
+ *                               false if at least one iteration is required
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sles_set_allow_no_op(cs_sles_t  *sles,
+                        bool        allow_no_op);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Setup sparse linear equation solver.
  *
  * Use of this function is optional: if a \ref cs_sles_solve is called
@@ -604,7 +658,7 @@ cs_sles_setup(cs_sles_t          *sles,
               const cs_matrix_t  *a);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief General sparse linear system resolution.
  *
  * If no options were previously provided for the matching system,
@@ -616,16 +670,20 @@ cs_sles_setup(cs_sles_t          *sles,
  * two stages is intended to allow amortizing the cost of setup
  * over multiple solutions.
  *
+ * If the initial solution iz zero, setting vx_ini_0 to true may
+ * allow extra optimizations with some solvers, and avoids
+ * requiring an upstream initialization.
+ *
  * The system is considered to have converged when
- * residue/r_norm <= precision, residue being the L2 norm of a.vx-rhs.
+ * residual/r_norm <= precision, residual being the L2 norm of a.vx-rhs.
  *
  * \param[in, out]  sles           pointer to solver object
  * \param[in]       a              matrix
- * \param[in]       rotation_mode  halo update option for rotational periodicity
  * \param[in]       precision      solver precision
- * \param[in]       r_norm         residue normalization
+ * \param[in]       r_norm         residual normalization
+ * \param[in]       vx_ini_0       if true, initialize solution to 0
  * \param[out]      n_iter         number of "equivalent" iterations
- * \param[out]      residue        residue
+ * \param[out]      residual       residual
  * \param[in]       rhs            right hand side
  * \param[in, out]  vx             system solution
  * \param[in]       aux_size       size of aux_vectors (in bytes)
@@ -639,18 +697,18 @@ cs_sles_setup(cs_sles_t          *sles,
 cs_sles_convergence_state_t
 cs_sles_solve(cs_sles_t           *sles,
               const cs_matrix_t   *a,
-              cs_halo_rotation_t   rotation_mode,
               double               precision,
               double               r_norm,
+              bool                 vx_ini_0,
               int                 *n_iter,
-              double              *residue,
+              double              *residual,
               const cs_real_t     *rhs,
               cs_real_t           *vx,
               size_t               aux_size,
               void                *aux_vectors);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Free sparse linear equation solver setup.
  *
  * This function frees resolution-related data, such as multigrid hierarchy,
@@ -666,7 +724,7 @@ void
 cs_sles_free(cs_sles_t  *sles);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Copy the definition of a sparse linear equation solver to another.
  *
  * The intended use of this function is to allow associating different
@@ -692,7 +750,7 @@ cs_sles_copy(cs_sles_t        *dest,
              const cs_sles_t  *src);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Associate a convergence error handler to a given sparse linear
  *        equation solver.
  *
@@ -713,7 +771,7 @@ cs_sles_set_error_handler(cs_sles_t                *sles,
                           cs_sles_error_handler_t  *error_handler_func);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to default sparse linear solver definition function.
  *
  * The associated function will be used to provide a definition when
@@ -728,7 +786,7 @@ cs_sles_define_t  *
 cs_sles_get_default_define(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set default sparse linear solver definition function.
  *
  * The provided function will be used to provide a definition when
@@ -743,7 +801,7 @@ void
 cs_sles_set_default_define(cs_sles_define_t  *define_func);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set default verbosity definition function.
  *
  * The provided function will be used to define the verbosity when
@@ -757,12 +815,11 @@ void
 cs_sles_set_default_verbosity(cs_sles_verbosity_t  *verbosity_func);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Output default post-processing data for failed system convergence.
  *
  * \param[in]       name           variable name
  * \param[in]       mesh_id        id of error output mesh, or 0 if none
- * \param[in]       rotation_mode  halo update option for rotational periodicity
  * \param[in]       a              linear equation matrix
  * \param[in]       rhs            right hand side
  * \param[in, out]  vx             current system solution
@@ -772,13 +829,12 @@ cs_sles_set_default_verbosity(cs_sles_verbosity_t  *verbosity_func);
 void
 cs_sles_post_error_output_def(const char          *name,
                               int                  mesh_id,
-                              cs_halo_rotation_t   rotation_mode,
                               const cs_matrix_t   *a,
                               const cs_real_t     *rhs,
                               cs_real_t           *vx);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Output post-processing variable related to system convergence.
  *
  * \param[in]       name             variable name
@@ -800,11 +856,11 @@ cs_sles_post_output_var(const char      *name,
                         cs_real_t        var[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return base name associated to a field id, name couple.
  *
  * This is simply a utility function which will return its name argument
- * if f_id < 0, and the associated field's name or label otherwise.
+ * if f_id < 0, and the associated field's name otherwise.
  *
  * \param[in]  f_id  associated field id, or < 0
  * \param[in]  name  associated name if f_id < 0, or NULL
@@ -818,7 +874,7 @@ cs_sles_base_name(int          f_id,
                   const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return name associated to a field id, name couple.
  *
  * \param[in]  f_id  associated field id, or < 0
@@ -836,4 +892,4 @@ cs_sles_name(int          f_id,
 
 END_C_DECLS
 
-#endif /* __CS_SLES_H__ */
+#endif /* CS_SLES_H */

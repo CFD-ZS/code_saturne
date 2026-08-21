@@ -1,14 +1,14 @@
-#ifndef __CS_DEFS_H__
-#define __CS_DEFS_H__
+#ifndef CS_DEFS_H
+#define CS_DEFS_H
 
 /*============================================================================
  * Base macro and typedef definitions for system portability
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,19 +32,17 @@
  *============================================================================*/
 
 #if defined(HAVE_CONFIG_H)
-#  include "cs_config.h"
+#  include "base/cs_config.h"
 #endif
+
+#include <type_traits>
+#include <utility>
 
 /*============================================================================
  * Internationalization
  *============================================================================*/
 
-#ifdef __cplusplus
 extern "C" {
-#if 0
-} /* Fake brace to force Emacs auto-indentation back to column 0 */
-#endif
-#endif /* __cplusplus */
 
 #if defined(ENABLE_NLS) && defined(HAVE_GETTEXT)
 
@@ -73,9 +71,7 @@ extern "C" {
 
 #endif /* ENABLE_NLS && HAVE_GETTEXT */
 
-#ifdef __cplusplus
 }
-#endif /* __cplusplus */
 
 /*============================================================================
  * Parallelism
@@ -97,45 +93,86 @@ extern "C" {
 #endif
 
 #if defined(HAVE_OPENMP)
+
 #  include <omp.h>
+
+#if _OPENMP >= 201307     /* simd construct available from OpenMP 4.0 */
+#undef HAVE_OPENMP_SIMD
+#define HAVE_OPENMP_SIMD 1
+#endif
+
+#else
+
+// The compiler may sometimes use OpenMP in adapters to external libraries
+// even when OpenMP is disabled for code_saturne due to propagation of
+// compiler flags for external libraries. Filtering those flags would
+// be complex with the current build system, so here the macro
+// defined directly by the compiler is disabled. Note that this could affect
+// external including calls to code_saturne, so a filtering of compiler
+// flags would be preferrable.
+#undef _OPENMP
+
+#endif
+
+/* Do we have accelerator support ? */
+
+#if defined(HAVE_CUDA)
+#define HAVE_ACCEL 1
+#elif defined(HAVE_HIP)
+#define HAVE_ACCEL 1
+#elif defined(HAVE_SYCL)
+#define HAVE_ACCEL 1
+#elif defined(HAVE_OPENMP_TARGET)
+#define HAVE_ACCEL 1
+#endif
+
+/*----------------------------------------------------------------------------
+ * Accelerator stream definitions
+ *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_CUDA) && defined(__CUDACC__)
+using cs_stream_t = cudaStream_t;
+#elif defined(HAVE_HIP) && defined(__HIPCC__)
+using cs_stream_t = hipStream_t;
+#else
+using cs_stream_t = void *;
 #endif
 
 /*============================================================================
- * C99 Qualifiers
+ * Qualifiers and macros
  *============================================================================*/
 
-#ifndef __cplusplus /* C */
-
-/* inline provided by cs_config.h if necessary */
-
-#if !defined(__STDC_VERSION__)
-#  define __STDC_VERSION__ 1989
-#endif
-
-/*
- * Redefinition of "inline" et "restrict" qualifiers incompatible with
- * some C89 compilers (standard in C99)
- */
-
-#if (__STDC_VERSION__ < 199901L)
-
-#  if defined(__GNUC__)
-#    define inline __inline__
+#  if defined(__GNUC__) || defined(__clang__) || defined (__NVCC__)
 #    define restrict __restrict__
+#  elif defined(_MSC_VER)
+#    define restrict __restrict
 #  else
-#    define inline
-#    define restrict
+#    ifndef HAVE_RESTRICT /* Must be provided by caller */
+#      define restrict
+#    endif
 #  endif
 
+/* Macros for locally suppressing warnings from external libraries */
+#if (defined(__GNUC__) || defined(__clang__)) \
+  && !defined(CS_DONT_SUPPRESS_EXTERNAL_WARNINGS)
+#  define DO_PRAGMA(x) _Pragma (#x)
+#  define DISABLE_WARNING_PUSH _Pragma("GCC diagnostic push")
+#  define DISABLE_WARNING(warningName) \
+     DO_PRAGMA(GCC diagnostic ignored #warningName)
+#  define DISABLE_WARNING_POP _Pragma("GCC diagnostic pop")
+// Define LLVM only warnings suppression (needed for clang/oneapi compilers
+#  if defined(__llvm__)
+#     define DISABLE_WARNING_LLVM(warningName) \
+        DISABLE_WARNING(warningName)
+#  else
+#     define DISABLE_WARNING_LLVM(warningName)
+#  endif
+#else
+#  define DISABLE_WARNING_PUSH
+#  define DISABLE_WARNING(warningName)
+#  define DISABLE_WARNING_POP
+#  define DISABLE_WARNING_LLVM(warningName)
 #endif
-
-#else /* C++ */
-
-#  ifndef HAVE_RESTRICT /* Must be provided by caller */
-#    define restrict
-#  endif
-
-#endif /* __cplusplus */
 
 /*============================================================================
  * Definitions that may not always be provided directly by the system
@@ -172,23 +209,9 @@ extern "C" {
 #include <sys/types.h>
 #endif
 
-/* C99 _Bool type */
-
-#if HAVE_STDBOOL_H
-#  include <stdbool.h>
-#else
-#  ifndef __cplusplus
-#    ifndef HAVE__BOOL
-#      define _Bool signed char;
-#    endif
-#    define bool _Bool
-#    define false 0
-#    define true 1
-#  else
-#    define _Bool bool;
-#  endif
-#  define __bool_true_false_are_defined 1
-#endif
+/* C++ assert necessary for template */
+#include <typeinfo>
+#include "assert.h"
 
 /* int32_t type */
 
@@ -242,16 +265,26 @@ typedef unsigned long long uint64_t;
 #  endif
 #endif
 
+/* __has_builtin is missing in some cases (e.g. nvcc) */
+
+#ifndef __has_builtin
+  #define __has_builtin(x) 0
+#endif
+
+/* Legacy Intel compiler (retired) reports having
+ *  __builtin_FILE() and __builtin_LINE() but generates code calling
+ *  nonexisting functions with those names, leading to link errors. */
+#if defined(__INTEL_COMPILER)
+#  if __INTEL_COMPILER <= 2000
+#    define __has_builtin(x) 0
+#  endif
+#endif
+
 /*============================================================================
- * General types and macros used throughout Code_Saturne
+ * General types and macros used throughout code_saturne
  *============================================================================*/
 
-#ifdef __cplusplus
 extern "C" {
-#if 0
-} /* Fake brace to force Emacs auto-indentation back to column 0 */
-#endif
-#endif /* __cplusplus */
 
 /*----------------------------------------------------------------------------
  * Variable value type.
@@ -272,7 +305,7 @@ typedef enum {
 } cs_datatype_t;
 
 /*----------------------------------------------------------------------------
- * Basic types used by Code_Saturne
+ * Basic types used by code_saturne
  * They may be modified here to better map to a given library, with the
  * following constraints:
  *  - cs_lnum_t must be signed
@@ -282,33 +315,37 @@ typedef enum {
 /* Global integer index or number */
 
 #if defined(HAVE_LONG_GNUM)
-  #if (SIZEOF_LONG == 8)
-    typedef unsigned long       cs_gnum_t;
-  #elif (SIZEOF_LONG_LONG == 8)
-    typedef unsigned long long  cs_gnum_t;
-  #else
-    #error
-  #endif
+  typedef uint64_t  cs_gnum_t;
 #else
   typedef unsigned  cs_gnum_t;
 #endif
 
+/* Local integer index or number */
+
+#if defined(HAVE_LONG_LNUM)
+  typedef int64_t  cs_lnum_t;
+#else
+  typedef int  cs_lnum_t;
+#endif
+
 /* Other types */
 
-typedef int               cs_lnum_t;   /* Local integer index or number */
-typedef double            cs_coord_t;  /* Real number (coordinate value) */
+typedef double              cs_coord_t;   /* Real number (coordinate value) */
 
-typedef int                 cs_int_t;    /* Fortran integer */
 typedef double              cs_real_t;   /* Fortran double precision */
 typedef char                cs_byte_t;   /* Byte (untyped memory unit) */
 typedef unsigned short int  cs_flag_t;   /* Flag storing metadata */
 
+typedef double              cs_nreal_t;  /* Real number (normalized value) */
+typedef double              cs_dreal_t;  /* Local distance */
+typedef double              cs_rreal_t;  /* Reconstruction distance */
+
 /* Vector or array block types */
 
-typedef int        cs_lnum_2_t[2];      /* Vector of 2 local numbers */
-typedef int        cs_lnum_3_t[3];      /* Vector of 3 local numbers */
+typedef cs_lnum_t  cs_lnum_2_t[2];      /* Vector of 2 local numbers */
+typedef cs_lnum_t  cs_lnum_3_t[3];      /* Vector of 3 local numbers */
 
-typedef double     cs_coord_3_t[3];         /* Vector of 3 real (coordinate)
+typedef cs_coord_t cs_coord_3_t[3];         /* Vector of 3 real (coordinate)
                                                values */
 
 typedef cs_real_t  cs_real_2_t[2];          /* Vector of 2 real values */
@@ -318,6 +355,8 @@ typedef cs_real_t  cs_real_6_t[6];          /* Vector of 6 real values
                                                (for symmetric tensor) */
 typedef cs_real_t  cs_real_9_t[9];          /* Vector of 9 real values */
 typedef cs_real_t  cs_real_10_t[10];        /* Vector of 10 real values */
+
+typedef cs_real_t  cs_real_23_t[2][3];      /* Matrix of 2x3 real values */
 
 typedef cs_real_t  cs_real_33_t[3][3];      /* Matrix of 3x3 real values */
 typedef cs_real_t  cs_real_66_t[6][6];      /* Matrix of 6x6 real values */
@@ -329,12 +368,17 @@ typedef cs_real_t  cs_real_34_t[3][4];      /* Matrix of 3x4 real values */
 
 typedef cs_real_t  cs_real_63_t[6][3];      /* Matrix of 6x3 real values */
 
-typedef cs_real_t  cs_real_96_t[9][6];      /* Matrix of 9x6 real values */
+typedef cs_real_t  cs_real_69_t[6][9];      /* Matrix of 6x9 real values */
 
 typedef cs_real_33_t  cs_real_332_t[2];     /* vector of 2 3x3 matrices
                                                of real values */
 typedef cs_real_66_t  cs_real_662_t[2];     /* vector of 2 6x6 matrices
                                                of real values */
+
+typedef cs_nreal_t  cs_nreal_3_t[3];        /* Vector of normalized real values
+                                               (i.e. unit vector) */
+typedef cs_dreal_t  cs_dreal_3_t[3];        /* Vector joining 2 local coordinates */
+typedef cs_rreal_t  cs_rreal_3_t[3];        /* Reconstruction distance Vector */
 
 typedef struct {
 
@@ -345,6 +389,7 @@ typedef struct {
 
 /* Vector-valued quantity stored using its measure (i.e. length) and
    its direction given by a unitary vector */
+
 typedef struct {
 
   double  meas;
@@ -357,7 +402,6 @@ typedef struct {
 
 #if defined(HAVE_MPI) && !defined(CS_IGNORE_MPI)
 
-#  define CS_MPI_INT       MPI_INT         /* If cs_int_t is an int */
 #  define CS_MPI_REAL      MPI_DOUBLE      /* If cs_real_t is a double */
 
 /* MPI type for cs_gnum_t integer type (depends on configuration) */
@@ -379,14 +423,21 @@ typedef struct {
 #    define CS_MPI_GNUM       MPI_UNSIGNED
 #  endif
 
+/* MPI type for cs_lnum_t type */
+
+#  if defined(HAVE_LONG_LNUM)
+#    define CS_MPI_LNUM     MPI_LONG
+#  else
+#    define CS_MPI_LNUM     MPI_INT
+#  endif
+
 #  define CS_MPI_EFLAG    MPI_UNSIGNED       /* MPI type for cs_mflag_t type */
 #  define CS_MPI_FLAG     MPI_UNSIGNED_SHORT /* MPI type for cs_flag_t type */
-#  define CS_MPI_LNUM     MPI_INT            /* MPI type for cs_lnum_t type */
 #  define CS_MPI_COORD    MPI_DOUBLE         /* MPI type for cs_coord_t type */
 
 #endif /* defined(HAVE_MPI) && !defined(CS_IGNORE_MPI) */
 
-/* Mappings to Code_Saturne datatypes */
+/* Mappings to code_saturne datatypes */
 /*------------------------------------*/
 
 #if defined(HAVE_LONG_GNUM)
@@ -397,10 +448,18 @@ typedef struct {
 # define CS_GNUM_TYPE     CS_UINT32
 #endif
 
-#if (SIZEOF_INT == 8)
-# define CS_LNUM_TYPE     CS_INT64
+#if defined(HAVE_LONG_LNUM)
+# if (SIZEOF_LONG == 8)
+#  define CS_LNUM_TYPE     CS_INT64
+# else
+#  define CS_LNUM_TYPE     CS_INT32
+# endif
 #else
-# define CS_LNUM_TYPE     CS_INT32
+# if (SIZEOF_INT == 8)
+#  define CS_LNUM_TYPE     CS_INT64
+# else
+#  define CS_LNUM_TYPE     CS_INT32
+# endif
 #endif
 
 #if (SIZEOF_INT == 8)
@@ -421,14 +480,10 @@ typedef struct {
 #define CS_COORD_TYPE     CS_DOUBLE
 
 /* Minimum size for OpenMP loops
- *  (based on initial benchmarking, which will need updates)
- *-----------------------------------------------------------*/
+ *  (will need benchmarking and tuning for various systems)
+ *---------------------------------------------------------*/
 
-#if defined(__bgq__) && defined(__xlc__)
-#  define CS_THR_MIN 1014
-#else
-#  define CS_THR_MIN 128
-#endif
+#define CS_THR_MIN 128
 
 /* Cache line size, or multiple thereof */
 /*--------------------------------------*/
@@ -439,9 +494,9 @@ typedef struct {
  * Type independent min an max (caution: the argument is evaluated)
  *----------------------------------------------------------------------------*/
 
-#define CS_ABS(a)     ((a) <  0  ? -(a) : (a))  /* Absolute value of a */
-#define CS_MIN(a,b)   ((a) < (b) ?  (a) : (b))  /* Minimum of a et b */
-#define CS_MAX(a,b)   ((a) > (b) ?  (a) : (b))  /* Maximum of a et b */
+#define CS_ABS(a)     ((a) <  0  ? -(a) : (a))  /*!< Absolute value of a */
+#define CS_MIN(a,b)   ((a) < (b) ?  (a) : (b))  /*!< Minimum of a et b */
+#define CS_MAX(a,b)   ((a) > (b) ?  (a) : (b))  /*!< Maximum of a et b */
 
 /*----------------------------------------------------------------------------
  * Variable interlace type:
@@ -473,52 +528,60 @@ typedef enum {
 #undef BEGIN_C_DECLS
 #undef   END_C_DECLS
 
-#if defined(__cplusplus)
-#  define BEGIN_C_DECLS  extern "C" {
-#  define   END_C_DECLS  }
-#else
-#  define BEGIN_C_DECLS
-#  define   END_C_DECLS
+#define BEGIN_C_DECLS  extern "C" {
+#define   END_C_DECLS  }
+
+/*----------------------------------------------------------------------------
+ * Macro to check if we are compiling for device
+ *----------------------------------------------------------------------------*/
+
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__) \
+  || defined(__SYCL_DEVICE_ONLY__)
+#define CS_DEVICE_COMPILE
 #endif
 
 /*----------------------------------------------------------------------------
- * Macros for Fortran interoperability
+ * Macros for function type qualifiers
  *----------------------------------------------------------------------------*/
 
-/*
- * Macro for handling of different symbol names (underscored or not,
- * lowercase or uppercase) between C and Fortran, for link resolution.
- */
+#if defined(__CUDACC__) || defined (__HIP_DEVICE_COMPILE__)
 
-#if !defined (__hpux)
-#define CS_PROCF(x, y) x##_
+#define CS_F_HOST __host__
+#define CS_F_DEVICE __device__
+#define CS_F_HOST_DEVICE __host__ __device__
+#define CS_V_CONSTANT __constant__
+
 #else
-#define CS_PROCF(x, y) x
+
+#define CS_F_HOST
+#define CS_F_DEVICE
+#define CS_F_HOST_DEVICE
+#define CS_V_CONSTANT static const
+
 #endif
 
-/*
- * Macro used to handle automatic "Fortran string length" arguments
- * (not used by Code_Saturne calls, but set by many compilers).
- * Some compilers, like the Fujitsu VPP 5000 compiler in its time, may not
- * support the variable length lists in mixed C/Fortran calls.
- */
+/*----------------------------------------------------------------------------
+ * Macros for lambda specifiers
+ *----------------------------------------------------------------------------*/
 
-#if defined (__uxpv__)  /* Fujitsu VPP 5000 case */
-#define CS_ARGF_SUPP_CHAINE
-#else
-#define CS_ARGF_SUPP_CHAINE , ...
-#endif
+#define CS_LAMBDA [=] CS_F_HOST_DEVICE
+#define CS_HOST_LAMBDA [=] CS_F_HOST
+#define CS_CLASS_LAMBDA [=, *this] CS_F_HOST_DEVICE
 
 /*=============================================================================
  * Global variables
  *============================================================================*/
+
+/* Empty but non-null string */
+
+extern const char     cs_empty_string[];
 
 /* Sizes and names associated with datatypes */
 
 extern const size_t   cs_datatype_size[];
 extern const char    *cs_datatype_name[];
 
-/* MPI Datatypes associated with Code_Saturne datatypes */
+/* MPI Datatypes associated with code_saturne datatypes */
 
 #if defined(HAVE_MPI) && !defined(CS_IGNORE_MPI)
 
@@ -526,12 +589,16 @@ extern MPI_Datatype   cs_datatype_to_mpi[];
 
 #endif
 
-/* Global variables indicationg task state */
+/* Global variables indicating task state */
 
-extern int  cs_glob_n_threads;      /* Number of threads */
+extern int  cs_glob_n_threads;     /* Number of threads */
 
-extern int  cs_glob_rank_id;        /* Rank in main MPI communicator */
-extern int  cs_glob_n_ranks;        /* Size of main MPI communicator */
+extern int  cs_glob_rank_id;       /* Rank in main MPI communicator */
+extern int  cs_glob_n_ranks;       /* Size of main MPI communicator */
+
+extern int  cs_glob_node_rank_id;  /* Rank on node in main MPI communicator */
+extern int  cs_glob_node_n_ranks;  /* Number of ranks on node of main
+                                      MPI communicator */
 
 #if defined(HAVE_MPI) && !defined(CS_IGNORE_MPI)
 
@@ -539,12 +606,29 @@ extern MPI_Comm       cs_glob_mpi_comm;      /* Main MPI intra-communicator */
 
 #endif
 
+/*----------------------------------------------------------------------------
+ * Function pointer types
+ *----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Destroy a given structure
+ *
+ * \param[in, out]  s  pointer to a structure cast on-the-fly
+ *
+ * \return a null pointer
+ */
+/*----------------------------------------------------------------------------*/
+
+typedef void *
+(cs_destructor_t)(void  *s);
+
 /*=============================================================================
  * Public functions
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Given a base index i, return the next index aligned with a size m.
  *
  * \param[in]  i   base index
@@ -562,9 +646,466 @@ cs_align(cs_lnum_t  i,
 }
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Retrieve the associated thread id (0 if no OpenMP or if outside an
+ *        OpenMP region)
+ *
+ * \return the id of the OpenMP thread
+ */
+/*----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
+inline static int
+cs_get_thread_id(void)
+{
+#if defined(HAVE_OPENMP)
+  return omp_get_thread_num();
+#else
+  return 0;
+#endif
 }
-#endif /* __cplusplus */
 
-#endif /* __CS_DEFS_H__ */
+/*----------------------------------------------------------------------------*/
+
+}  // extern "C"
+
+/*=============================================================================
+ * Public C++ templates
+ *============================================================================*/
+
+namespace cs {
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Return absolute value of a number.
+ *
+ * This function is overloaded in cs_math.h for floating-point values.
+ *
+ * \tparam T value type
+ *
+ * \param[in]  a  value
+ *
+ * \return absolute value of a
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+CS_F_HOST_DEVICE inline T
+abs(const T  a)
+{
+  return ((a) <  0  ? -(a) : (a));
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Return minimum of two values.
+ *
+ * This function is overloaded in cs_math.h for floating-point values.
+ *
+ * \tparam T value type
+ *
+ * \param[in]  a   first value
+ * \param[in]  b   second value
+ *
+ * \return minimum of a and b
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+CS_F_HOST_DEVICE inline T
+min(const T  a,
+    const T  b)
+{
+  return ((a) < (b) ?  (a) : (b));
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Return maximum of two values.
+ *
+ * This function is overloaded in cs_math.h for floating-point values.
+ *
+ * \tparam T value type
+ *
+ * \param[in]  a   first value
+ * \param[in]  b   second value
+ *
+ * \return maximum of a and b
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+CS_F_HOST_DEVICE inline T
+max(const T  a,
+    const T  b)
+{
+  return ((a) > (b) ?  (a) : (b));
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Clamp function for a given scalar value.
+ *
+ * This function is overloaded in cs_math.h for floating-point values.
+ *
+ * \tparam T value type
+ *
+ * \param[in] x    initial value
+ * \param[in] xmin min value for clamping
+ * \param[in] xmax max value for clamping
+ *
+ * \return clamped value which is 'x' if xmin < x < xmax or lower/upper bound
+ * otherwise
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+CS_F_HOST_DEVICE inline T
+clamp(const T x,
+      const T xmin,
+      const T xmax)
+{
+  T x_tmp = ((xmin) > (x) ?  (xmin) : (x));
+  return ((xmax) < (x_tmp) ?  (xmax) : (x_tmp));
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Utility template to check if a pack of parameters is made of integral types.
+ */
+/*----------------------------------------------------------------------------*/
+
+template <class... Args>
+struct are_integral {
+  enum : bool { value = true};
+};
+
+/*----------------------------------------------------------------------------*/
+
+template <typename T, class... Args>
+struct are_integral<T, Args...> {
+  enum {
+    value = (std::is_integral<T>::value || std::is_enum<T>::value)
+          && are_integral<Args...>::value
+  };
+};
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Utility template which returns "true" for a given pack.
+ *        This is necessary of std::enable_if_t<> when the template pack
+ *        is not used for the if clause...
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename... Args>
+struct always_true : std::true_type {};
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief A swap method which is callable from GPU and not only CPU.
+ *
+ * \tparam T class object which is movable
+ */
+/*--------------------------------------------------------------------------*/
+
+template <class T>
+CS_F_HOST_DEVICE
+constexpr
+std::enable_if_t<std::is_move_constructible<T>::value &&
+                 std::is_move_assignable<T>::value>
+swap_objects
+(
+  T& obj1, /*!<[in,out] first object to swap */
+  T& obj2  /*!<[in,out] second object to swap */
+)
+{
+  T tmp(std::move(obj1));
+  obj1 = std::move(obj2);
+  obj2 = std::move(tmp);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief
+ *
+ * \tparam T class object which is movable
+ * \tparam N size of array
+ */
+/*--------------------------------------------------------------------------*/
+
+template <class T, std::size_t N>
+CS_F_HOST_DEVICE
+constexpr
+void
+swap_objects
+(
+  T (&obj1)[N], /*!<[in,out] first array of objects to swap */
+  T (&obj2)[N]  /*!<[in,out] second array of objects to swap */
+)
+{
+  for (std::size_t i = 0; i < N; ++i)
+    swap_objects(obj1[i], obj2[i]);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Count number of digits in an integer
+ *
+ * \return number of digits
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename Id1>
+CS_F_HOST_DEVICE
+inline
+unsigned int
+number_of_digits
+(
+  Id1 val /*!<[in] Integer */
+)
+{
+  static_assert(std::is_integral<Id1>::value, "Non integral input arguments.");
+
+  unsigned int retval = 1;
+  while (val >= 10) {
+    val /= 10;
+    retval += 1;
+  }
+
+  return retval;
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Convert an unsigned integer to an array of char
+ */
+/*--------------------------------------------------------------------------*/
+
+template<typename Id1>
+CS_F_HOST_DEVICE
+inline
+void
+uint_to_char
+(
+ char *dest, /*!<[in,out] char* in which to store integer value */
+ Id1   val   /*!<[in]     integer to convert to string */
+)
+{
+  static_assert(std::is_integral<Id1>::value, "Non integral input arguments.");
+  assert(val >= 0);
+
+  unsigned int n_digits = number_of_digits(val);
+  int pos = n_digits - 1;
+
+  if (val == 0) {
+    dest[0] = '0';
+    dest[1] = '\0';
+  }
+  else {
+    Id1 v = val;
+    while (v > 0) {
+      auto const num = v % 10;
+      v /= 10;
+      dest[pos] = '0' + num;
+      --pos;
+    }
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Concatenate two strings (char *)
+ */
+/*--------------------------------------------------------------------------*/
+
+CS_F_HOST_DEVICE
+inline
+void
+concatenate_char
+(
+  char       *dest, /*!<[in,out] Char to which we add another char* */
+  const char *src   /*!<[in]     input char* to concatenate to the other */
+)
+{
+  int dst_pos = 0;
+  while (dest[dst_pos] != 0) {
+    dst_pos += 1;
+  }
+
+  int i = 0;
+  while (src[i] != 0) {
+    dest[i + dst_pos] = src[i];
+    i += 1;
+  }
+}
+
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Check if at least one variable is equal to a reference value
+ *
+ * \return True if at least one is equal, false otherwise
+ */
+/*--------------------------------------------------------------------------*/
+
+template<class T,
+         class... Ts,
+         class = std::enable_if_t<(std::is_same_v<T, Ts> && ...)> >
+CS_F_HOST_DEVICE
+inline
+constexpr bool
+any_eq
+(
+  const T     ref_val, /*!<[in] Reference value to compare to */
+  const Ts... vals     /*!<[in] Parameter pack to compare to ref_val */
+)
+{
+  return ((ref_val == vals) || ...);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Check if all variables are equal to a reference value
+ *
+ * \return True if at least one is equal, false otherwise
+ */
+/*--------------------------------------------------------------------------*/
+
+template<class T,
+         class... Ts,
+         class = std::enable_if_t<(std::is_same_v<T, Ts> && ...)> >
+CS_F_HOST_DEVICE
+inline
+constexpr bool
+all_eq
+(
+  const T     ref_val, /*!<[in] Reference value to compare to */
+  const Ts... vals     /*!<[in] Parameter pack to compare to ref_val */
+)
+{
+  return ((ref_val == vals) && ...);
+}
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Check if all variables are different than a reference value
+ *
+ * \return True if at least one is equal, false otherwise
+ */
+/*--------------------------------------------------------------------------*/
+
+template<class T,
+         class... Ts,
+         class = std::enable_if_t<(std::is_same_v<T, Ts> && ...)> >
+CS_F_HOST_DEVICE
+inline
+constexpr bool
+none_eq
+(
+  const T     ref_val, /*!<[in] Reference value to compare to */
+  const Ts... vals     /*!<[in] Parameter pack to compare to ref_val */
+)
+{
+  return ((ref_val != vals) && ...);
+}
+
+/*----------------------------------------------------------------------------*/
+
+} // namespace cs
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get the cs_datatype_t from a typename
+ *
+ * \tparam T : datatype
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+struct dependent_false : std::false_type {};
+
+template <typename T>
+static inline cs_datatype_t
+cs_datatype_from_type()
+{
+  static_assert(dependent_false<T>::value, "Unknown datatype");
+  return CS_DATATYPE_NULL;
+}
+
+/*----------------------------------------------------------------------------*/
+/* Specialized versions of the templated function                             */
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<char>()
+{
+  return CS_CHAR;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<float>()
+{
+  return CS_FLOAT;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<double>()
+{
+  return CS_DOUBLE;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<uint16_t>()
+{
+  return CS_UINT16;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<uint32_t>()
+{
+  return CS_UINT32;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<uint64_t>()
+{
+  return CS_UINT64;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<int32_t>()
+{
+  return CS_INT32;
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <>
+constexpr inline cs_datatype_t
+cs_datatype_from_type<int64_t>()
+{
+  return CS_INT64;
+}
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_DEFS_H */

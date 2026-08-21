@@ -1,14 +1,14 @@
-#ifndef __FVM_NEIGHBORHOOD_H__
-#define __FVM_NEIGHBORHOOD_H__
+#ifndef FVM_NEIGHBORHOOD_H
+#define FVM_NEIGHBORHOOD_H
 
 /*============================================================================
  * Search octrees and quadtrees of boxes.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*============================================================================
  * Macro definitions
@@ -160,7 +156,7 @@ fvm_neighborhood_transfer_data(fvm_neighborhood_t   *n,
  * Box global numbers and extents may be either copied for the structure's
  * internal use from the caller, or transferred to the neighborhood management
  * structure: both the box_gnum and extents arguments have an "assigned"
- * variant, in which cas a pointer to a pointer is provided, and the
+ * variant, in which case a pointer to a pointer is provided, and the
  * argument's property is transferred to the neighborhod management structure.
  * The unused variant of an argument should be set to NULL.
  *
@@ -180,9 +176,8 @@ fvm_neighborhood_transfer_data(fvm_neighborhood_t   *n,
  *   box_gnum          <-- global numbering of boxes
  *   extents           <-- coordinate extents (size: n_boxes*dim*2, as
  *                         xmin1, ymin1, .. xmax1, ymax1, ..., xmin2, ...)
- *   box_gnum_transfer <-> as box_gnum, ownership transferred (NULL on return)
- *   extents_transfer  <-> as extents, ownership transferred (NULL on return)
- *   comm       <-- associated MPI communicator
+ *   box_gnum_assigned <-> as box_gnum, ownership transferred (NULL on return)
+ *   extents_assigned  <-> as extents, ownership transferred (NULL on return)
  *---------------------------------------------------------------------------*/
 
 void
@@ -232,7 +227,6 @@ fvm_neighborhood_prune(fvm_neighborhood_t  *n);
  *
  * parameters:
  *   n                  <-- pointer to neighborhood management structure
- *   dim                --> layout dimension (3, 2, or 1)
  *   depth              --> tree depth (max level used)
  *   n_leaves           --> number of leaves in the tree
  *   n_boxes            --> number of boxes in the tree
@@ -253,8 +247,8 @@ fvm_neighborhood_get_box_stats(const fvm_neighborhood_t  *n,
                                cs_lnum_t                  n_boxes[3],
                                cs_lnum_t                  n_threshold_leaves[3],
                                cs_lnum_t                  n_leaf_boxes[3],
-                               size_t                     mem_final[3],
-                               size_t                     mem_required[3]);
+                               uint64_t                   mem_final[3],
+                               uint64_t                   mem_required[3]);
 
 /*----------------------------------------------------------------------------
  * Return timing information.
@@ -286,6 +280,4 @@ fvm_neighborhood_dump(const fvm_neighborhood_t  *n);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_NEIGHBORHOOD_H__ */
+#endif /* FVM_NEIGHBORHOOD_H */

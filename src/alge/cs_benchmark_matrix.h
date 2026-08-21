@@ -1,14 +1,14 @@
-#ifndef __CS_BENCHMARK_MATRIX_H__
-#define __CS_BENCHMARK_MATRIX_H__
+#ifndef CS_BENCHMARK_MATRIX_H
+#define CS_BENCHMARK_MATRIX_H
 
 /*============================================================================
  * Sparse Matrix Representation and Operations
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,14 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-#include "cs_numbering.h"
-#include "cs_halo_perio.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_halo.h"
+#include "base/cs_numbering.h"
+#include "base/cs_halo_perio.h"
 
 /*============================================================================
  * Macro definitions
@@ -50,7 +46,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -61,7 +57,7 @@ BEGIN_C_DECLS
  * Time matrix operations.
  *
  * parameters:
- *   t_measure      <-- minimum time for each measure
+ *   n_time_runs    <-- number of timing runs for each measure
  *   n_types        <-- number of matrix types timed, or 0
  *   n_fill_types   <-- number of fill types timed, or 0
  *   types          <-- array of matrix types timed, or NULL
@@ -75,8 +71,8 @@ BEGIN_C_DECLS
  *   numbering      <-- vectorization or thread-related numbering info, or NULL
  *----------------------------------------------------------------------------*/
 
-void
-cs_benchmark_matrix(double                 t_measure,
+extern "C" void
+cs_benchmark_matrix(int                    n_time_runs,
                     int                    n_types,
                     int                    n_fill_types,
                     cs_matrix_type_t       types[],
@@ -90,6 +86,4 @@ cs_benchmark_matrix(double                 t_measure,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BENCHMARK_MATRIX_H__ */
+#endif /* CS_BENCHMARK_MATRIX_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_BOUNDARY_CONDITIONS_H__
-#define __CS_BOUNDARY_CONDITIONS_H__
+#ifndef CS_BOUNDARY_CONDITIONS_H
+#define CS_BOUNDARY_CONDITIONS_H
 
 /*============================================================================
  * Boundary condition handling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
@@ -37,21 +37,20 @@
 
 #include <ple_locator.h>
 
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-#include "cs_base.h"
-#include "cs_field.h"
-#include "cs_math.h"
-#include "cs_mesh_location.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_function.h"
+#include "base/cs_math.h"
+#include "mesh/cs_mesh_location.h"
+#include "base/cs_time_control.h"
+#include "base/cs_zone.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
+
+/*! Maximum number of boundary condition code types */
+#define  CS_MAX_BC_TYPE  200
 
 /*============================================================================
  * Local type definitions
@@ -66,13 +65,73 @@ BEGIN_C_DECLS
 extern const int  *cs_glob_bc_type;
 
 /*! boundary zone number associated with each boundary face
-  (specific physical models)*/
+ *  (specific physical models)
+ *
+ * \deprecated This is used for \ref cs_boundary_condition_pm_info_t only.
+*/
 
-extern const int  *cs_glob_bc_face_zone;
+/*----------------------------------------------------------------------------*/
+
+/*! Legacy physical model boundary conditions.
+ *
+ * \remark The amppings of member arrays of this structure are shifted
+ * by 1 when mapped to Fortran, so that both in Fortran and C, we can use
+ * the natural indexing (1-based and 0-based respectively) without needing
+ * to shift the zone id/number.
+ *
+ * \deprecated This should be used for Fortran compatibilty and migration
+ * to C only. In C, we should then move to high level boundary condition
+ * definitions not requiring indexing by legacy zone numbers indexed by
+ * \ref cs_glob_bc_face_zone. */
+
+typedef struct {
+
+  /*! Legacy physical model zone id per boundary face */
+  int  *izfppp;
+
+  /*! atmospheric flows: auto inlet/outlet flag */
+  int *iautom;
+
+} cs_boundary_condition_pm_info_t;
+
+extern cs_boundary_condition_pm_info_t  *cs_glob_bc_pm_info;
+
+/* Mapped inlet */
+/*--------------*/
+
+class cs_bc_map_t {
+
+public:
+
+  int       bc_location_id;     /* location id of boundary zone */
+  int       source_location_id; /* location id of source elements */
+  cs_real_t coord_shift[3];     /* coordinates shift relative to
+                                   selected boundary faces */
+  double tolerance;             /* search tolerance */
+
+  ple_locator_t *locator; /* associated locator */
+
+  /*--------------------------------------------------------------------------*/
+  /*
+   * \brief Update mapping.
+   */
+  /*--------------------------------------------------------------------------*/
+
+  void
+  update();
+
+};
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------
+ * Define automatic turbulence values for open boundaries.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_turb(void);
 
 /*----------------------------------------------------------------------------
  * Handling of boundary condition definition errors and associated output.
@@ -162,8 +221,6 @@ cs_boundary_conditions_map(cs_mesh_location_type_t    location_type,
  *   faces           <-- list of selected boundary faces (0 to n-1),
  *                       or NULL if no indirection is needed
  *   balance_w       <-- optional balance weight, or NULL
- *   nvar            <-- number of variables requiring BC's
- *   rcodcl          <-> boundary condition values
  *----------------------------------------------------------------------------*/
 
 void
@@ -174,9 +231,72 @@ cs_boundary_conditions_mapped_set(const cs_field_t          *f,
                                   int                        interpolate,
                                   cs_lnum_t                  n_faces,
                                   const cs_lnum_t           *faces,
-                                  cs_real_t                 *balance_w,
-                                  int                        nvar,
-                                  cs_real_t                  rcodcl[]);
+                                  cs_real_t                 *balance_w);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Add location of locate shifted boundary face coordinates on
+ *        cells or boundary faces for automatic interpolation.
+ *
+ * \note
+ * This function is currently restricted to mapping of boundary face
+ * locations (usually from boundary zones) to cell of boundary face
+ * locations, but could be extended to other location types in the future.
+ *
+ * \param[in]  bc_location_id      id of selected boundary mesh location;
+ *                                 currently restricted to subsets of
+ *                                 boundary faces (i.e. boundary zone
+ *                                 location ids).
+ * \param[in]  source_location_id  id of selected location  mesh location
+ *                                 (usually CS_MESH_LOCATION_CELLS but can be
+ *                                 a more restricted cell or boundary face zone
+ *                                 location location id).
+ * \param[in]  coord_shift      coordinates shift relative to selected
+ *                              boundary faces
+ * \param[in]  tolerance        relative tolerance for point location.
+ *
+ * \return  id of added map
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_boundary_conditions_add_map(int         bc_location_id,
+                               int         source_location_id,
+                               cs_real_t   coord_shift[3],
+                               double      tolerance);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the number of maps to mapping of boundary face
+ * locations (usually from boundary zones).
+ *
+ * \return number of map
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_boundary_conditions_get_number_of_maps();
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return maps to mapping of boundary face
+ * locations (usually from boundary zones).
+ *
+ * \return number a pointer on maps
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_bc_map_t *
+cs_boundary_conditions_get_maps();
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Create the legacy boundary conditions zone data arrays
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_create_legacy_zone_data(void);
 
 /*----------------------------------------------------------------------------
  * Create the boundary conditions face type and face zone arrays
@@ -186,7 +306,25 @@ void
 cs_boundary_conditions_create(void);
 
 /*----------------------------------------------------------------------------
- * Free the boundary conditions face type and face zone arrays
+ * Reallocate the boundary conditions face type and face zone arrays
+ *----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_realloc(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Update the legacy boundary conditions face type and face zone arrays.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_ibm_create(cs_lnum_t n_ib_cells);
+
+/*----------------------------------------------------------------------------
+ * Free the boundary conditions face type and face zone arrays.
+ *
+ * This also frees boundary condition mappings which may have been defined.
  *----------------------------------------------------------------------------*/
 
 void
@@ -194,230 +332,379 @@ cs_boundary_conditions_free(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Set Neumann BC for a scalar for a given face.
- *
- * \param[out]  a      explicit BC coefficient for gradients
- * \param[out]  af     explicit BC coefficient for diffusive flux
- * \param[out]  b      implicit BC coefficient for gradients
- * \param[out]  bf     implicit BC coefficient for diffusive flux
- * \param[in]   qimp   flux value to impose
- * \param[in]   hint   internal exchange coefficient
- */
-/*----------------------------------------------------------------------------*/
-
-inline static void
-cs_boundary_conditions_set_neumann_scalar(cs_real_t  *a,
-                                          cs_real_t  *af,
-                                          cs_real_t  *b,
-                                          cs_real_t  *bf,
-                                          cs_real_t   qimp,
-                                          cs_real_t   hint)
-{
-  /* Gradient BCs */
-  *a = -qimp/hint;
-  *b = 1.;
-
-  /* Flux BCs */
-  *af = qimp;
-  *bf = 0.;
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Set Dirichlet BC for a scalar for a given face.
- *
- * \param[out]  a      explicit BC coefficient for gradients
- * \param[out]  af     explicit BC coefficient for diffusive flux
- * \param[out]  b      implicit BC coefficient for gradients
- * \param[out]  bf     implicit BC coefficient for diffusive flux
- * \param[in]   pimp   dirichlet value to impose
- * \param[in]   hint   internal exchange coefficient
- * \param[in]   hext   external exchange coefficient
- *                     (assumed infinite/ignored if < 0)
- */
-/*----------------------------------------------------------------------------*/
-
-inline static void
-cs_boundary_conditions_set_dirichlet_scalar(cs_real_t  *a,
-                                            cs_real_t  *af,
-                                            cs_real_t  *b,
-                                            cs_real_t  *bf,
-                                            cs_real_t   pimp,
-                                            cs_real_t   hint,
-                                            cs_real_t   hext)
-{
-  if (hext < 0.) {
-
-    /* Gradient BCs */
-    *a = pimp;
-    *b = 0.;
-
-    /* Flux BCs */
-    *af = -hint*pimp;
-    *bf =  hint;
-
-  }
-  else {
-
-    /* Gradient BCs */
-    *a = hext*pimp/(hint + hext);
-    *b = hint     /(hint + hext);
-
-    /* Flux BCs */
-    cs_real_t heq = hint*hext/(hint + hext);
-    *af = -heq*pimp;
-    *bf =  heq;
-
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Set Dirichlet BC for a vector for a given face.
- *
- * \param[out]  a      explicit BC coefficient for gradients
- * \param[out]  af     explicit BC coefficient for diffusive flux
- * \param[out]  b      implicit BC coefficient for gradients
- * \param[out]  bf     implicit BC coefficient for diffusive flux
- * \param[in]   pimpv  dirichlet value to impose
- * \param[in]   hint   internal exchange coefficient
- * \param[in]   hextv  external exchange coefficient
- *                     (assumed infinite/ignored if < 0)
- */
-/*----------------------------------------------------------------------------*/
-
-inline static void
-cs_boundary_conditions_set_dirichlet_vector(cs_real_3_t    a,
-                                            cs_real_3_t    af,
-                                            cs_real_33_t   b,
-                                            cs_real_33_t   bf,
-                                            cs_real_3_t    pimpv,
-                                            cs_real_t      hint,
-                                            cs_real_3_t    hextv)
-{
-  for (int isou = 0 ; isou < 3; isou++) {
-    if (fabs(hextv[isou]) > 0.5*cs_math_infinite_r) {
-
-      /* Gradient BCs */
-      a[isou] = pimpv[isou];
-      for (int jsou = 0 ; jsou < 3 ; jsou++)
-        b[isou][jsou] = 0.;
-
-      /* Flux BCs */
-      af[isou] = -hint*pimpv[isou];
-      for (int jsou = 0; jsou < 3; jsou++) {
-        if (jsou == isou)
-          bf[isou][jsou] = hint;
-        else
-          bf[isou][jsou] = 0.;
-      }
-    } else {
-
-      cs_real_t heq = hint*hextv[isou]/(hint + hextv[isou]);
-
-      /* Gradient BCs */
-      a[isou] = hextv[isou]*pimpv[isou]/(hint + hextv[isou]);
-      for (int jsou = 0 ; jsou < 3 ; jsou++) {
-        if (jsou == isou)
-          b[isou][jsou] = hint/(hint + hextv[isou]);
-        else
-          b[isou][jsou] = 0.;
-      }
-
-      /* Flux BCs */
-      af[isou] = -heq*pimpv[isou];
-      for (int jsou = 0 ; jsou < 3 ; jsou++) {
-        if (jsou == isou)
-          bf[isou][jsou] = heq;
-        else
-          bf[isou][jsou] = 0.;
-      }
-    }
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Set convective oulet boundary condition for a scalar
- *
- * Parameters:
- * \param[out]    coefa         explicit BC coefficient for gradients
- * \param[out]    cofaf         explicit BC coefficient for diffusive flux
- * \param[out]    coefb         implicit BC coefficient for gradients
- * \param[out]    cofbf         implicit BC coefficient for diffusive flux
- * \param[in]     pimp          Flux value to impose
- * \param[in]     cfl           Local Courant number used to convect
- * \param[in]     hint          Internal exchange coefficient
+ * \brief Prepare (reset) condition coefficients for all variable fields.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_boundary_conditions_set_convective_outlet_scalar(cs_real_t *coefa ,
-                                                    cs_real_t *cofaf,
-                                                    cs_real_t *coefb,
-                                                    cs_real_t *cofbf,
-                                                    cs_real_t  pimp,
-                                                    cs_real_t  cfl,
-                                                    cs_real_t  hint);
+cs_boundary_conditions_reset(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Set Dirichlet BC for a vector for a given face with left anisotropic
- *        diffusion.
- *
- * \param[out]  a      explicit BC coefficient for gradients
- * \param[out]  af     explicit BC coefficient for diffusive flux
- * \param[out]  b      implicit BC coefficient for gradients
- * \param[out]  bf     implicit BC coefficient for diffusive flux
- * \param[in]   pimpv  dirichlet value to impose
- * \param[in]   hintt  internal exchange coefficient
- * \param[in]   hextv  external exchange coefficient
- *                     (assumed infinite/ignored if < 0)
+/*
+ * \brief Return pointer to boundary conditions BC type array.
  */
 /*----------------------------------------------------------------------------*/
 
-inline static void
-cs_boundary_conditions_set_dirichlet_vector_aniso(cs_real_3_t    a,
-                                                  cs_real_3_t    af,
-                                                  cs_real_33_t   b,
-                                                  cs_real_33_t   bf,
-                                                  cs_real_3_t    pimpv,
-                                                  cs_real_6_t    hintt,
-                                                  cs_real_3_t    hextv)
-{
-  for (int isou = 0 ; isou < 3 ; isou++) {
-    if (fabs(hextv[isou]) > 0.5*cs_math_infinite_r) {
+int *
+cs_boundary_conditions_get_bc_type(void);
 
-      /* Gradient BCs */
-      a[isou] = pimpv[isou];
-      for (int jsou = 0 ; jsou < 3 ; jsou++)
-        b[isou][jsou] = 0.;
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Update per variable boundary condition codes.
+ *
+ * \param[in]  bc_type  type of boundary for each face
+ */
+/*----------------------------------------------------------------------------*/
 
-    } else {
+void
+cs_boundary_conditions_compute(int  bc_type[]);
 
-      cs_exit(1);
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Automatic adjustments for boundary condition codes.
+ *
+ * Currently handles mapped inlets, after the call to \ref stdtcl.
+ * As portions of stdtcl are migrated to C, they should be called here,
+ * before mapped inlets.
+ *
+ * \param[in]  bc_type  type of boundary for each face
+ */
+/*----------------------------------------------------------------------------*/
 
-    }
-  }
+void
+cs_boundary_conditions_complete(int  bc_type[]);
 
-  /* Flux BCs */
-  cs_math_sym_33_3_product(hintt, pimpv, af);
-  for (int isou = 0 ; isou < 3 ; isou++)
-    af[isou] = -af[isou];
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return pointer to model inlet structure associated with a given
+ *        open (inlet/outlet) boundary.
+ *
+ * The returned pointer is of type void * as it should be cast to the
+ * appropriate (model-dependent) type.
 
-  bf[0][0] = hintt[0];
-  bf[1][1] = hintt[1];
-  bf[2][2] = hintt[2];
-  bf[0][1] = hintt[3];
-  bf[1][0] = hintt[3];
-  bf[1][2] = hintt[4];
-  bf[2][1] = hintt[4];
-  bf[0][2] = hintt[5];
-  bf[2][0] = hintt[5];
-}
+ * If no matching parent open boundary has been created yet, it is created.
+ *
+ * \param[in]  zone  pointer to associated zone
+ *
+ * \return: pointer to structure associated with zone
+ */
+/*----------------------------------------------------------------------------*/
+
+void *
+cs_boundary_conditions_get_model_inlet(const cs_zone_t  *zone);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return pointer to model inlet structure associated with a given
+ *        boundary zone, if associated, or null otherwise.
+ *
+ * The returned pointer is of type void * as it should be cast to the
+ * appropriate (model-dependent) type.
+
+ * If the zone is not and inlet or no matching parent open boundary has
+ * been created yet, it is created, null is returned.
+ *
+ * \param[in]  zone  pointer to associated zone
+ *
+ * \return: pointer to structure associated with zone, or null
+ */
+/*----------------------------------------------------------------------------*/
+
+void *
+cs_boundary_conditions_get_model_inlet_try(const cs_zone_t  *zone);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return legacy zone number related to a given zone, if available.
+ *
+ * \param[in]  z  pointer to associated zone
+ *
+ * \return  number associated with legacy zone, or 0 if unavailable.
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_boundary_conditions_get_legacy_zone_num(const  cs_zone_t  *z);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return pointer to boundary head losses array.
+ *
+ * The array is allocated if not previously available.
+ *
+ * \param[in]  alloc_if_null   do we need to allocate this if not present ?
+
+ * \return  b_head_loss  pointer to boundary head losses array, or NULL
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t *
+cs_boundary_conditions_get_b_head_loss(bool  alloc_if_null);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign pointer to model inlet structure associated with a given
+ *        open (inlet/outlet) boundary.
+ *
+ * The returned pointer is of type void * as it should be cast to the
+ * appropriate (model-dependent) type.
+
+ * If no matching parent open boundary has been created yet, it is created.
+ *
+ * \param[in]  zone   pointer to associated zone
+ * \param[in]  s_ptr  pointer to associated structure
+ * \param[in]  s_del  destructor for associated structure, or NULL
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_assign_model_inlet(const cs_zone_t  *zone,
+                                          void             *s_ptr,
+                                          void             *s_del);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Acess the time control structure of an inlet.
+ *
+ * This allows modifying that structure, for example updating the inlet
+ * velocity values only in a certain time range, and avoiding
+ * uneeded recomputations outside that range.
+ *
+ * \param[in]  zone  pointer to associated zone
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_time_control_t *
+cs_boundary_conditions_open_get_time_control(const  cs_zone_t  *zone);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a constant velocity to an open (inlet/outlet) boundary.
+ *
+ * This function may also be used to define the flow direction if called
+ * before one of the \c cs_boundary_conditions_open_set_mass_flow_rate
+ * or \c cs_boundary_conditions_open_set_volume_flow_rate functions.
+ *
+ * \param[in]  z  pointer to associated zone
+ * \param[in]  u  associated velocity value
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_velocity_by_value(const cs_zone_t  *z,
+                                                  const cs_real_t   u[3]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a constant velocity normal to an inlet.
+ *
+ * \param[in]  z       pointer to associated zone
+ * \param[in]  u_norm  associated constant normal
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_velocity_by_normal_value(const  cs_zone_t  *z,
+                                                         cs_real_t     u_norm);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Assign a normal velocity to an inlet using a provided function.
+ *
+ * Reminder: if the input pointer is non-null, it must point to valid data
+ * when the selection function is called, so either:
+ * - that value or structure should not be temporary (i.e. local);
+ * - when a single integer identifier is needed, the input pointer can be
+ *   set to that value instead of an actual address;
+ *
+ * \param[in]  z      pointer to associated zone
+ * \param[in]  func   associated velocity vector evaluation function
+ *                    at zone faces
+ * \param[in]  input  optional function evaluation input, or NULL
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_velocity_by_func(const  cs_zone_t       *z,
+                                                 cs_eval_at_location_t  *func,
+                                                 void                   *input);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return the volume flow rate to an inlet or outlet.
+ *
+ * The flow direction may be specified by also calling
+ * \ref cs_boundary_conditions_open_set_velocity_by_value,
+ * or \ref cs_boundary_conditions_open_set_velocity_by_func.
+ * In that case, the velocity vector is rescaled so as to obtain the required
+ * volume flow rate.
+ *
+ * \param[in]  z  pointer to associated zone
+ *
+ * \return  volume flow rate associated with open boundary
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t
+cs_boundary_conditions_open_get_mass_flow_rate(const  cs_zone_t  *z);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a constant mass flow rate to an inlet or outlet.
+ *
+ * By default, the flow direction is considered normal to the boundary.
+ * The flow direction may be specified by calling
+ * \ref cs_boundary_conditions_open_set_velocity_by_value,
+ * or \ref cs_boundary_conditions_open_set_velocity_by_func
+ * for the appropriate zone before calling this function.
+ * In that case, the velocity vector is rescaled so as to obtain the required
+ * mass flow rate.
+ *
+ * \param[in]  z  pointer to associated zone
+ * \param[in]  q  associated constant mass flow rate
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_mass_flow_rate_by_value(const  cs_zone_t  *z,
+                                                        cs_real_t          q);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a mass flow rate to an inlet or outlet  based on
+ *        provided function.
+ *
+ * The flow direction may be specified by also calling
+ * \ref cs_boundary_conditions_open_set_velocity_by_value,
+ * \ref cs_boundary_conditions_open_set_velocity_by_normal_value,
+ * or \ref cs_boundary_conditions_open_set_velocity_by_func.
+ * In that case, the velocity vector is rescaled so as to obtain the required
+ * mass flow rate.
+ *
+ * Since the flow rate is a global value, the provided function should
+ * be associated with the CS_MESH_LOCATION_NONE location.
+ *
+ * Note also that during updates, this function will be called before
+ * the velocity vector update, so in complex cases where flow rate computation
+ * would require feedback from the velocity at this boundary, the user
+ * must be aware that values from the previous time step or update will
+ * be used, handle this in another manner.
+ *
+ * Reminder: if the input pointer is non-null, it must point to valid data
+ * when the selection function is called, so either:
+ * - that value or structure should not be temporary (i.e. local);
+ * - when a single integer identifier is needed, the input pointer can be
+ *   set to that value instead of an actual address;
+ *
+ * \param[in]  z      pointer to associated zone
+ * \param[in]  func   associated scalar (mass flow rate) evaluation function
+ * \param[in]  input  optional function evaluation input, or NULL
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_mass_flow_rate_by_func
+  (const  cs_zone_t       *z,
+   cs_eval_at_location_t  *func,
+   void                   *input);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a constant volume flow rate to an inlet or outlet.
+ *
+ * The flow direction may be specified by also calling
+ * \ref cs_boundary_conditions_open_set_velocity_by_value,
+ * or \ref cs_boundary_conditions_open_set_velocity_by_func.
+ * In that case, the velocity vector is rescaled so as to obtain the required
+ * volume flow rate.
+ *
+ * \param[in]  z  pointer to associated zone
+ * \param[in]  q  associated constant volume flow rate
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_volume_flow_rate_by_value(const  cs_zone_t  *z,
+                                                          cs_real_t          q);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Assign a volume flow rate to an inlet or outlet based on
+ *        provided function.
+ *
+ * The flow direction may be specified by also calling
+ * \ref cs_boundary_conditions_open_set_velocity_by_value,
+ * \ref cs_boundary_conditions_open_set_velocity_by_normal_value,
+ * or \ref cs_boundary_conditions_open_set_velocity_by_func.
+ * In that case, the velocity vector is rescaled so as to obtain the required
+ * volume flow rate.
+ *
+ * Since the flow rate is a global value, the provided function should
+ * be associated with the CS_MESH_LOCATION_NONE location.
+ *
+ * Note also that during updates, this function will be called before
+ * the velocity vector update, so in complex cases where flow rate computation
+ * would require feedback from the velocity at this boundary, the user
+ * must be aware that values from the previous time step or update will
+ * be used, handle this in another manner.
+ *
+ * Reminder: if the input pointer is non-null, it must point to valid data
+ * when the selection function is called, so either:
+ * - that value or structure should not be temporary (i.e. local);
+ * - when a single integer identifier is needed, the input pointer can be
+ *   set to that value instead of an actual address;
+ *
+ * \param[in]  z      pointer to associated zone
+ * \param[in]  func   associated scalar (volume flow rate) evaluation function
+ * \param[in]  input  optional function evaluation input, or NULL
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_open_set_volume_flow_rate_by_func
+  (const  cs_zone_t       *z,
+   cs_eval_at_location_t  *func,
+   void                   *input);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Base the inlet turbulence values on a a circular duct with smooth
+ *        wall (see ref cs_turbulence_bc_ke_hyd_diam).
+ *
+ * \param[in]  zone  pointer to associated zone
+ * \param[in]  hd    associated hydraulic diameter
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_inlet_set_turbulence_hyd_diam(const  cs_zone_t  *zone,
+                                                     cs_real_t          hd);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Base the inlet turbulence values on a a circular duct with smooth
+ *        wall (see ref cs_turbulence_bc_ke_hyd_diam).
+ *
+ * \param[in]  zone  pointer to associated zone
+ * \param[in]  ti    associated turbulence intensity
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_boundary_conditions_inlet_set_turbulence_intensity(const  cs_zone_t  *zone,
+                                                      cs_real_t          ti);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get address of global boundary conditions type array.
+ *
+ * \return  address of  boundary conditions type array
+ */
+/*----------------------------------------------------------------------------*/
+
+int **
+cs_boundary_conditions_get_bc_type_addr(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BOUNDARY_CONDITIONS_H__ */
+#endif /* CS_BOUNDARY_CONDITIONS_H */

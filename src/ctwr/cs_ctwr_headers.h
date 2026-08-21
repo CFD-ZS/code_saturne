@@ -1,14 +1,14 @@
-#ifndef __CS_CTWR_HEADERS_H__
-#define __CS_CTWR_HEADERS_H__
+#ifndef CS_CTWR_HEADERS_H
+#define CS_CTWR_HEADERS_H
 
 /*============================================================================
- * Global Code_Saturne headers file for easier include
+ * Global code_saturne headers file for easier include
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,9 +29,14 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_ctwr.h"
-#include "cs_air_props.h"
+#include "ctwr/cs_ctwr.h"
+#include "ctwr/cs_ctwr_boundary_conditions.h"
+#include "ctwr/cs_ctwr_variables.h"
+#include "ctwr/cs_ctwr_initialize.h"
+#include "ctwr/cs_ctwr_source_terms.h"
+#include "ctwr/cs_ctwr_physical_properties.h"
+#include "atmo/cs_air_props.h"
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __CS_CTWR_HEADERS_H__ */
+#endif /* CS_CTWR_HEADERS_H */

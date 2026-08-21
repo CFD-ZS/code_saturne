@@ -6,7 +6,7 @@
   This file is part of the "Parallel Location and Exchange" library,
   intended to provide mesh or particle-based code coupling services.
 
-  Copyright (C) 2005-2020  EDF S.A.
+  Copyright (C) 2005-2025  EDF S.A.
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -43,11 +43,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if (__STDC_VERSION__ <202311L)
+# include <stdbool.h>
+#endif
+
 #if defined(PLE_HAVE_MPI)
 #include <mpi.h>
-#if !defined(MPI_VERSION) /* Defined in up-to-date MPI versions */
-#  define MPI_VERSION 1
-#endif
 #endif
 
 /*----------------------------------------------------------------------------
@@ -123,6 +124,7 @@ struct _ple_locator_t {
 
   int       locate_algorithm;    /* Location algorithm id */
   int       exchange_algorithm;  /* Exchange algorithm id */
+  int       async_threshold;     /* Threshold for asynchronous exchange */
 
 #if defined(PLE_HAVE_MPI)
   MPI_Comm  comm;                /* Associated MPI communicator */
@@ -161,10 +163,10 @@ struct _ple_locator_t {
 
   /* Timing information (2 fields/time; 0: total; 1: communication) */
 
-  double  location_wtime[4];       /* Location Wall-clock time */
-  double  location_cpu_time[4];    /* Location CPU time */
-  double  exchange_wtime[4];       /* Variable exchange Wall-clock time */
-  double  exchange_cpu_time[4];    /* Variable exchange CPU time */
+  double  location_wtime[2];       /* Location Wall-clock time */
+  double  location_cpu_time[2];    /* Location CPU time */
+  double  exchange_wtime[2];       /* Variable exchange Wall-clock time */
+  double  exchange_cpu_time[2];    /* Variable exchange CPU time */
 };
 
 /*============================================================================
@@ -262,12 +264,16 @@ typedef int
  * Static global variables
  *============================================================================*/
 
-#if defined(PLE_HAVE_MPI)
+/* Default location algorithm */
+
+static int _ple_locator_location_algorithm = _LOCATE_BB_SENDRECV_ORDERED;
 
 /* maximum number of exchanging ranks for which we use asynchronous
    MPI sends and receives instead of MPI_SendRecv */
 
 static int _ple_locator_async_threshold = 128;
+
+#if defined(PLE_HAVE_MPI)
 
 /* global logging function */
 
@@ -285,6 +291,39 @@ static int  _ple_locator_log_end_g_comm = 0;
 /*============================================================================
  * Private function definitions
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set options for a given locator.
+ *
+ * \param[in]  this_locator  pointer to locator structure
+ * \param[in]  key           option name
+ * \param[in]  value         associated value
+ */
+/*----------------------------------------------------------------------------*/
+
+static void
+_parse_locator_option(const char   *key,
+                      const char   *value,
+                      int          *location_algorithm,
+                      int          *async_threshold)
+{
+  if (key == NULL || value == NULL)
+    return;
+
+  if (strncmp(key, "location_algorithm", 64) == 0) {
+    if (strncmp(value, "bounding_box_sendreceive", 64) == 0)
+      *location_algorithm = _LOCATE_BB_SENDRECV;
+    else if (strncmp(value, "bounding_box_sendreceive_ordered", 64) == 0)
+      *location_algorithm = _LOCATE_BB_SENDRECV_ORDERED;
+  }
+
+  else if (strncmp(key, "exchange_async_threshold", 64) == 0) {
+    int i_value = 0;
+    if (sscanf(value, "%d", &i_value) == 1)
+      *async_threshold = i_value;
+  }
+}
 
 #if defined(PLE_HAVE_MPI)
 
@@ -510,13 +549,13 @@ _order_comm_ranks(int        rank_id,
  *   true if extents intersect, false otherwise
  *----------------------------------------------------------------------------*/
 
-inline static _Bool
+inline static bool
 _intersect_extents(int           dim,
                    const double  extents_1[],
                    const double  extents_2[])
 {
   int i;
-  _Bool retval = true;
+  bool retval = true;
 
   for (i = 0; i < dim; i++) {
     if (   (extents_1[i] > extents_2[i + dim])
@@ -543,13 +582,13 @@ _intersect_extents(int           dim,
  *   true if point lies within extents, false otherwise
  *----------------------------------------------------------------------------*/
 
-inline static _Bool
+inline static bool
 _within_extents(int                dim,
                 const ple_coord_t  coords[],
                 const double       extents[])
 {
   int i;
-  _Bool retval = true;
+  bool retval = true;
 
   for (i = 0; i < dim; i++) {
     if (   (coords[i] < extents[i])
@@ -602,8 +641,6 @@ _point_extents(int                  dim,
     if (point_list != NULL) {
 
       for (j = 0; j < n_points; j++) {
-        if (location[j] >= 0)
-          continue;
         coord_idx = point_list[j] - point_list_base;
         for (i = 0; i < dim; i++) {
           if (extents[i]       > point_coords[(coord_idx * dim) + i])
@@ -617,8 +654,6 @@ _point_extents(int                  dim,
     else {
 
       for (coord_idx = 0; coord_idx < n_points; coord_idx++) {
-        if (location[coord_idx] >= 0)
-          continue;
         for (i = 0; i < dim; i++) {
           if (extents[i]       > point_coords[(coord_idx * dim) + i])
             extents[i]       = point_coords[(coord_idx * dim) + i];
@@ -793,7 +828,7 @@ _location_ranks(ple_locator_t  *this_locator,
   _locator_trace_start_comm(_ple_locator_log_start_g_comm, comm_timing);
 
   loc_vals[0] = this_locator->n_intersects;
-  loc_vals[1] = _ple_locator_async_threshold;
+  loc_vals[1] = this_locator->async_threshold;
 
   MPI_Allreduce(loc_vals, max_vals, 2, MPI_INT, MPI_MAX,
                 this_locator->comm);
@@ -1096,7 +1131,7 @@ _locate_distant(ple_locator_t               *this_locator,
                 float                        tolerance_fraction,
                 ple_lnum_t                   n_points,
                 const ple_lnum_t             point_list[],
-                const ple_lnum_t             point_tag[],
+                const int                    point_tag[],
                 const ple_coord_t            point_coords[],
                 ple_lnum_t                   location[],
                 ple_lnum_t                   location_rank_id[],
@@ -1109,7 +1144,7 @@ _locate_distant(ple_locator_t               *this_locator,
   ple_lnum_t j;
   ple_lnum_t n_coords_loc, n_coords_dist;
   ple_lnum_t *location_loc, *location_dist;
-  ple_lnum_t *tag_dist, *send_tag;
+  int *tag_dist, *send_tag;
   ple_coord_t *coords_dist, *send_coords;
   float *distance_dist, *distance_loc;
 
@@ -1183,7 +1218,7 @@ _locate_distant(ple_locator_t               *this_locator,
   PLE_MALLOC(send_id, _n_points, ple_lnum_t);
 
   if (have_tags)
-    PLE_MALLOC(send_tag, _n_points, ple_lnum_t);
+    PLE_MALLOC(send_tag, _n_points, int);
   else
     send_tag = NULL;
 
@@ -1264,7 +1299,7 @@ _locate_distant(ple_locator_t               *this_locator,
 
     PLE_MALLOC(coords_dist, n_coords_dist*dim, ple_coord_t);
     if (have_tags)
-      PLE_MALLOC(tag_dist, n_coords_dist, ple_lnum_t);
+      PLE_MALLOC(tag_dist, n_coords_dist, int);
     else
       tag_dist = NULL;
 
@@ -1278,9 +1313,9 @@ _locate_distant(ple_locator_t               *this_locator,
 
     if (have_tags)
       MPI_Sendrecv(send_tag, (int)(n_coords_loc),
-                   PLE_MPI_LNUM, dist_rank, PLE_MPI_TAG,
+                   MPI_INT, dist_rank, PLE_MPI_TAG,
                    tag_dist, (int)(n_coords_dist),
-                   PLE_MPI_LNUM, dist_rank, PLE_MPI_TAG,
+                   MPI_INT, dist_rank, PLE_MPI_TAG,
                    this_locator->comm, &status);
 
     _locator_trace_end_comm(_ple_locator_log_end_p_comm, comm_timing);
@@ -1372,8 +1407,6 @@ _locate_distant(ple_locator_t               *this_locator,
 
   this_locator->location_wtime[1] += comm_timing[0];
   this_locator->location_cpu_time[1] += comm_timing[1];
-  this_locator->location_wtime[3] += comm_timing[0];
-  this_locator->location_cpu_time[3] += comm_timing[1];
 }
 
 /*----------------------------------------------------------------------------
@@ -1408,7 +1441,7 @@ _locate_all_distant(ple_locator_t               *this_locator,
                     float                        tolerance_fraction,
                     ple_lnum_t                   n_points,
                     const ple_lnum_t             point_list[],
-                    const ple_lnum_t             point_tag[],
+                    const int                    point_tag[],
                     const ple_coord_t            point_coords[],
                     ple_lnum_t                   location[],
                     ple_lnum_t                   location_rank_id[],
@@ -1817,8 +1850,10 @@ _intersects_local(ple_locator_t       *this_locator,
 
   /* Copy only element (and not point) extents */
 
-  for (j = 0; j < stride2; j++)
-    intersects.extents[j] = extents[j];
+  if (intersects.n > 0) {
+    for (j = 0; j < stride2; j++)
+      intersects.extents[j] = extents[j];
+  }
 
   return intersects;
 }
@@ -1852,7 +1887,7 @@ _locate_all_local(ple_locator_t               *this_locator,
                   float                        tolerance_fraction,
                   ple_lnum_t                   n_points,
                   const ple_lnum_t             point_list[],
-                  const ple_lnum_t             point_tag[],
+                  const int                    point_tag[],
                   const ple_coord_t            point_coords[],
                   ple_lnum_t                   location[],
                   float                        distance[],
@@ -1891,14 +1926,15 @@ _locate_all_local(ple_locator_t               *this_locator,
     ple_lnum_t *_location = location;
     float *_distance = distance;
 
-    ple_lnum_t *id, *tag;
+    ple_lnum_t *id;
+    int *tag;
     ple_coord_t *coords;
 
     PLE_MALLOC(coords, n_points * dim, ple_coord_t);
     PLE_MALLOC(id, n_points, ple_lnum_t);
 
     if (have_tags)
-      PLE_MALLOC(tag, n_points, ple_lnum_t);
+      PLE_MALLOC(tag, n_points, int);
     else
       tag = NULL;
 
@@ -1937,7 +1973,7 @@ _locate_all_local(ple_locator_t               *this_locator,
     PLE_REALLOC(coords, n_coords * dim, ple_coord_t);
     PLE_REALLOC(id, n_coords, ple_lnum_t);
     if (have_tags)
-      PLE_REALLOC(tag, n_coords, ple_lnum_t);
+      PLE_REALLOC(tag, n_coords, int);
 
     if (n_coords < n_points) {
       PLE_MALLOC(_location, n_coords, ple_lnum_t);
@@ -1972,7 +2008,7 @@ _locate_all_local(ple_locator_t               *this_locator,
         if (_location[j] > -1) {
           k = id[j];
           if (distance != NULL) {
-            if (distance[k] <= _distance[j])
+            if (distance[k] > -1.0 && distance[k] <= _distance[j])
               continue;
             else
               distance[k] = _distance[j];
@@ -2082,6 +2118,7 @@ _locate_all_local(ple_locator_t               *this_locator,
  *   reverse       <-- if true, exchange is reversed
  *                     (receive values associated with distant points
  *                     from the processes owning the original points)
+ *   interior      <-- if true, local_var is restricted to located points
  *----------------------------------------------------------------------------*/
 
 static void
@@ -2091,7 +2128,8 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
                             const ple_lnum_t  *local_list,
                             MPI_Datatype       datatype,
                             size_t             stride,
-                            _Bool              reverse)
+                            bool               reverse,
+                            bool               interior)
 {
   int dist_v_count, loc_v_count, size;
   int dist_rank;
@@ -2108,11 +2146,7 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
 
   /* Check extent of datatype */
 
-#if (MPI_VERSION >= 2)
   MPI_Type_get_extent(datatype, &lb, &extent);
-#else
-  MPI_Type_extent(datatype, &extent);
-#endif
   MPI_Type_size(datatype, &size);
 
   if (extent != size)
@@ -2133,6 +2167,8 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
   }
 
   PLE_MALLOC(loc_v_buf, n_points_loc_max*size*stride, char);
+
+  const ple_lnum_t *il = this_locator->interior_list;
 
   /* Loop on MPI ranks */
   /*-------------------*/
@@ -2200,27 +2236,48 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
 
       if (loc_v_flag > 0) {
         if (local_list == NULL) {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
-          for (k = 0; k < n_points_loc; k++) {
-            char *local_v_p = (char *)local_var + _local_point_ids[k]*nbytes;
-            const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              local_v_p[l] = loc_v_buf_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (int k = 0; k < n_points_loc; k++) {
+              char *local_v_p = (char *)local_var + _local_point_ids[k]*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
+          }
+          else {
+            for (int k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                + il[_local_point_ids[k]]*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
           }
         }
         else {
-          int k;
-          size_t l;
-          const size_t nbytes = stride*size;
-          const ple_lnum_t idb = this_locator->point_id_base;
-          for (k = 0; k < n_points_loc; k++) {
-            char *local_v_p =   (char *)local_var
-                              + (local_list[_local_point_ids[k]] - idb)*nbytes;
-            const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              local_v_p[l] = loc_v_buf_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            const size_t nbytes = stride*size;
+            const ple_lnum_t idb = this_locator->point_id_base;
+            for (int k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                + (local_list[_local_point_ids[k]] - idb)*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
+          }
+          else {
+            const size_t nbytes = stride*size;
+            const ple_lnum_t idb = this_locator->point_id_base;
+            for (int k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                +  (local_list[il[_local_point_ids[k]]] - idb)
+                                  *nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
           }
         }
       }
@@ -2230,29 +2287,49 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
 
       if (loc_v_flag > 0) {
         if (local_list == NULL) {
-          int k;
-          size_t l;
-          const size_t nbytes = stride*size;
-          for (k = 0; k < n_points_loc; k++) {
-            const char *local_v_p
-              = (const char *)local_var + _local_point_ids[k]*nbytes;
-            char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              loc_v_buf_p[l] = local_v_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            const size_t nbytes = stride*size;
+            for (int k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var + _local_point_ids[k]*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
+          }
+          else {
+            const size_t nbytes = stride*size;
+            for (int k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var + il[_local_point_ids[k]]*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
           }
         }
         else {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
           const ple_lnum_t idb = this_locator->point_id_base;
-          for (k = 0; k < n_points_loc; k++) {
-            const char *local_v_p
-              = (const char *)local_var
-                + (local_list[_local_point_ids[k]] - idb)*nbytes;
-            char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              loc_v_buf_p[l] = local_v_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (int k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var
+                  + (local_list[_local_point_ids[k]] - idb)*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
+          }
+          else {
+            for (int k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var
+                  + (local_list[il[_local_point_ids[k]]] - idb)*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_buf + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
           }
         }
       }
@@ -2294,6 +2371,7 @@ _exchange_point_var_distant(ple_locator_t     *this_locator,
  *   reverse       <-- if true, exchange is reversed
  *                     (receive values associated with distant points
  *                     from the processes owning the original points)
+ *   interior      <-- if true, local_var is restricted to located points
  *----------------------------------------------------------------------------*/
 
 static void
@@ -2303,9 +2381,10 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
                                  const ple_lnum_t  *local_list,
                                  MPI_Datatype       datatype,
                                  size_t             stride,
-                                 _Bool              reverse)
+                                 bool               reverse,
+                                 bool               interior)
 {
-  int i, dist_v_count, loc_v_count, size;
+  int dist_v_count, loc_v_count, size;
   int dist_rank;
   ple_lnum_t n_points_loc, n_points_loc_tot, n_points_dist;
   size_t dist_v_idx;
@@ -2321,11 +2400,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
   /* Check extent of datatype */
 
-#if (MPI_VERSION >= 2)
   MPI_Type_get_extent(datatype, &lb, &extent);
-#else
-  MPI_Type_extent(datatype, &extent);
-#endif
   MPI_Type_size(datatype, &size);
 
   if (extent != size)
@@ -2346,12 +2421,14 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
   PLE_MALLOC(loc_v_buf, n_points_loc_tot*size*stride, char);
 
+  const ple_lnum_t *il = this_locator->interior_list;
+
   /* First loop on distant ranks for argument checks */
   /*-------------------------------------------------*/
 
   _locator_trace_start_comm(_ple_locator_log_start_p_comm, comm_timing);
 
-  for (i = 0; i < this_locator->n_intersects; i++) {
+  for (int i = 0; i < this_locator->n_intersects; i++) {
 
     dist_rank = this_locator->intersect_rank[i];
 
@@ -2377,7 +2454,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
   PLE_FREE(dist_v_flag);
 
-  for (i = 0; i < this_locator->n_intersects; i++) {
+  for (int i = 0; i < this_locator->n_intersects; i++) {
 
     dist_rank = this_locator->intersect_rank[i];
 
@@ -2401,7 +2478,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
     loc_v_ptr = loc_v_buf;
 
-    for (i = 0; i < this_locator->n_intersects; i++) {
+    for (int i = 0; i < this_locator->n_intersects; i++) {
 
       dist_rank = this_locator->intersect_rank[i];
 
@@ -2448,7 +2525,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
   loc_v_ptr = loc_v_buf;
 
-  for (i = 0; i < this_locator->n_intersects; i++) {
+  for (int i = 0; i < this_locator->n_intersects; i++) {
 
     const ple_lnum_t *_local_point_ids
       = this_locator->local_point_ids + this_locator->local_points_idx[i];
@@ -2492,27 +2569,46 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
       if (loc_v_flag[i] > 0) {
         if (local_list == NULL) {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
-          for (k = 0; k < n_points_loc; k++) {
-            char *local_v_p = (char *)local_var + _local_point_ids[k]*nbytes;
-            const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              local_v_p[l] = loc_v_buf_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              char *local_v_p = (char *)local_var + _local_point_ids[k]*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
+          }
+          else {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                + il[_local_point_ids[k]]*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
           }
         }
         else {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
           const ple_lnum_t idb = this_locator->point_id_base;
-          for (k = 0; k < n_points_loc; k++) {
-            char *local_v_p =   (char *)local_var
-                              + (local_list[_local_point_ids[k]] - idb)*nbytes;
-            const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              local_v_p[l] = loc_v_buf_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                + (local_list[_local_point_ids[k]] - idb)*nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
+          }
+          else {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              char *local_v_p =   (char *)local_var
+                                +  (local_list[il[_local_point_ids[k]]] - idb)
+                                  *nbytes;
+              const char *loc_v_buf_p = (const char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                local_v_p[l] = loc_v_buf_p[l];
+            }
           }
         }
       }
@@ -2522,29 +2618,48 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
       if (loc_v_flag[i] > 0) {
         if (local_list == NULL) {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
-          for (k = 0; k < n_points_loc; k++) {
-            const char *local_v_p
-              = (const char *)local_var + _local_point_ids[k]*nbytes;
-            char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              loc_v_buf_p[l] = local_v_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var + _local_point_ids[k]*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
+          }
+          else {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var + il[_local_point_ids[k]]*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
           }
         }
         else {
-          int k;
-          size_t l;
           const size_t nbytes = stride*size;
           const ple_lnum_t idb = this_locator->point_id_base;
-          for (k = 0; k < n_points_loc; k++) {
-            const char *local_v_p
-              = (const char *)local_var
-                + (local_list[_local_point_ids[k]] - idb)*nbytes;
-            char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
-            for (l = 0; l < nbytes; l++)
-              loc_v_buf_p[l] = local_v_p[l];
+          if (this_locator->n_exterior == 0 || interior) {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var
+                  + (local_list[_local_point_ids[k]] - idb)*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
+          }
+          else {
+            for (ple_lnum_t k = 0; k < n_points_loc; k++) {
+              const char *local_v_p
+                = (const char *)local_var
+                  + (local_list[il[_local_point_ids[k]]] - idb)*nbytes;
+              char *loc_v_buf_p = (char *)loc_v_ptr + k*nbytes;
+              for (size_t l = 0; l < nbytes; l++)
+                loc_v_buf_p[l] = local_v_p[l];
+            }
           }
         }
       }
@@ -2564,7 +2679,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
     loc_v_ptr = loc_v_buf;
 
-    for (i = 0; i < this_locator->n_intersects; i++) {
+    for (int i = 0; i < this_locator->n_intersects; i++) {
 
       dist_rank = this_locator->intersect_rank[i];
 
@@ -2595,7 +2710,7 @@ _exchange_point_var_distant_asyn(ple_locator_t     *this_locator,
 
       MPI_Irecv(dist_v_ptr, dist_v_count, datatype, dist_rank, PLE_MPI_TAG,
                 this_locator->comm, &request[i*2]);
-      MPI_Isend(loc_v_buf, loc_v_count, datatype, dist_rank, PLE_MPI_TAG,
+      MPI_Isend(loc_v_ptr, loc_v_count, datatype, dist_rank, PLE_MPI_TAG,
                 this_locator->comm, &request[i*2+1]);
 
       loc_v_ptr += loc_v_count*size;
@@ -2647,7 +2762,7 @@ _exchange_point_var_local(ple_locator_t     *this_locator,
                           const ple_lnum_t  *local_list,
                           size_t             type_size,
                           size_t             stride,
-                          _Bool              reverse)
+                          bool               reverse)
 {
   ple_lnum_t i;
   size_t j;
@@ -2704,6 +2819,228 @@ _exchange_point_var_local(ple_locator_t     *this_locator,
 }
 
 /*----------------------------------------------------------------------------
+ * Distribute variable defined on "distant points" to the original ("local")
+ * points.
+ *
+ * The exchange is symmetric if both variables are defined, receive
+ * only if distant_var is NULL, or send only if local_var is NULL.
+ *
+ * parameters:
+ *   this_locator  <-- pointer to locator structure
+ *   distant_var   <-> variable defined on distant points (ready to send)
+ *   local_var     <-> variable defined on local points (received)
+ *   local_list    <-- optional indirection list for local_var
+ *   type_size     <-- sizeof (float or double) variable type
+ *   stride        <-- dimension (1 for scalar, 3 for interlaced vector)
+ *   reverse       <-- if true, exchange is reversed
+ *                     (receive values associated with distant points
+ *                     from the processes owning the original points)
+ *----------------------------------------------------------------------------*/
+
+static void
+_exchange_point_var_local_incomplete(ple_locator_t     *this_locator,
+                                     void              *distant_var,
+                                     void              *local_var,
+                                     const ple_lnum_t  *local_list,
+                                     size_t             type_size,
+                                     size_t             stride,
+                                     bool               reverse)
+{
+  const size_t nbytes = stride*type_size;
+
+  const ple_lnum_t *il = this_locator->interior_list;
+
+  /* Initialization */
+
+  if (this_locator->n_interior == 0)
+    return;
+
+  ple_lnum_t n_points_loc =   this_locator->local_points_idx[1]
+                            - this_locator->local_points_idx[0];
+
+  assert(n_points_loc == (  this_locator->distant_points_idx[1]
+                          - this_locator->distant_points_idx[0]));
+
+  /* Exchange information */
+
+  if (reverse == false) {
+
+    if (local_list == NULL) {
+      for (ple_lnum_t i = 0; i < n_points_loc; i++) {
+        char *local_var_p = (char *)local_var + il[i]*nbytes;
+        const char *distant_var_p = (const char *)distant_var + i*nbytes;
+        for (size_t j = 0; j < nbytes; j++)
+          local_var_p[j] = distant_var_p[j];
+      }
+    }
+    else {
+      const ple_lnum_t idb = this_locator->point_id_base;
+      for (ple_lnum_t i = 0; i < n_points_loc; i++) {
+        char *local_var_p = (char *)local_var + (local_list[il[i]] - idb)*nbytes;
+        const char *distant_var_p = (const char *)distant_var + i*nbytes;
+        for (size_t j = 0; j < nbytes; j++)
+          local_var_p[j] = distant_var_p[j];
+      }
+    }
+
+  }
+  else { /* if (reverse == true) */
+
+    if (local_list == NULL)
+      for (ple_lnum_t i = 0; i < n_points_loc; i++) {
+        const char *local_var_p = (const char *)local_var + il[i]*nbytes;
+        char *distant_var_p = (char *)distant_var + i*nbytes;
+        for (size_t j = 0; j < nbytes; j++)
+          distant_var_p[j] = local_var_p[j];
+      }
+
+    else {
+      const ple_lnum_t idb = this_locator->point_id_base;
+      for (ple_lnum_t i = 0; i < n_points_loc; i++) {
+        const char *local_var_p
+          = (const char *)local_var + (local_list[il[i]] - idb)*nbytes;
+        char *distant_var_p = (char *)distant_var + i*nbytes;
+        for (size_t j = 0; j < nbytes; j++)
+          distant_var_p[j] = local_var_p[j];
+      }
+    }
+
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Distribute variable defined on distant points to processes owning
+ * the original points (i.e. distant processes).
+ *
+ * The exchange is symmetric if both variables are defined, receive
+ * only if distant_var is NULL, or send only if local_var is NULL.
+ *
+ * The caller should have defined the values of distant_var[] for the
+ * distant points, whose coordinates are given by
+ * ple_locator_get_dist_coords(), and which are located in the elements
+ * whose numbers are given by ple_locator_get_dist_locations().
+ *
+ * The local_var[] is defined at local points, restricted to located points
+ * (those whose numbers are returned by ple_locator_get_interior_list())
+ * if interior is set to 1.
+ *
+ * If the optional local_list indirection is used, it is assumed to use
+ * the same base numbering as that defined by the options for the previous
+ * call to ple_locator_set_mesh() or ple_locator_extend_search().
+ *
+ * \param[in]      this_locator pointer to locator structure
+ * \param[in, out] distant_var  variable defined on distant points
+ *                              (ready to send); size: n_dist_points*stride
+ * \param[in, out] local_var    variable defined on local points
+ *                              (received); size: n_interior*stride
+ * \param[in]      local_list   optional indirection list for local_var
+ * \param[in]      type_size    sizeof (float or double) variable type
+ * \param[in]      stride       dimension (1 for scalar,
+ *                              3 for interleaved vector)
+ * \param[in]      reverse      if nonzero, exchange is reversed
+ *                              (receive values associated with distant points
+ *                              from the processes owning the original points)
+ * \param[in]      interior     if true, local_var is restricted
+ *                              to located points.
+ */
+/*----------------------------------------------------------------------------*/
+
+static void
+_exchange_point_var(ple_locator_t     *this_locator,
+                    void              *distant_var,
+                    void              *local_var,
+                    const ple_lnum_t  *local_list,
+                    size_t             type_size,
+                    size_t             stride,
+                    int                reverse,
+                    bool               interior)
+{
+  double w_start, w_end, cpu_start, cpu_end;
+
+  int mpi_flag = 0;
+  bool _reverse = reverse;
+
+  /* Initialize timing */
+
+  w_start = ple_timer_wtime();
+  cpu_start = ple_timer_cpu_time();
+
+#if defined(PLE_HAVE_MPI)
+
+  MPI_Initialized(&mpi_flag);
+
+  if (mpi_flag && this_locator->comm == MPI_COMM_NULL)
+    mpi_flag = 0;
+
+  if (mpi_flag) {
+
+    MPI_Datatype datatype = MPI_DATATYPE_NULL;
+
+    if (type_size == sizeof(double))
+      datatype = MPI_DOUBLE;
+    else if (type_size == sizeof(float))
+      datatype = MPI_FLOAT;
+    else
+      ple_error(__FILE__, __LINE__, 0,
+                _("type_size passed to ple_locator_exchange_point_var() does\n"
+                  "not correspond to double or float."));
+
+    assert (datatype != MPI_DATATYPE_NULL);
+
+    if (this_locator->exchange_algorithm == _EXCHANGE_SENDRECV)
+      _exchange_point_var_distant(this_locator,
+                                  distant_var,
+                                  local_var,
+                                  local_list,
+                                  datatype,
+                                  stride,
+                                  _reverse,
+                                  interior);
+
+    else if (this_locator->exchange_algorithm == _EXCHANGE_ISEND_IRECV)
+      _exchange_point_var_distant_asyn(this_locator,
+                                       distant_var,
+                                       local_var,
+                                       local_list,
+                                       datatype,
+                                       stride,
+                                       _reverse,
+                                       interior);
+
+  }
+
+#endif /* defined(PLE_HAVE_MPI) */
+
+  if (!mpi_flag) {
+    if (this_locator->n_exterior == 0 || interior)
+      _exchange_point_var_local(this_locator,
+                                distant_var,
+                                local_var,
+                                local_list,
+                                type_size,
+                                stride,
+                                _reverse);
+    else
+      _exchange_point_var_local_incomplete(this_locator,
+                                           distant_var,
+                                           local_var,
+                                           local_list,
+                                           type_size,
+                                           stride,
+                                           _reverse);
+  }
+
+  /* Finalize timing */
+
+  w_end = ple_timer_wtime();
+  cpu_end = ple_timer_cpu_time();
+
+  this_locator->exchange_wtime[0] += (w_end - w_start);
+  this_locator->exchange_cpu_time[0] += (cpu_end - cpu_start);
+}
+
+/*----------------------------------------------------------------------------
  * Return timing information.
  *
  * When location on closest elements to force location of all points is
@@ -2732,12 +3069,10 @@ _get_times(const ple_locator_t  *this_locator,
   if (this_locator != NULL) {
 
     if (location_wtime != NULL) {
-      location_wtime[0] = _locator->location_wtime[time_type];
-      location_wtime[1] = _locator->location_wtime[time_type + 2];
+      *location_wtime = _locator->location_wtime[time_type];
     }
     if (location_cpu_time != NULL) {
-      location_cpu_time[0] = _locator->location_cpu_time[time_type];
-      location_cpu_time[1] = _locator->location_cpu_time[time_type + 2];
+      *location_cpu_time = _locator->location_cpu_time[time_type];
     }
     if (exchange_wtime != NULL)
       *exchange_wtime = _locator->exchange_wtime[time_type];
@@ -2810,8 +3145,9 @@ ple_locator_create(void)
   this_locator->start_rank = 0;
 #endif
 
-  this_locator->locate_algorithm = _LOCATE_BB_SENDRECV;
+  this_locator->locate_algorithm = _ple_locator_location_algorithm;
   this_locator->exchange_algorithm = _EXCHANGE_SENDRECV;
+  this_locator->async_threshold = _ple_locator_async_threshold;
 
   this_locator->point_id_base = 0;
 
@@ -2833,7 +3169,7 @@ ple_locator_create(void)
   this_locator->n_exterior = 0;
   this_locator->exterior_list = NULL;
 
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 2; i++) {
     this_locator->location_wtime[i] = 0.;
     this_locator->location_cpu_time[i] = 0.;
   }
@@ -2925,7 +3261,7 @@ ple_locator_set_mesh(ple_locator_t               *this_locator,
                      int                          dim,
                      ple_lnum_t                   n_points,
                      const ple_lnum_t             point_list[],
-                     const ple_lnum_t             point_tag[],
+                     const int                    point_tag[],
                      const ple_coord_t            point_coords[],
                      float                        distance[],
                      ple_mesh_extents_t          *mesh_extents_f,
@@ -3014,7 +3350,7 @@ ple_locator_extend_search(ple_locator_t               *this_locator,
                           float                        tolerance_fraction,
                           ple_lnum_t                   n_points,
                           const ple_lnum_t             point_list[],
-                          const ple_lnum_t             point_tag[],
+                          const int                    point_tag[],
                           const ple_coord_t            point_coords[],
                           float                        distance[],
                           ple_mesh_extents_t          *mesh_extents_f,
@@ -3026,8 +3362,6 @@ ple_locator_extend_search(ple_locator_t               *this_locator,
 
   double comm_timing[4] = {0., 0., 0., 0.};
   int mpi_flag = 0;
-
-  const int dim = this_locator->dim;
 
   /* Initialize timing */
 
@@ -3047,6 +3381,8 @@ ple_locator_extend_search(ple_locator_t               *this_locator,
   /*-------------------------------*/
 
 #if defined(PLE_HAVE_MPI)
+
+  const int dim = this_locator->dim;
 
   MPI_Initialized(&mpi_flag);
 
@@ -3068,7 +3404,7 @@ ple_locator_extend_search(ple_locator_t               *this_locator,
                       -1,
                       1, /* equivalent to _LOCATE_BB_SENDRECV */
                       -_LOCATE_BB_SENDRECV_ORDERED,
-                      _LOCATE_BB_SENDRECV_ORDERED,
+                      this_locator->locate_algorithm,
                       0};
     ple_lnum_t  *location_rank_id;
 
@@ -3488,76 +3824,68 @@ ple_locator_exchange_point_var(ple_locator_t     *this_locator,
                                size_t             stride,
                                int                reverse)
 {
-  double w_start, w_end, cpu_start, cpu_end;
+  _exchange_point_var(this_locator,
+                      distant_var,
+                      local_var,
+                      local_list,
+                      type_size,
+                      stride,
+                      reverse,
+                      true);
+}
 
-  int mpi_flag = 0;
-  _Bool _reverse = reverse;
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Distribute variable defined on distant points to processes owning
+ * the original points (i.e. distant processes).
+ *
+ * The exchange is symmetric if both variables are defined, receive
+ * only if distant_var is NULL, or send only if local_var is NULL.
+ *
+ * The caller should have defined the values of distant_var[] for the
+ * distant points, whose coordinates are given by
+ * ple_locator_get_dist_coords(), and which are located in the elements
+ * whose numbers are given by ple_locator_get_dist_locations().
+ *
+ * The local_var[] is defined at the local points (whether located or not)
+ * provided when calling ple_locator_set_mesh() or ple_locator_extend_search().
+ *
+ * If the optional local_list indirection is used, it is assumed to use
+ * the same base numbering as that defined by the options for the previous
+ * call to ple_locator_set_mesh() or ple_locator_extend_search().
+ *
+ * \param[in]      this_locator pointer to locator structure
+ * \param[in, out] distant_var  variable defined on distant points
+ *                              (ready to send); size: n_dist_points*stride
+ * \param[in, out] local_var    variable defined on local points
+ *                              (received); size: n_points*stride
+ * \param[in]      local_list   optional indirection list for local_var
+ * \param[in]      type_size    sizeof (float or double) variable type
+ * \param[in]      stride       dimension (1 for scalar,
+ *                              3 for interleaved vector)
+ * \param[in]      reverse      if nonzero, exchange is reversed
+ *                              (receive values associated with distant points
+ *                              from the processes owning the original points)
+ */
+/*----------------------------------------------------------------------------*/
 
-  /* Initialize timing */
-
-  w_start = ple_timer_wtime();
-  cpu_start = ple_timer_cpu_time();
-
-#if defined(PLE_HAVE_MPI)
-
-  MPI_Initialized(&mpi_flag);
-
-  if (mpi_flag && this_locator->comm == MPI_COMM_NULL)
-    mpi_flag = 0;
-
-  if (mpi_flag) {
-
-    MPI_Datatype datatype = MPI_DATATYPE_NULL;
-
-    if (type_size == sizeof(double))
-      datatype = MPI_DOUBLE;
-    else if (type_size == sizeof(float))
-      datatype = MPI_FLOAT;
-    else
-      ple_error(__FILE__, __LINE__, 0,
-                _("type_size passed to ple_locator_exchange_point_var() does\n"
-                  "not correspond to double or float."));
-
-    assert (datatype != MPI_DATATYPE_NULL);
-
-    if (this_locator->exchange_algorithm == _EXCHANGE_SENDRECV)
-      _exchange_point_var_distant(this_locator,
-                                  distant_var,
-                                  local_var,
-                                  local_list,
-                                  datatype,
-                                  stride,
-                                  _reverse);
-
-    else if (this_locator->exchange_algorithm == _EXCHANGE_ISEND_IRECV)
-      _exchange_point_var_distant_asyn(this_locator,
-                                       distant_var,
-                                       local_var,
-                                       local_list,
-                                       datatype,
-                                       stride,
-                                       _reverse);
-
-  }
-
-#endif /* defined(PLE_HAVE_MPI) */
-
-  if (!mpi_flag)
-    _exchange_point_var_local(this_locator,
-                              distant_var,
-                              local_var,
-                              local_list,
-                              type_size,
-                              stride,
-                              _reverse);
-
-  /* Finalize timing */
-
-  w_end = ple_timer_wtime();
-  cpu_end = ple_timer_cpu_time();
-
-  this_locator->exchange_wtime[0] += (w_end - w_start);
-  this_locator->exchange_cpu_time[0] += (cpu_end - cpu_start);
+void
+ple_locator_exchange_point_var_all(ple_locator_t     *this_locator,
+                                   void              *distant_var,
+                                   void              *local_var,
+                                   const ple_lnum_t  *local_list,
+                                   size_t             type_size,
+                                   size_t             stride,
+                                   int                reverse)
+{
+  _exchange_point_var(this_locator,
+                      distant_var,
+                      local_var,
+                      local_list,
+                      type_size,
+                      stride,
+                      reverse,
+                      false);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3571,8 +3899,8 @@ ple_locator_exchange_point_var(ple_locator_t     *this_locator,
  * associated with the location of closest elements stage.
  *
  * \param[in]  this_locator      pointer to locator structure
- * \param[out] location_wtime    Location Wall-clock time (size: 2 or NULL)
- * \param[out] location_cpu_time Location CPU time (size: 1 or NULL)
+ * \param[out] location_wtime    Location Wall-clock time (or NULL)
+ * \param[out] location_cpu_time Location CPU time (or NULL)
  * \param[out] exchange_wtime    Variable exchange Wall-clock time
  *                               (size: 1 or NULL)
  * \param[out] exchange_cpu_time Variable exchange CPU time (size: 2 or NULL)
@@ -3604,11 +3932,10 @@ ple_locator_get_times(const ple_locator_t  *this_locator,
  *
  * parameters:
  * \param[in]  this_locator      pointer to locator structure
- * \param[out] location_wtime    Location Wall-clock time (size: 2 or NULL)
- * \param[out] location_cpu_time Location CPU time (size: 1 or NULL)
- * \param[out] exchange_wtime    Variable exchange Wall-clock time
- *                               (size: 1 or NULL)
- * \param[out] exchange_cpu_time Variable exchange CPU time (size: 2 or NULL)
+ * \param[out] location_wtime    Location Wall-clock time (or NULL)
+ * \param[out] location_cpu_time Location CPU time (or NULL)
+ * \param[out] exchange_wtime    Variable exchange Wall-clock time (or NULL)
+ * \param[out] exchange_cpu_time Variable exchange CPU time (or NULL)
  */
 /*----------------------------------------------------------------------------*/
 
@@ -3781,16 +4108,16 @@ ple_locator_dump(const ple_locator_t  *this_locator)
   /*--------------------*/
 
   ple_printf("  Location Wall-clock time: %12.5f (comm: %12.5f)\n",
-             _locator->location_wtime[0], _locator->location_wtime[0]);
+             _locator->location_wtime[0], _locator->location_wtime[1]);
 
   ple_printf("  Location CPU time:        %12.5f (comm: %12.5f)\n",
-             _locator->location_cpu_time[0], _locator->location_cpu_time[0]);
+             _locator->location_cpu_time[0], _locator->location_cpu_time[1]);
 
   ple_printf("  Exchange Wall-clock time: %12.5f (comm: %12.5f)\n",
-             _locator->exchange_wtime[0], _locator->exchange_wtime[0]);
+             _locator->exchange_wtime[0], _locator->exchange_wtime[1]);
 
   ple_printf("  Exchange CPU time:        %12.5f (comm: %12.5f)\n",
-             _locator->exchange_cpu_time[0], _locator->exchange_cpu_time[0]);
+             _locator->exchange_cpu_time[0], _locator->exchange_cpu_time[1]);
 
 }
 
@@ -3825,6 +4152,53 @@ ple_locator_set_async_threshold(int threshold)
 {
   _ple_locator_async_threshold = threshold;
 }
+
+#endif /* defined(PLE_HAVE_MPI) */
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set default locator options.
+ *
+ * \param[in]  key    option name
+ * \param[in]  value  associated value
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+ple_locator_set_default_option(const char  *key,
+                               const char  *value)
+{
+  _parse_locator_option(key,
+                        value,
+                        &_ple_locator_location_algorithm,
+                        &_ple_locator_async_threshold);
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set options for a given locator.
+ *
+ * \param[in, out]  this_locator  pointer to locator structure
+ * \param[in]       key           option name
+ * \param[in]       value         associated value
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+ple_locator_set_options(ple_locator_t  *this_locator,
+                        const char     *key,
+                        const char     *value)
+{
+  if (key == NULL || value == NULL)
+    return;
+
+  _parse_locator_option(key,
+                        value,
+                        &(this_locator->locate_algorithm),
+                        &(this_locator->async_threshold));
+}
+
+#if defined(PLE_HAVE_MPI)
 
 /*----------------------------------------------------------------------------*/
 /*!

@@ -1,14 +1,14 @@
-#ifndef __CS_MAXWELL_H__
-#define __CS_MAXWELL_H__
+#ifndef CS_MAXWELL_H
+#define CS_MAXWELL_H
 
 /*============================================================================
  * Header to handle the maxwell module with CDO schemes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,24 +26,12 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_time_step.h"
-#include "cs_equation.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
-
-/*!
-  \file cs_maxwell.h
-
-  \brief Structure and routines handling the Maxwell module dedicated to
-         the resolution of electro-magnetic equations
-
-*/
+#include "base/cs_base.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_equation.h"
 
 /*============================================================================
  * Macro definitions
@@ -75,7 +63,7 @@ BEGIN_C_DECLS
  * rho_e the electric charge density
  * j the electric source current (or current for short)
  *
- * One assumes a quasi-static approximation of the maxwell equations
+ * One assumes a quasi-static approximation of the Maxwell equations
  * i.e. ones solves the Ampere equation: curl(H) = j
  * and one solves the Faraday equation: curl(E) = -partial_t B
  *
@@ -151,7 +139,7 @@ cs_maxwell_activate(cs_flag_t    model,
 /*!
  * \brief  Free the main structure related to the Maxwell module
  *
- * \return a NULL pointer
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
@@ -197,7 +185,7 @@ cs_maxwell_log_setup(void);
  * \param[in]      mesh       pointer to a cs_mesh_t structure
  * \param[in]      time_step  pointer to a cs_time_step_t structure
  * \param[in]      connect    pointer to a cs_cdo_connect_t structure
- * \param[in]      quant       pointer to a cs_cdo_quantities_t structure
+ * \param[in]      quant      pointer to a cs_cdo_quantities_t structure
  */
 /*----------------------------------------------------------------------------*/
 
@@ -247,7 +235,7 @@ cs_maxwell_update(const cs_mesh_t             *mesh,
 /*!
  * \brief  Predefined extra-operations for the Maxwell module
  *
- * \param[in]  connect   pointer to a cs_cdo_connect_t structure
+ * \param[in]  connect    pointer to a cs_cdo_connect_t structure
  * \param[in]  quant      pointer to a cs_cdo_quantities_t structure
  */
 /*----------------------------------------------------------------------------*/
@@ -262,7 +250,7 @@ cs_maxwell_extra_op(const cs_cdo_connect_t      *connect,
  *         Prototype of this function is fixed since it is a function pointer
  *         defined in cs_post.h (\ref cs_post_time_mesh_dep_output_t)
  *
- * \param[in, out] input        pointer to a optional structure (here a
+ * \param[in, out] input        pointer to an optional structure (here a
  *                              cs_gwf_t structure)
  * \param[in]      mesh_id      id of the output mesh for the current call
  * \param[in]      cat_id       category id of the output mesh for this call
@@ -293,8 +281,4 @@ cs_maxwell_extra_post(void                      *input,
                       const cs_lnum_t            b_face_ids[],
                       const cs_time_step_t      *time_step);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_MAXWELL_H__ */
+#endif /* CS_MAXWELL_H */

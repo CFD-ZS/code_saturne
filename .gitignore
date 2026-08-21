@@ -9,9 +9,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,15 +30,16 @@
 #-------------------------------------------------------------------------------
 
 Makefile.in
-.gitignore
 
 # /
 /ABOUT-NLS
 /aclocal.m4
 /autom4te.cache
-/cs_config.h.in
+/src/base/cs_config.h.in
+/src/base/cs_config.h.in~
 /configure
 /stamp-h.in
+.vscode/*
 
 # /config/
 /config/compile
@@ -77,10 +78,6 @@ Makefile.in
 
 # /doc/install/
 
-# /doc/refcard/
-
-# /doc/refcard/graphics/
-
 # /doc/theory/
 
 # /doc/theory/graphics/
@@ -92,6 +89,8 @@ Makefile.in
 # /doc/user/
 
 # /doc/user/graphics/
+
+/doc/web/references/_build
 
 # /gui/
 
@@ -209,15 +208,11 @@ Makefile.in
 
 # /src/mati/
 
-# /src/mei/
-/src/mei/mei_parser.c
-/src/mei/mei_parser.h
-/src/mei/mei_scanner.c
-
 # /src/pprt/
 
 # /src/rayt/
 
 # /tests/
-/patches/*.patch
 /src/TAGS
+doc/sphinx/api/
+*~

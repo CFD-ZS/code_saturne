@@ -1,14 +1,14 @@
-#ifndef __CS_VOLUME_ZONE_H__
-#define __CS_VOLUME_ZONE_H__
+#ifndef CS_VOLUME_ZONE_H
+#define CS_VOLUME_ZONE_H
 
 /*============================================================================
  * Volume zones handling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh_location.h"
-#include "cs_zone.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh_location.h"
+#include "base/cs_zone.h"
 
 /*============================================================================
  * Macro definitions
@@ -75,6 +71,12 @@ BEGIN_C_DECLS
 /*! soil used in the groundwater flow module */
 #define CS_VOLUME_ZONE_GWF_SOIL             (1 << 5)
 
+/*! zone defined as solid during the simulation */
+#define CS_VOLUME_ZONE_SOLID                (1 << 6)
+
+/*! zone defined for physical properties computation */
+#define CS_VOLUME_ZONE_PHYSICAL_PROPERTIES  (1 << 7)
+
 /*! @} */
 
 /*============================================================================
@@ -90,7 +92,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Initialize volume zone structures.
  *
  * This defines a default volume zone. This is the first function of
@@ -103,7 +105,7 @@ void
 cs_volume_zone_initialize(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Free all volume zone structures.
  */
 /*----------------------------------------------------------------------------*/
@@ -112,7 +114,7 @@ void
 cs_volume_zone_finalize(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of volume zones defined.
  */
 /*----------------------------------------------------------------------------*/
@@ -121,7 +123,7 @@ int
 cs_volume_zone_n_zones(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of volume zones which may vary in time.
  *
  * \return  number of zones which may vary in time
@@ -132,7 +134,7 @@ int
 cs_volume_zone_n_zones_time_varying(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Update association of volume zones with a mesh.
  *
  * For time-varying zones, the associated mesh location is updated.
@@ -145,7 +147,7 @@ void
 cs_volume_zone_build_all(bool  mesh_modified);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define a new volume zone using a selection criteria string.
  *
  * \param[in]  name       name of location to define
@@ -162,7 +164,7 @@ cs_volume_zone_define(const char  *name,
                       int          type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define a new mesh location with an associated selection function.
  *
  * So as to define a subset of mesh entities of a given type, a pointer
@@ -188,7 +190,7 @@ cs_volume_zone_define_by_func(const char                 *name,
                               int                         type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a volume zone based on its id.
  *
  * This function requires that a volume zone of the given id is defined.
@@ -203,7 +205,7 @@ const cs_zone_t  *
 cs_volume_zone_by_id(int  id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a volume zone based on its name if present.
  *
  * This function requires that a volume zone of the given name is defined.
@@ -218,10 +220,10 @@ const cs_zone_t  *
 cs_volume_zone_by_name(const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a volume zone based on its name if present.
  *
- * If no volume zone of the given name is defined, NULL is returned.
+ * If no volume zone of the given name is defined, returned pointer is null.
  *
  * \param[in]  name  volume zone name
  *
@@ -233,7 +235,22 @@ const cs_zone_t  *
 cs_volume_zone_by_name_try(const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief  Retrieve the volume zone id from its zone name.
+ *         If the zone name is equal to NULL or has an empty length, then
+ *         the default zone id (=0) corresponding to all entities is returned
+ *
+ * \param[in] z_name        name of the zone or NULL or ""
+ *
+ * \return the id of the volume zone
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_volume_zone_id_by_name(const char   *z_name);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Set type flag for a given volume zone.
  *
  * \param[in]  id         volume zone id
@@ -246,7 +263,7 @@ cs_volume_zone_set_type(int   id,
                         int   type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set time varying behavior for a given volume zone.
  *
  * \param[in]  id            volume zone id
@@ -259,7 +276,7 @@ cs_volume_zone_set_time_varying(int   id,
                                 bool  time_varying);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set overlay behavior for a given volume zone.
  *
  * \param[in]  id             volume zone id
@@ -272,7 +289,7 @@ cs_volume_zone_set_overlay(int   id,
                            bool  allow_overlay)
 ;
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to zone id associated with each cell.
  *
  * In case of overlayed zones, the highest zone id associated with
@@ -284,7 +301,7 @@ const int *
 cs_volume_zone_cell_zone_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Print info relative to a given volume zone to log file.
  *
  * \param[in]  z   pointer to volume zone structure
@@ -295,7 +312,7 @@ void
 cs_volume_zone_log_info(const cs_zone_t  *z);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Log setup information relative to defined volume zones.
  */
 /*----------------------------------------------------------------------------*/
@@ -304,7 +321,7 @@ void
 cs_volume_zone_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of volume zones associated with a
  *        given zone flag.
  *
@@ -314,11 +331,11 @@ cs_volume_zone_log_setup(void);
  */
 /*----------------------------------------------------------------------------*/
 
-cs_lnum_t
+int
 cs_volume_zone_n_type_zones(int  type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of volume zone cells associated with a
  *        given zone flag.
  *
@@ -335,7 +352,7 @@ cs_lnum_t
 cs_volume_zone_n_type_cells(int  type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Select cells associated with volume zones of a given type.
  *
  * Note that in the case of overlapping zones, a cell may be accounted
@@ -352,15 +369,33 @@ cs_volume_zone_select_type_cells(int        type_flag,
                                  cs_lnum_t  cell_ids[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Tag cells of a given zone type
+ *
+ * The tag array should be initialized. The given tag_value is associted
+ * to cells of the given zone type using a logical "or", so multiple flag
+ * bits can be handled using the same array if necessary.
+ *
+ * \param[in]       zone_type_flag  zone types to tag
+ * \param[in]       tag_value  tag value to add to cells of matching zones
+ * \param[in, out]  tag        tag value for each cell
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_volume_zone_tag_cell_type(int  zone_type_flag,
+                             int  tag_value,
+                             int  tag[]);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Print volume zones information to listing file
  */
 /*----------------------------------------------------------------------------*/
+
 void
 cs_volume_zone_print_info(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_VOLUME_ZONE_H__ */
+#endif /* CS_VOLUME_ZONE_H */

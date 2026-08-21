@@ -1,14 +1,14 @@
-#ifndef __CS_COUPLING_H__
-#define __CS_COUPLING_H__
+#ifndef CS_COUPLING_H
+#define CS_COUPLING_H
 
 /*============================================================================
  * Common functionnality for various coupling types.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
@@ -38,14 +38,10 @@
 #include <ple_coupling.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*=============================================================================
  * Macro definitions
@@ -60,51 +56,6 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Synchronize with applications in the same PLE coupling group.
- *
- * This function should be called before starting a new time step. The
- * current time step id is that of the last finished time step, or 0 at
- * initialization.
- *
- * Fortran Interface:
- *
- * subroutine cplsyn (ntcmabs, ntcabs, dtref)
- * *****************
- *
- * integer          ntmabs      : <-> : maximum iteration number
- * integer          ntcabs      : <-- : current iteration number
- * double precision dtref       : <-> : reference time step value
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(cplsyn, CPLSYN)
-(
- cs_int_t         *ntmabs,
- const cs_int_t   *ntcabs,
- cs_real_t        *dtref
- );
-
-/*----------------------------------------------------------------------------
- * Indicate if there are synchronized applications in the same
- * PLE coupling group.
- *
- * Fortran Interface:
- *
- * subroutine cplact (isync)
- * *****************
- *
- * integer          isync       : <-- : 1 if synchronized, 0 otherwise
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(cplact, CPLACT)
-(
- cs_int_t         *isync
-);
-
-/*============================================================================
  * Public function prototypes
  *============================================================================*/
 
@@ -114,7 +65,8 @@ void CS_PROCF(cplact, CPLACT)
  * Discover other applications in the same MPI root communicator.
  *
  * parameters:
- *   app_name <-- name of this instance of Code_Saturne.
+ *   app_name        <-- name of this instance of code_saturne.
+ *   forced_app_type <-- name of app type, or NULL
  *----------------------------------------------------------------------------*/
 
 void
@@ -157,12 +109,12 @@ cs_coupling_get_sync_flag(void);
  *
  * This flag is used by all couplings based on the PLE (Parallel Location
  * and Exchange) group synchronization mechanism, which include couplings
- * with SYRTHES 4, Code_Saturne, and NEPTUNE_CFD.
+ * with SYRTHES, code_saturne, and neptune_cfd.
  *
  * It is defined by a mask, so for example flags f1, f2, and f3 may be
  * combined using the "f1 | f2 | f2" syntax.
  *
- * Note also that for Code_Saturne, in the case of a variable time step,
+ * Note also that for code_saturne, in the case of a variable time step,
  * the reference time step is synchronized at the beginning of each
  * iteration, but the actual time step is recomputed later.
  *
@@ -173,7 +125,7 @@ cs_coupling_get_sync_flag(void);
  *   PLE_COUPLING_UNSTEADY      Inform others that this instance is
  *                              using an unsteady solution approach
  *   PLE_COUPLING_STEADY        Inform others that this instance is
- *                              using a teady solution approach
+ *                              using a steady solution approach
  *   PLE_COUPLING_USER_1        User definable flag
  *   PLE_COUPLING_USER_2        User definable flag
  *   PLE_COUPLING_USER_3        User definable flag
@@ -193,7 +145,7 @@ cs_coupling_set_sync_flag(int flag);
 /*----------------------------------------------------------------------------
  * Return the time step multiplier for external couplings.
  *
- * See cs_coupling_get_ts_multiplier() for details.
+ * See cs_coupling_set_ts_multiplier() for details.
  *
  * returns:
  *   time step multiplier for external couplings
@@ -349,6 +301,4 @@ cs_coupling_point_in_mesh_p(const void         *mesh,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_COUPLING_H__ */
+#endif /* CS_COUPLING_H */

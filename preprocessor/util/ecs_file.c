@@ -3,9 +3,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,14 +27,14 @@
 #include "cs_config.h"
 
 /*
-  Force LARGEFILE_SOURCE if largefiles enabled under 32-bit Linux or Blue Gene
+  Force LARGEFILE_SOURCE if largefiles enabled under 32-bit Linux
   (otherwise, we may encounter bugs with glibc 2.3 due to fseeko end ftello
   not being correctly defined). Compiling with -D_GNU_SOURCE instead
   of -D_POSIX_C_SOURCE=200112L seems to be another way to solve the problem.
 */
 
 #if (SIZEOF_LONG < 8) && (_FILE_OFFSET_BITS == 64)
-# if defined(__linux__) || defined(__blrts__) || defined(__bgp__)
+# if defined(__linux__)
 #  if !defined(_POSIX_SOURCE)
 #    define _GNU_SOURCE 1
 #  endif
@@ -47,7 +47,7 @@
 /*-----------------------------------------------------------------------------*/
 
 /*
- * Standard C library headers
+ * Standard library headers
  */
 
 #include <assert.h>

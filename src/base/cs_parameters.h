@@ -1,14 +1,14 @@
-#ifndef __CS_PARAMETERS_H__
-#define __CS_PARAMETERS_H__
+#ifndef CS_PARAMETERS_H
+#define CS_PARAMETERS_H
 
 /*============================================================================
  * General parameters management.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,22 +28,19 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-#include "cs_tree.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "cdo/cs_equation_param.h"
+#include "base/cs_field.h"
+#include "base/cs_tree.h"
 
 /*=============================================================================
  * Macro definitions
@@ -55,97 +52,57 @@ BEGIN_C_DECLS
 
 /*----------------------------------------------------------------------------
  * Structure of variable calculation options
+ * (now an alias of cs_equation_param_t)
  *----------------------------------------------------------------------------*/
 
-typedef struct {
-  int     iwarni;
-  int     iconv;
-  int     istat;
-  int     idircl;
-  int     ndircl;
-  int     idiff;
-  int     idifft;
-  int     idften;
-  int     iswdyn;
-  int     ischcv;
-  int     ibdtso;
-  int     isstpc;
-  int     nswrgr;
-  int     nswrsm;
-  int     imrgra;
-  int     imligr;
-  int     ircflu;
-  int     iwgrec;       /* gradient calculation
-                           - 0: standard (default)
-                           - 1: weighted (could be used with imvisf = 1) */
-  int     icoupl;       /* internal coupling
-                           - -1: not coupled (default)
-                           -  1: coupled                                 */
-
-  double  thetav;
-  double  blencv;
-  double  blend_st;
-  double  epsilo;
-  double  epsrsm;
-  double  epsrgr;
-  double  climgr;
-  double  extrag;
-  double  relaxv;
-} cs_var_cal_opt_t;
+typedef cs_equation_param_t cs_var_cal_opt_t;
 
 /*----------------------------------------------------------------------------
  * Structure of the solving info
  *----------------------------------------------------------------------------*/
 
 typedef struct {
+
   int     n_it;
   double  rhs_norm;
   double  res_norm;
   double  derive;
   double  l2residual;
+
 } cs_solving_info_t;
-
-/*----------------------------------------------------------------------------
- * Structure of condensation modelling physical properties
- *----------------------------------------------------------------------------*/
-
-typedef struct {
-  double  mol_mas;
-  double  cp;
-  double  vol_dif;
-  double  mu_a;
-  double  mu_b;
-  double  lambda_a;
-  double  lambda_b;
-  double  muref;     /* ref. viscosity for Sutherland law                */
-  double  lamref;    /* ref. thermal conductivity for Sutherland law     */
-  double  trefmu;    /* ref. temperature for viscosity in Sutherland law */
-  double  treflam;   /* ref. temperature for conductivity Sutherland law */
-  double  smu;       /* Sutherland temperature for viscosity             */
-  double  slam;      /* Sutherland temperature for conductivity          */
-} cs_gas_mix_species_prop_t;
 
 /*----------------------------------------------------------------------------
  * Boundary condition types
  *----------------------------------------------------------------------------*/
 
+#define CS_INDEF CS_UNDEF /* For backward compatibility with 9.0 */
+
 enum {
-  CS_INDEF = 1,
-  CS_INLET = 2,
-  CS_OUTLET = 3,
+
+  CS_UNDEF = 1,              /*!< undefined */
+  CS_INLET = 2,              /*!< standard inlet */
+  CS_OUTLET = 3,             /*!< standard outlet */
   CS_SYMMETRY = 4,
-  CS_SMOOTHWALL = 5,
-  CS_ROUGHWALL = 6,
-  CS_ESICF = 7,
-  CS_SSPCF = 8,
-  CS_SOPCF = 9,
-  CS_EPHCF = 10,
-  CS_EQHCF = 11,
-  CS_COUPLED = 12,           /* coupled face */
-  CS_COUPLED_FD = 13,        /* coupled face with decentered flux */
-  CS_FREE_INLET = 14,
-  CS_FREE_SURFACE = 15,
-  CS_CONVECTIVE_INLET = 16
+
+  CS_SMOOTHWALL = 5,         /*!< solid wall, with friction */
+  CS_ROUGHWALL = 6,          /*!< rough wall, with friction */
+
+  CS_ESICF = 7,              /*!< compressible flow, prescribed inlet/outlet
+                               (for example supersonic inlet) */
+  CS_SSPCF = 8,              /*!< compressible flow, supersonic outlet */
+  CS_SOPCF = 9,              /*!< subsonic outlet with prescribed pressure */
+  CS_EPHCF = 10,             /*!< mixed inlet with prescribed total pressure
+                               and enthalpy */
+  CS_EQHCF = 11,             /*!< subsonic inlet with prescribed mass and
+                               enthalpy flow (not available yet) */
+  CS_COUPLED = 12,           /*!< coupled face */
+  CS_COUPLED_FD = 13,        /*!< coupled face with decentered flux */
+  CS_FREE_INLET = 14,        /*!< free outlet or inlet (based on Bernoulli
+                               relationship) */
+  CS_FREE_SURFACE = 64,      /*!< free surface (CS_BOUNDARY_FREE_SURFACE) */
+  CS_CONVECTIVE_INLET = 16   /*!< inlet with zero diffusive flux for all
+                               transported variables (species and velocity) */
+
 };
 
 /*----------------------------------------------------------------------------
@@ -156,6 +113,7 @@ enum {
  *----------------------------------------------------------------------------*/
 
 enum {
+
   CS_DRIFT_SCALAR_ON = (1 << 0),
   CS_DRIFT_SCALAR_ADD_DRIFT_FLUX = (1 << 1),
   CS_DRIFT_SCALAR_THERMOPHORESIS = (1 << 2),
@@ -163,7 +121,10 @@ enum {
   CS_DRIFT_SCALAR_ELECTROPHORESIS = (1 << 4),
   CS_DRIFT_SCALAR_CENTRIFUGALFORCE = (1 << 5),
   CS_DRIFT_SCALAR_IMPOSED_MASS_FLUX = (1 << 6),
-  CS_DRIFT_SCALAR_ZERO_BNDY_FLUX = (1 << 7)
+  CS_DRIFT_SCALAR_ZERO_BNDY_FLUX = (1 << 7),
+  CS_DRIFT_SCALAR_ZERO_BNDY_FLUX_AT_WALLS = (1 << 8),
+  CS_DRIFT_SCALAR_NO_MASS_AGGREGATION = (1 << 9)
+
 };
 
 /*----------------------------------------------------------------------------
@@ -191,6 +152,10 @@ typedef struct {
                                  - 1: based on cell center mesh velocity
                                  - 0: based on nodes displacement */
 
+  int           itbrrb;       /* accurate treatment of the wall temperature
+                                 - 1: true
+                                 - 0: false (default) */
+
 } cs_space_disc_t;
 
 /*----------------------------------------------------------------------------
@@ -199,37 +164,42 @@ typedef struct {
 
 typedef struct {
 
+  int           time_order;   /* global time order of the time stepping */
+
+  int           istmpf;       /* time order of the mass flux scheme */
+
+  int           isno2t;       /* time scheme activated for the source
+                                 terms of the momentum, apart from
+                                 convection and diffusion */
+
   int           isto2t;       /* time scheme activated for the source
                                  terms of turbulent equations */
 
-  double        thetst;       /* value of \f$theta\$f for turbulence */
+  double        thetsn;       /* value of \f$theta_S\f$ for Navier-Stokes
+                                 source terms */
 
+  double        thetst;       /* value of \f$theta\f$ for turbulence
+                                 explicit source terms */
+
+  double        thetvi;       /* value of \f$theta\f$ for total viscosity */
+
+  double        thetcp;       /* value of \f$theta\f$ for specific heat */
+
+  int           iccvfg;       /* calculation with a fixed velocity field
+                                 - 1: true (default)
+                                 - 0: false */
 } cs_time_scheme_t;
 
 /*----------------------------------------------------------------------------
- * PISO descriptor
+ * Auxiliary checkpoint/restart file parameters
  *----------------------------------------------------------------------------*/
 
 typedef struct {
 
-  int           nterup;         /* number of iterations on the pressure-velocity
-                                   coupling on Navier-Stokes */
+  int     read_auxiliary;   /* Activate reading of auxiliary restart file */
+  int     write_auxiliary;  /* Activate output of auxiliary restart file */
 
-  double        epsup;          /* relative precision for the convergence test of
-                                   the iterative process on pressure-velocity
-                                   coupling */
-
-  double        xnrmu;          /* norm  of the increment
-                                   \f$ \vect{u}^{k+1} - \vect{u}^k \f$
-                                   of the iterative process on pressure-velocity
-                                   coupling */
-
-  double        xnrmu0;         /* norm of \f$ \vect{u}^0 \f$ */
-
-  int           n_buoyant_scal; /* number of buoyant scalars,
-                                   zero if there is no buoyant scalar */
-
-} cs_piso_t;
+} cs_restart_auxiliary_t;
 
 /*============================================================================
  * Static global variables
@@ -243,9 +213,9 @@ extern const cs_space_disc_t  *cs_glob_space_disc;
 
 extern const cs_time_scheme_t  *cs_glob_time_scheme;
 
-/* Pointer to PISO options structure */
+/* Pointer to auxiliary checkpoint/restart file parameters */
 
-extern const cs_piso_t  *cs_glob_piso;
+extern cs_restart_auxiliary_t  *cs_glob_restart_auxiliary;
 
 /*============================================================================
  * Global variables
@@ -272,7 +242,7 @@ extern cs_tree_node_t  *cs_glob_tree;
  */
 /*----------------------------------------------------------------------------*/
 
-static inline int
+inline int
 cs_parameters_iscavr(cs_field_t *f)
 {
   int iscvr = 0, f_id = 0;
@@ -280,9 +250,9 @@ cs_parameters_iscavr(cs_field_t *f)
   int keysca = cs_field_key_id("scalar_id");
 
   if (kscavr >= 0) {
-    f_id = cs_field_get_key_int(f, kscavr);
+    f_id = f->get_key_int(kscavr);
     if (f_id >= 0)
-      iscvr = cs_field_get_key_int(cs_field_by_id(f_id), keysca);
+      iscvr = cs_field_by_id(f_id)->get_key_int(keysca);
   }
 
   return iscvr;
@@ -316,25 +286,15 @@ cs_get_glob_time_scheme(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Provide access to cs_glob_piso
+ * \brief Set init state to 1. This is necessary for fortran mapping and
+ * should be changed in the future.
  *
- * needed to initialize structure with GUI and user C functions.
- *
- * \return  piso information structure
- */
-/*----------------------------------------------------------------------------*/
-
-cs_piso_t *
-cs_get_glob_piso(void);
-
-/*----------------------------------------------------------------------------
- *!
- * \brief Count and set number of buoyant scalars.
+ * \param[in] idx id of variable. 1 density.
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_parameters_set_n_buoyant_scalars(void);
+cs_parameters_set_init_state_on(int idx);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -350,20 +310,9 @@ cs_parameters_define_field_keys(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Define field key for condensation.
- *
- * Note: this should be moved in the future to a condensation-specific file.
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_parameters_define_field_key_gas_mix(void);
-
-/*----------------------------------------------------------------------------*/
-/*!
  * \brief Read general restart info.
  *
- * This updates the previous time step info.
+ * This updates the previous time step info and notebook varaibles values.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -371,10 +320,10 @@ void
 cs_parameters_read_restart_info(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * Define a user variable.
+/*
+ * \brief Define a user variable.
  *
- * \brief Solved variables are always defined on cells.
+ * Solved variables are always defined on cells.
  *
  * \param[in]  name  name of variable and associated field
  * \param[in]  dim   variable dimension
@@ -454,6 +403,15 @@ cs_parameters_create_added_variables(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Create properties definied directly in C.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_parameters_define_auxiliary_fields(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Create previously added user properties.
  */
 /*----------------------------------------------------------------------------*/
@@ -462,10 +420,22 @@ void
 cs_parameters_create_added_properties(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Add field indexes associated with a new non-user solved scalar
+ *        variable, with default options.
+ *
+ * \param[in, out]  f  field
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_add_model_field_indexes(cs_field_t  *f);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Define a boundary values field for a variable field.
  *
- * \param[in]  f  pointer to field structure
+ * \param[in, out]  f  pointer to field structure
  *
  * \return  pointer to boundary values field, or NULL if not applicable
  */
@@ -475,7 +445,7 @@ cs_field_t *
 cs_parameters_add_boundary_values(cs_field_t  *f);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define a boundary values field for temperature, if applicable.
  *
  * When a volume temperature variable field already exists, this amounts
@@ -492,15 +462,65 @@ cs_parameters_add_boundary_temperature(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Return a local variable calculation options structure,
- *        with default options.
+ * \brief Check if extended neighborhood is needed.
  *
- * \return  variable calculations options structure
+ * \return  true if extended neighborhoo is needed, false otherwise.
  */
 /*----------------------------------------------------------------------------*/
 
-cs_var_cal_opt_t
-cs_parameters_var_cal_opt_default(void);
+bool
+cs_parameters_need_extended_neighborhood(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Complete global parameters.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_parameters_global_complete(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Complete general equation parameter definitions.
+ *
+ * Also set associated field properties such as number of associated
+ * time values.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_parameters_eqp_complete(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Complete general output options definitions.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_parameters_output_complete(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return a local equation param structure,
+ *        with default options.
+ *
+ * \return  equation param structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_equation_param_t
+cs_parameters_equation_param_default(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print the time scheme structure to setup.log.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_time_scheme_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -513,6 +533,4 @@ cs_space_disc_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PARAMETERS_H__ */
+#endif /* CS_PARAMETERS_H */

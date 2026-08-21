@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_STAT_H__
-#define __CS_LAGR_STAT_H__
+#ifndef CS_LAGR_STAT_H
+#define CS_LAGR_STAT_H
 
 /*============================================================================
  * Functions and types for the Lagrangian module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,20 +27,18 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 #include "assert.h"
-#include "cs_base.h"
-#include "cs_field.h"
-#include "cs_restart.h"
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_restart.h"
 
-#include "cs_lagr.h"
-#include "cs_lagr_event.h"
-#include "cs_lagr_particle.h"
+#include "lagr/cs_lagr.h"
+#include "lagr/cs_lagr_event.h"
+#include "lagr/cs_lagr_particle.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Macro definitions
@@ -125,7 +123,7 @@ typedef enum {
  * Function pointer for computation of particle data values for
  * Lagrangian statistics.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -146,7 +144,7 @@ typedef void
  * Function pointer for computation of event data values for
  * Lagrangian statistics.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -169,7 +167,7 @@ typedef void
  *
  * If the matching values are multidimensional, they must be interleaved.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -195,7 +193,7 @@ typedef struct {
   /*! during a Lagrangian calculation restart, indicates whether the particle
     statistics (volume and boundary) and two-way coupling terms are to be read
     from a restart file (=1) or reinitialized (=0).
-    Useful if \ref isuila = 1 */
+    Useful if \ref cs_lagr_time_scheme_t::isuila "isuila" = 1 */
   int  isuist;
 
   /*! absolute time step number (including the restarts) after
@@ -206,10 +204,10 @@ typedef struct {
     which the volume statistics are cumulated over time (they are then said
     to be steady).
     if the absolute time step number is lower than \ref nstist,
-    or if the flow is unsteady (\ref isttio=0), the statistics are reset
-    to zero at every time step (the volume statistics are then said
-    to be non-steady).
-    Useful if \ref isttio=1 */
+    or if the flow is unsteady (\ref cs_lagr_time_scheme_t::isttio "isttio"=0),
+    the statistics are reset to zero at every time step (the volume statistics
+    are then said to be non-steady).
+    Useful if \ref cs_lagr_time_scheme_t::isttio "isttio" = 1 */
   int  nstist;
 
   /*! threshold for statistical meaning when used by other model
@@ -372,7 +370,7 @@ cs_lagr_stat_accumulator_define(const char                *name,
  * them at each call.
  *
  * As this type of statistic does not need to keep state between time steps,
- * it is ignored by the lagragian statistics checkpoint/restart mechanism.
+ * it is ignored by the Lagrangian statistics checkpoint/restart mechanism.
  *
  * If dimension > 1, the val array is interleaved
  *
@@ -626,6 +624,24 @@ cs_lagr_stat_prepare(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Increment particle contibution on moment and time moment accumulators.
+ *
+ * \param[in]   p_set     reference particle set
+ * \param[in]   p_id      particle index in set
+ * \param[in]   rel_time  relative time spent by the particle in the cell during
+ *                        current iteration
+ */
+/*----------------------------------------------------------------------------*/
+
+#if defined(__cplusplus)
+void
+cs_lagr_stat_update_all_incr(cs_lagr_particle_set_t &p_set,
+                             const cs_lnum_t         p_id,
+                             const cs_real_t         rel_time);
+#endif /* __cplusplus */
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Update particle statistics for a given time step.
  */
 /*----------------------------------------------------------------------------*/
@@ -749,6 +765,4 @@ cs_lagr_stat_get_moment_age(cs_field_t  *f);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_STAT_H__ */
+#endif /* CS_LAGR_STAT_H */

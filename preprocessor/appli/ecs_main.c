@@ -1,11 +1,11 @@
 /*============================================================================
- *  Programme principal de l'Enveloppe du Code_Saturne
+ *  Programme principal de l'Enveloppe du code_saturne
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -451,7 +451,6 @@ main(int    argc,
                              &liste_cel_err,
                              cmd->correct_orient);
 
-
   /*==========================================================================*/
   /* Écriture de la connectivité nodale sur fichier pour Post-traitement      */
   /*==========================================================================*/
@@ -471,6 +470,12 @@ main(int    argc,
                       cas_post);
 
   }
+
+  /* Clean mesh */
+
+  if (liste_cel_err.nbr > 0 && cmd->discard_bad_cells)
+    ecs_maillage__suppr_cel(maillage,
+                            liste_cel_err);
 
 
   /* On libère les listes des éléments avec problème d'orientation */

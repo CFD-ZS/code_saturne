@@ -1,14 +1,14 @@
-#ifndef __CS_TIME_PLOT_H__
-#define __CS_TIME_PLOT_H__
+#ifndef CS_TIME_PLOT_H
+#define CS_TIME_PLOT_H
 
 /*============================================================================
  * Time_Plot helper structures
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Macro definitions
@@ -59,113 +55,8 @@ typedef enum {
 } cs_time_plot_format_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
-
-/*=============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Create a writer for time plot structure-type data.
- *
- * This subroutine should only be called by one rank for a given data series.
- *
- * subroutine tpsini (tplnum, tplnam, tplpre, tplfmt, idtvar,
- * *****************
- *                    nprb,   lstprb, xyzprb, lnam,   lpre)
- *
- * integer          tplnum      : <-- : number of plot to create (> 0)
- * character        tplnam      : <-- : name of associated plot
- * character        tplpre      : <-- : prefix for associated file
- * integer          tplfmt      : <-- : associated format
- *                                      (1: dat, 2: csv, 3: both)
- * integer          idtvar      : <-- : calculation time dependency
- * integer          nstru       : <-- : number of structures
- * double precision xmstru      : <-- : mass matrixes
- * double precision xcstru      : <-- : damping matrixes
- * double precision xkstru      : <-- : stiffness matrixes
- * integer          lnam        : <-- : name length
- * integer          lpre        : <-- : prefix length
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tpsini, TPSINI)
-(
- const cs_int_t  *tplnum,
- const char      *tplnam,
- const char      *tplpre,
- const cs_int_t  *tplfmt,
- const cs_int_t  *idtvar,
- const cs_int_t  *nstru,
- const cs_real_t *xmstru,
- const cs_real_t *xcstru,
- const cs_real_t *xkstru,
- const cs_int_t  *lnam,
- const cs_int_t  *lpre
- CS_ARGF_SUPP_CHAINE              /*     (possible 'length' arguments added
-                                         by many Fortran compilers) */
-);
-
-/*----------------------------------------------------------------------------
- * Finalize a writer for time plot data.
- *
- * This subroutine should only be called by one rank for a given data series.
- *
- * subroutine tplend (tplnum)
- * *****************
- *
- * integer          tplnum      : <-- : number of plot to create (> 0)
- * integer          tplfmt      : <-- : associated format
- *                                      (1: dat, 2: csv, 3: both)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tplend, TPLEND)
-(
- const cs_int_t  *tplnum,
- const cs_int_t  *tplfmt
-);
-
-/*----------------------------------------------------------------------------
- * Write time plot values.
- *
- * subroutine tplwri (tplnum, tplfmt, nprb, ntcabs, ttcabs, valprb)
- * *****************
- *
- * integer          tplnum      : <-- : number of associated plot (> 0)
- * integer          tplfmt      : <-- : associated format
- *                                      (1: dat, 2: csv, 3: both)
- * integer          nprb        : <-- : number of probes
- * integer          ntcabs      : <-- : current time step number
- * double precision ttcabs      : <-- : current time value
- * double precision valprb      : <-- : probe values
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tplwri, TPLWRI)
-(
- const cs_int_t  *tplnum,
- const cs_int_t  *tplfmt,
- const cs_int_t  *nprb,
- const cs_int_t  *ntcabs,
- const cs_real_t *ttcabs,
- const cs_real_t *valprb
-);
-
-/*----------------------------------------------------------------------------
- * Return the number of time plots accessible through the Fortran API
- *
- * This subroutine will only return the number of time plots defined by the
- * local rank
- *
- * subroutine tplnbr (ntpl)
- * *****************
- *
- * integer          ntpl        : --> : number of time plots defined
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tplnbr, TPLNBR)
-(
- cs_int_t  *ntpl
-);
 
 /*=============================================================================
  * Public function prototypes
@@ -322,6 +213,4 @@ cs_time_plot_get_flush_default(float  *flush_wtime,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PROBE_H__ */
+#endif /* CS_PROBE_H */

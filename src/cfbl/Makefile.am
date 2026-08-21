@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,7 @@
 # Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #-------------------------------------------------------------------------------
+
 # PLE dependency
 
 if HAVE_INTERNAL_PLE
@@ -30,70 +31,58 @@ else
 endif
 
 # Main part
+
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
-
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/alge \
-$(FCMODINCLUDE)$(top_builddir)/src/base \
-$(FCMODINCLUDE)$(top_builddir)/src/atmo \
-$(FCMODINCLUDE)$(top_builddir)/src/cfbl \
-$(FCMODINCLUDE)$(top_builddir)/src/cogz \
-$(FCMODINCLUDE)$(top_builddir)/src/comb \
-$(FCMODINCLUDE)$(top_builddir)/src/ctwr \
-$(FCMODINCLUDE)$(top_builddir)/src/elec \
-$(FCMODINCLUDE)$(top_builddir)/src/lagr \
-$(FCMODINCLUDE)$(top_builddir)/src/pprt \
-$(FCMODINCLUDE)$(top_builddir)/src/rayt \
-$(FCMODINCLUDE)$(top_builddir)/src/turb \
-$(FCMODINCLUDE)$(top_builddir)/src/user \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+cscfbl_includedir=$(pkgincludedir)/cfbl
+cscfbl_include_HEADERS = \
+cs_cf_boundary_conditions.h \
+cs_cf_boundary_flux.h \
+cs_cf_compute.h \
+cs_cf_energy.h \
 cs_cf_model.h \
 cs_cf_thermo.h \
+cs_cfbl_headers.h \
 cs_hgn_thermo.h \
 cs_hgn_phase_thermo.h \
 cs_hgn_source_terms_step.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcscfbl.la
-libcscfbl_la_SOURCES = \
-cfdivs.f90 \
-cfdttv.f90 \
-cfener.f90 \
-cfini1.f90 \
-cfiniv.f90 \
-cfphyv.f90 \
-cfprop.f90 \
-cfrusb.f90 \
-cffana.f90 \
-cfvarp.f90 \
-cfxtcl.f90 \
-cfmspr.f90 \
-cfmsfp.f90 \
-cs_cf_model.c \
-cs_cf_thermo.c \
-cs_hgn_thermo.c \
-cs_hgn_phase_thermo.c \
-cs_hgn_source_terms_step.c
+noinst_LIBRARIES = libcscfbl.a
+libcscfbl_a_SOURCES = \
+cs_cf_boundary_conditions.cpp \
+cs_cf_boundary_flux.cpp \
+cs_cf_compute.cpp \
+cs_cf_energy.cpp \
+cs_cf_model.cpp \
+cs_cf_thermo.cpp \
+cs_hgn_thermo.cpp \
+cs_hgn_phase_thermo.cpp \
+cs_hgn_source_terms_step.cpp
 
-libcscfbl_la_LDFLAGS = -no-undefined
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
 
 clean-local:
-	-rm -f *__genmod.f90 *__genmod.mod
+	-rm -rf .deps

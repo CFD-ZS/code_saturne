@@ -1,14 +1,14 @@
-#ifndef __FVM_HEADERS_H__
-#define __FVM_HEADERS_H__
+#ifndef FVM_HEADERS_H
+#define FVM_HEADERS_H
 
 /*============================================================================
- * Global Code_Saturne headers file for easier include
+ * Global code_saturne headers file for easier include
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,25 +29,26 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_group.h"
-#include "fvm_io_num.h"
-#include "fvm_neighborhood.h"
-#include "fvm_nodal.h"
-#include "fvm_nodal_append.h"
-#include "fvm_nodal_extrude.h"
-#include "fvm_nodal_from_desc.h"
-#include "fvm_nodal_order.h"
-#include "fvm_nodal_project.h"
-#include "fvm_nodal_triangulate.h"
-#include "fvm_nodal_extract.h"
-#include "fvm_periodicity.h"
-#include "fvm_point_location.h"
-#include "fvm_selector.h"
-#include "fvm_trace.h"
-#include "fvm_triangulate.h"
-#include "fvm_writer.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_interpolate.h"
+#include "fvm/fvm_io_num.h"
+#include "fvm/fvm_neighborhood.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_nodal_append.h"
+#include "fvm/fvm_nodal_extrude.h"
+#include "fvm/fvm_nodal_from_desc.h"
+#include "fvm/fvm_nodal_order.h"
+#include "fvm/fvm_nodal_project.h"
+#include "fvm/fvm_nodal_triangulate.h"
+#include "fvm/fvm_nodal_extract.h"
+#include "fvm/fvm_periodicity.h"
+#include "fvm/fvm_point_location.h"
+#include "fvm/fvm_selector.h"
+#include "fvm/fvm_trace.h"
+#include "fvm/fvm_triangulate.h"
+#include "fvm/fvm_writer.h"
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __FVM_HEADERS_H__ */
+#endif /* FVM_HEADERS_H */

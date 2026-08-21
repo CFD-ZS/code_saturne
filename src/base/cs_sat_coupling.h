@@ -1,14 +1,14 @@
-#ifndef __CS_SAT_COUPLING_H__
-#define __CS_SAT_COUPLING_H__
+#ifndef CS_SAT_COUPLING_H
+#define CS_SAT_COUPLING_H
 
 /*============================================================================
  * Functions associated with code coupling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,21 +28,23 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
-/*----------------------------------------------------------------------------*/
+/*============================================================================
+ * Global variables
+ *============================================================================*/
 
-BEGIN_C_DECLS
+extern int  cs_glob_sat_coupling_face_interpolation_type;
 
 /*=============================================================================
  * Type Definitions
@@ -56,7 +58,7 @@ typedef struct _cs_sat_coupling_t cs_sat_coupling_t;
  * Each function of this sort may be used to tag a mesh and associated
  * points for mocatin exclusion.
  *
- * Note: if the context pointer is non-NULL, it must point to valid data
+ * Note: if the context pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure
  * should not be temporary (i.e. local);
  *
@@ -78,345 +80,15 @@ typedef void
                          int             *point_tag);
 
 /*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Get number of code coupling
- *
- * Fortran interface:
- *
- * SUBROUTINE NBCCPL
- * *****************
- *
- * INTEGER          NBRCPL         : <-- : number of code couplings
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (nbccpl, NBCCPL)
-(
- cs_int_t  *nbrcpl
-);
-
-/*----------------------------------------------------------------------------
- * Set the list of cells and boundary faces associated to a coupling
- * and a cloud of point.
- *
- * The local "support" cells and boundary faces are used to localize
- * the values in the distant "coupled" cells and faces.
- * Depending on the role of sender and/or receiver of the current process
- * in the coupling, some of these sets can be empty or not.
- *
- * The cell values are always localized and interpolated on the distant
- * "cells" support. The face values are localized and interpolated on
- * the distant "face" support if present, or on the distant "cell" support
- * if not.
- *
- * If the input arrays LCESUP and LFBSUP are not ordered, they will be
- * orderd in output.
- *
- * Fortran interface:
- *
- * SUBROUTINE DEFCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (defloc, DEFLOC)
-(
- const cs_int_t  *numcpl
-);
-
-/*----------------------------------------------------------------------------
- * Get the number of cells and boundary faces, "support", coupled and not
- * localized associated to a given coupling
- *
- * Fortran interface:
- *
- * SUBROUTINE NBECPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NCESUP         : <-- : number of "support" cells
- * INTEGER          NFBSUP         : <-- : number of "support" boundary faces
- * INTEGER          NCECPL         : <-- : number of coupled cells
- * INTEGER          NFBCPL         : <-- : number of coupled boundary faces
- * INTEGER          NCENCP         : <-- : number of not coupled cells
- *                                 :     : (since not localized)
- * INTEGER          NFBNCP         : <-- : number of not coupled boundary faces
- *                                 :     : (since not localized)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (nbecpl, NBECPL)
-(
- const cs_int_t  *numcpl,
-       cs_int_t  *ncesup,
-       cs_int_t  *nfbsup,
-       cs_int_t  *ncecpl,
-       cs_int_t  *nfbcpl,
-       cs_int_t  *ncencp,
-       cs_int_t  *nfbncp
-);
-
-/*----------------------------------------------------------------------------
- * Get the lists of coupled cells and boundary faces (i.e. receiving)
- * associated to a given coupling
- *
- * The number of cells and boundary faces, got with NBECPL(), are used
- * for arguments coherency checks.
- *
- * Fortran interface:
- *
- * SUBROUTINE LELCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NCECPL         : --> : number of coupled cells
- * INTEGER          NFBCPL         : --> : number of coupled boundary faces
- * INTEGER          LCECPL(*)      : <-- : list of coupled cells
- * INTEGER          LFBCPL(*)      : <-- : list of coupled boundary faces
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (lelcpl, LELCPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *ncecpl,
- const cs_int_t  *nfbcpl,
-       cs_int_t  *lcecpl,
-       cs_int_t  *lfbcpl
-);
-
-/*----------------------------------------------------------------------------
- * Get the lists of not coupled cells and boundary faces (i.e. receiving but
- * not localized) associated to a given coupling
- *
- * The number of cells and boundary faces, got with NBECPL(), are used
- * for arguments coherency checks.
- *
- * Fortran interface:
- *
- * SUBROUTINE LENCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NCENCP         : --> : number of not coupled cells
- * INTEGER          NFBNCP         : --> : number of not coupled boundary faces
- * INTEGER          LCENCP(*)      : <-- : list of not coupled cells
- * INTEGER          LFBNCP(*)      : <-- : list of not coupled boundary faces
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (lencpl, LENCPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *ncencp,
- const cs_int_t  *nfbncp,
-       cs_int_t  *lcencp,
-       cs_int_t  *lfbncp
-);
-
-/*----------------------------------------------------------------------------
- * Get the number of distant point associated to a given coupling
- * and localized on the local domain
- *
- * Fortran interface:
- *
- * SUBROUTINE NPDCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NCEDIS         : <-- : number of distant cells
- * INTEGER          NFBDIS         : <-- : numbre de distant boundary faces
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (npdcpl, NPDCPL)
-(
- const cs_int_t  *numcpl,
-       cs_int_t  *ncedis,
-       cs_int_t  *nfbdis
-);
-
-/*----------------------------------------------------------------------------
- * Get the distant points coordinates associated to a given coupling
- * and a list of points, and the elements number and type (cell or face)
- * "containing" this points.
- *
- * The number of distant points NBRPTS must be equal to one the arguments
- * NCEDIS or NFBDIS given by NPDCPL(), and is given here for coherency checks
- * between the arguments NUMCPL and ITYSUP.
- *
- * Fortran interface:
- *
- * SUBROUTINE COOCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NBRPTS         : --> : number of distant points
- * INTEGER          ITYDIS         : --> : 1 : access to the points associated
- *                                 :     :     to the distant cells
- *                                 :     : 2 : access to the points associated
- *                                 :     :     to the distant boundary faces
- * INTEGER          ITYLOC         : <-- : 1 : localization on the local cells
- *                                 :     : 2 : localization on the local faces
- * INTEGER          LOCPTS(*)      : <-- : "containing" number associated to
- *                                 :     :   each point
- * DOUBLE PRECISION COOPTS(3,*)    : <-- : distant point coordinates
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (coocpl, COOCPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *nbrpts,
- const cs_int_t  *itydis,
-       cs_int_t  *ityloc,
-       cs_int_t  *locpts,
-       cs_real_t *coopts,
-       cs_real_t *djppts,
-       cs_real_t *dofpts,
-       cs_real_t *pndpts
-);
-
-/*----------------------------------------------------------------------------
- * Get the weighting coefficient needed for a centered-like interpolation
- * in the case of a coupling on boundary faces.
- *
- * Fortran interface:
- *
- * SUBROUTINE PONDCP
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NBRCPL         : --> : number of distant points
- * INTEGER          ITYLOC         : <-- : 1 : localization on the local cells
- *                                 :     : 2 : localization on the local faces
- * DOUBLE PRECISION pndcpl(*)      : <-- : weighting coefficients
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (pondcp, PONDCP)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *nbrcpl,
-       cs_int_t  *ityloc,
-       cs_real_t *pndcpl,
-       cs_real_t *distof
-);
-
-/*----------------------------------------------------------------------------
- * Exchange a variable associated to a set of point and a coupling.
- *
- * Fortran interface:
- *
- * SUBROUTINE VARCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NBRDIS         : --> : number of values to send
- * INTEGER          NBRLOC         : --> : number of values to receive
- * INTEGER          ITYVAR         : --> : 1 : variables defined at cells
- *                                 :     : 2 : variables defined at faces
- * INTEGER          STRIDE         : --> : 1 : for scalars
- *                                 :     : 3 : for vectors
- * DOUBLE PRECISION VARDIS(*)      : --> : distant variable(to send)
- * DOUBLE PRECISION VARLOC(*)      : <-- : local variable (to receive)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (varcpl, VARCPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *nbrdis,
- const cs_int_t  *nbrloc,
- const cs_int_t  *ityvar,
- const cs_int_t  *stride,
-       cs_real_t *vardis,
-       cs_real_t *varloc
-);
-
-/*----------------------------------------------------------------------------
- * Array of integers exchange, associated to a given coupling.
- *
- * It is assumed that the arrays have the same size and the same values on
- * each group of processus (local and distant).
- *
- * Fortran interface:
- *
- * SUBROUTINE TBICPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NBRDIS         : --> : number of values to send
- * INTEGER          NBRLOC         : --> : number of values to receive
- * INTEGER          TABDIS(*)      : --> : distant values (to send)
- * INTEGER          TABLOC(*)      : <-- : local values (to receive)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tbicpl, TBICPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *nbrdis,
- const cs_int_t  *nbrloc,
-       cs_int_t  *vardis,
-       cs_int_t  *varloc
-);
-
-/*----------------------------------------------------------------------------
- * Array of reals exchange, associated to a given coupling.
- *
- * It is assumed that the arrays have the same size and the same values on
- * each group of processus (local and distant).
- *
- * Fortran interface:
- *
- * SUBROUTINE TBRCPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          NBRDIS         : --> : number of values to send
- * INTEGER          NBRLOC         : --> : number of values to receive
- * DOUBLE PRECISION TABDIS(*)      : --> : distant values (to send)
- * DOUBLE PRECISION TABLOC(*)      : <-- : local values (to receive)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (tbrcpl, TBRCPL)
-(
- const cs_int_t  *numcpl,
- const cs_int_t  *nbrdis,
- const cs_int_t  *nbrloc,
-       cs_real_t *vardis,
-       cs_real_t *varloc
-);
-
-/*----------------------------------------------------------------------------
- * Compute the maximum value of an integer variable associated to a coupling.
- *
- * It is assumed that the integer value is the same for each group of
- * processus (local and distant).
- *
- * Fortran interface:
- *
- * SUBROUTINE MXICPL
- * *****************
- *
- * INTEGER          NUMCPL         : --> : coupling number
- * INTEGER          VALDIS         : --> : distant value (to send)
- * INTEGER          VALMAX         : <-- : local maximum (to receive)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (mxicpl, MXICPL)
-(
- const cs_int_t  *const numcpl,
-       cs_int_t  *const vardis,
-       cs_int_t  *const varmax
-);
-
-/*============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Define new Code_Saturne coupling.
+ * \brief Define new code_saturne coupling.
  *
  * The arguments to \ref cs_sat_coupling_define are:
- * \param[in] saturne_name          matching Code_Saturne application name
+ * \param[in] saturne_name          matching code_saturne application name
  * \param[in] boundary_cpl_criteria boundary face selection criteria for coupled
  *                                  faces, or NULL
  * \param[in] volume_cpl_criteria   cell selection criteria for coupled cells, or
@@ -424,13 +96,14 @@ void CS_PROCF (mxicpl, MXICPL)
  * \param[in] boundary_loc_criteria boundary face selection criteria for location
  *                                  (not functional)
  * \param[in] volume_loc_criteria   cell selection criteria for location
+ * \param[in] reverse               reverse mode if 1
  * \param[in] verbosity             verbosity level
  *
- * In the case of only 2 Code_Saturne instances, the 'saturne_name' argument
+ * In the case of only 2 code_saturne instances, the 'saturne_name' argument
  * is ignored, as there is only one matching possibility.
  *
  * In case of multiple couplings, a coupling will be matched with available
- * Code_Saturne instances based on the 'saturne_name' argument.
+ * code_saturne instances based on the 'saturne_name' argument.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -440,26 +113,27 @@ cs_sat_coupling_define(const char  *saturne_name,
                        const char  *volume_cpl_criteria,
                        const char  *boundary_loc_criteria,
                        const char  *volume_loc_criteria,
+                       int          reverse,
                        int          verbosity);
 
 /*----------------------------------------------------------------------------
- * Get number of Code_Saturne couplings.
+ * Get number of code_saturne couplings.
  *
  * returns:
- *   number of Code_Saturne couplings
+ *   number of code_saturne couplings
  *----------------------------------------------------------------------------*/
 
 int
 cs_sat_coupling_n_couplings(void);
 
 /*----------------------------------------------------------------------------
- * Get pointer to Code_Saturne coupling.
+ * Get pointer to code_saturne coupling.
  *
  * parameters:
- *   coupling_id <-- Id (0 to n-1) of Code_Saturne coupling
+ *   coupling_id <-- Id (0 to n-1) of code_saturne coupling
  *
  * returns:
- *   pointer to Code_Saturne coupling structure
+ *   pointer to code_saturne coupling structure
  *----------------------------------------------------------------------------*/
 
 cs_sat_coupling_t *
@@ -472,7 +146,8 @@ cs_sat_coupling_by_id(int coupling_id);
  *   ref_axis           <-- reference axis
  *   face_sel_criterion <-- criterion for selection of boundary faces
  *   cell_sel_criterion <-- criterion for selection of cells
- *   sat_name           <-- Code_Saturne application name
+ *   sat_name           <-- code_saturne application name
+ *   reverse            <-- reverse mode if 1
  *   verbosity          <-- verbosity level
  *----------------------------------------------------------------------------*/
 
@@ -482,10 +157,11 @@ cs_sat_coupling_add(const char  *face_cpl_sel_c,
                     const char  *face_loc_sel_c,
                     const char  *cell_loc_sel_c,
                     const char  *sat_name,
+                    int          reverse,
                     int          verbosity);
 
 /*----------------------------------------------------------------------------
- * Create a new internal Code_Saturne coupling.
+ * Create a new internal code_saturne coupling.
  *
  * arguments:
  *   tag_func          <-- pointer to tagging function
@@ -493,6 +169,7 @@ cs_sat_coupling_add(const char  *face_cpl_sel_c,
  *   boundary_criteria <-- boundary face selection criteria, or NULL
  *   volume_criteria   <-- volume cell selection criteria, or NULL
  *   loc_tolerance     <-- location tolerance factor (0.1 recommended)
+ *   reverse           <-- reverse mode if 1
  *   verbosity         <-- verbosity level
  *----------------------------------------------------------------------------*/
 
@@ -504,10 +181,11 @@ cs_sat_coupling_add_internal(cs_sat_coupling_tag_t  *tag_func,
                              const char             *boundary_loc_criteria,
                              const char             *volume_loc_criteria,
                              float                   loc_tolerance,
+                             int                     reverse,
                              int                     verbosity);
 
 /*----------------------------------------------------------------------------
- * Initialize Code_Saturne couplings.
+ * Initialize code_saturne couplings.
  *
  * This function may be called once all couplings have been defined,
  * and it will match defined couplings with available applications.
@@ -515,6 +193,103 @@ cs_sat_coupling_add_internal(cs_sat_coupling_tag_t  *tag_func,
 
 void
 cs_sat_coupling_all_init(void);
+
+/*----------------------------------------------------------------------------
+ * Array of reals exchange, associated to a given coupling.
+ *
+ * It is assumed that the arrays have the same size and the same values on
+ * each group of processes (local and distant).
+ *
+ * int          cpl_id      : --> : coupling id (0-based)
+ * int          nbrdis      : --> : number of values to send
+ * int          nbrloc      : --> : number of values to receive
+ * cs_real_t    vardis      : --> : distant values (to send)
+ * cs_real_t    varloc      : <-- : local values (to receive)
+ *----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_array_exchange(int         cpl_id,
+                               cs_lnum_t   nbrdis,
+                               cs_lnum_t   nbrloc,
+                               cs_real_t  *vardis,
+                               cs_real_t  *varloc);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * code_saturne/code_saturne coupling using volumic source terms.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_exchange_at_cells
+(
+  cs_field_t *f,    /*!<[in] pointer to cs_field_t */
+  cs_real_t  *rhs,  /*!<[out] Explicit terms (RHS) */
+  cs_real_t  *fimp  /*!<[out] Implicit source terms */
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * code_saturne/code_saturne boundary coupling initialization call
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_bnd_initialize
+(
+  int *bc_type /*!<[in] boundary face types */
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * Initialization of main variables for code_saturne/code_saturne coupling
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_initialize
+(
+  void
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * Set the list of cells and boundary faces associated to a coupling
+ * and a cloud of point.
+ *
+ * The local "support" cells and boundary faces are used to locate
+ * the values in the distant "coupled" cells and faces.
+ * Depending on the role of sender and/or receiver of the current process
+ * in the coupling, some of these sets can be empty or not.
+ *
+ * The cell values are always located and interpolated on the distant
+ * "cells" support. The face values are located and interpolated on
+ * the distant "face" support if present, or on the distant "cell" support
+ * if not.
+ *
+ * If the input arrays LCESUP and LFBSUP are not ordered, they will be
+ * orderd in output.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_locate_all
+(
+ void
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * code_saturne/code_saturne coupling using boundary conditions
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sat_coupling_exchange_at_bnd_faces
+(
+  int       *bc_type, /*!<[in] boundary face types */
+  cs_real_t *dt       /*!<[in] time step (per cell) */
+);
 
 /*----------------------------------------------------------------------------
  * Destroy all couplings
@@ -525,6 +300,4 @@ cs_sat_coupling_all_finalize(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_COUPLAGE_H__ */
+#endif /* CS_COUPLAGE_H */

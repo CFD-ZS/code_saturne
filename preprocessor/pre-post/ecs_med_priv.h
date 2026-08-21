@@ -7,9 +7,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -124,8 +124,8 @@ extern "C" {
 #define ECS_MED_ORDER_LINEAR                               1
 #define ECS_MED_ORDER_PARABOLIC                            2
 
-#define ECS_MED_NBR_TYP_ELT                               14
-#define ECS_MED_NBR_MAX_SOM                                8
+#define ECS_MED_NBR_TYP_ELT                               20
+#define ECS_MED_NBR_MAX_SOM                               44
 
 /*============================================================================
  *                         Définitions d'énumerations

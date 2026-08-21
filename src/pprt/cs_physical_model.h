@@ -1,14 +1,14 @@
-#ifndef __CS_PHYSICAL_MODEL_H__
-#define __CS_PHYSICAL_MODEL_H__
+#ifndef CS_PHYSICAL_MODEL_H
+#define CS_PHYSICAL_MODEL_H
 
 /*============================================================================
  * General parameters management.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,25 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
-
-/*=============================================================================
- * Macro definitions
- *============================================================================*/
+#include "base/cs_defs.h"
+#include "base/cs_field.h"
 
 /*============================================================================
  * Type definitions
@@ -60,19 +52,20 @@ typedef enum {
   CS_PHYSICAL_MODEL_FLAG,          /*!< global specific physics flag */
 
   CS_COMBUSTION_3PT,               /*!< 3-point combustion model */
+  CS_COMBUSTION_SLFM,              /*!< Steady laminar flamelet model */
   CS_COMBUSTION_EBU,               /*!< EBU combustion model */
   CS_COMBUSTION_LW,                /*!< Libby-Williams combustion model */
-  CS_COMBUSTION_PCLC,              /*!< pulverized coal combustion with
-                                        Lagrangian coupling */
   CS_COMBUSTION_COAL,              /*!< coal combustion model */
-  CS_COMBUSTION_FUEL,              /*!< fuel combustion */
   CS_JOULE_EFFECT,                 /*!< Joule effect */
-  CS_ELECTRIC_ARCS,                /*!< electric arcs */
-  CS_COMPRESSIBLE,                 /*!< compressible model */
-  CS_ATMOSPHERIC,                  /*!< atmospheric model */
-  CS_COOLING_TOWERS,               /*!< cooling towers */
-  CS_GAS_MIX,                      /*!< gas mix model */
-  CS_GROUNDWATER,                  /*!< Richards model */
+  CS_ELECTRIC_ARCS,                /*!< Electric arcs */
+  CS_COMPRESSIBLE,                 /*!< Compressible model */
+  CS_ATMOSPHERIC,                  /*!< Atmospheric model */
+  CS_COOLING_TOWERS,               /*!< Cooling towers */
+  CS_GAS_MIX,                      /*!< Gas mix model */
+  CS_GROUNDWATER,                  /*!< Groundwater flows module */
+  CS_SOLIDIFICATION,               /*!< Solidification process */
+  CS_HEAT_TRANSFER,                /*!< Heat transfer (in solids) */
+  CS_NEPTUNE_CFD,                  /*!< Using neptune_cfd solver */
 
   CS_N_PHYSICAL_MODEL_TYPES        /*!< Number of physical model types */
 
@@ -92,6 +85,4 @@ extern int cs_glob_physical_model_flag[];
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PHYSICAL_MODEL_H__ */
+#endif /* CS_PHYSICAL_MODEL_H */

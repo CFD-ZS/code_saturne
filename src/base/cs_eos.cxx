@@ -3,9 +3,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -24,10 +24,10 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
@@ -41,7 +41,11 @@
  * EOS library headers
  *----------------------------------------------------------------------------*/
 
+// Suppress warnings of EOS header file
+DISABLE_WARNING_PUSH
+DISABLE_WARNING(-Wcast-qual)
 #include <EOS/API/EOS.hxx>
+DISABLE_WARNING_POP
 #include <EOS/API/EOS_Field.hxx>
 #include <EOS/API/EOS_Fields.hxx>
 #include <EOS/API/EOS_Error_Field.hxx>
@@ -53,12 +57,12 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "bft_error.h"
-#include "bft_mem.h"
-#include "bft_printf.h"
+#include "bft/bft_error.h"
+#include "bft/bft_printf.h"
+#include "base/cs_mem.h"
 
 /*----------------------------------------------------------------------------
  *  Header for the current file
@@ -66,10 +70,8 @@
 
 #include "cs_eos.hxx"
 
-/*----------------------------------------------------------------------------*/
-
 /*=============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Pointer on a EOS instances array */
@@ -79,12 +81,10 @@ NEPTUNE::EOS *eos;
 /*============================================================================
  * Private function definitions
  *============================================================================*/
-#ifdef __cplusplus
-extern "C"
-#endif
-void
-_eos_error_code(const char *function_name,
-                NEPTUNE::EOS_Error return_code)
+
+static void
+_eos_error_code(const char          *function_name,
+                NEPTUNE::EOS_Error   return_code)
 {
     // Generic error code returned by EOS.
     // For a field, the generic error is the worst
@@ -133,10 +133,7 @@ _eos_error_code(const char *function_name,
  *   EOSRef     <-- reference table for EOS thermo properties
  *----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_eos_create(const char *EOSMethod,
               char       *EOSRef)
 {
@@ -147,10 +144,7 @@ cs_eos_create(const char *EOSMethod,
  * Delete EOS instances
  *----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_eos_destroy(void)
 {
   delete eos;
@@ -169,10 +163,7 @@ cs_eos_destroy(void)
  */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void
+extern "C" void
 cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
                  cs_phys_prop_type_t                property,
                  const cs_lnum_t                    n_vals,
@@ -202,12 +193,13 @@ cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
   }
 
   NEPTUNE::EOS_Fields output(1);
-  NEPTUNE::EOS_Field *eos_o;
+  NEPTUNE::EOS_Field *eos_o = nullptr;
 
   switch (property) {
     case CS_PHYS_PROP_PRESSURE:
-      bft_error(__FILE__, __LINE__, 0,
-                _("bad choice: you can't choose pressure as an output variable"));
+      bft_error
+        (__FILE__, __LINE__, 0,
+         _("bad choice: you can't choose pressure as an output variable"));
       break;
     case CS_PHYS_PROP_TEMPERATURE:
       /* temperature is in K */
@@ -236,10 +228,12 @@ cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
     case CS_PHYS_PROP_INTERNAL_ENERGY:
       bft_error(__FILE__, __LINE__, 0,
                 _("bad choice: internal energy not available yet"));
+      eos_o = nullptr;
       break;
     case CS_PHYS_PROP_QUALITY:
       bft_error(__FILE__, __LINE__, 0,
                 _("bad choice: quality not available yet"));
+      eos_o = nullptr;
       break;
     case CS_PHYS_PROP_THERMAL_CONDUCTIVITY:
       eos_o = new NEPTUNE::EOS_Field("lambda", "lambda", n_vals, val);
@@ -250,13 +244,22 @@ cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
     case CS_PHYS_PROP_SPEED_OF_SOUND:
       bft_error(__FILE__, __LINE__, 0,
                 _("bad choice: speed of sound not available yet"));
+      eos_o = nullptr;
+      break;
+    case CS_PHYS_PROP_DRHO_DP_H:
+      eos_o = new NEPTUNE::EOS_Field("DroDpDerivative", "d_rho_d_p_h",
+                                     n_vals, val);
+      break;
+    case CS_PHYS_PROP_DRHO_DH_P:
+      eos_o = new NEPTUNE::EOS_Field("DroDhDerivative", "d_rho_d_h_p",
+                                     n_vals, val);
       break;
   }
 
   output[0] = *eos_o;
 
   int *error;
-  BFT_MALLOC(error, n_vals, int);
+  CS_MALLOC(error, n_vals, int);
   NEPTUNE::EOS_Error_Field eos_error_field(n_vals, error);
 
   NEPTUNE::EOS_Error eos_error = eos->compute(input,
@@ -264,8 +267,7 @@ cs_phys_prop_eos(cs_phys_prop_thermo_plane_type_t   thermo_plane,
                                               eos_error_field);
 
   _eos_error_code("cs_phys_prop_eos", eos_error);
-  BFT_FREE(error);
-
+  CS_FREE(error);
 }
 
 /*----------------------------------------------------------------------------*/

@@ -1,14 +1,14 @@
-#ifndef __CS_ROTATION_H__
-#define __CS_ROTATION_H__
+#ifndef CS_ROTATION_H
+#define CS_ROTATION_H
 
 /*============================================================================
  * Rotation modeling features.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Local Type Definitions
@@ -123,7 +119,8 @@ cs_rotation_update_coords(cs_lnum_t    n_coords,
  *   vr     --> relative velocity
  *---------------------------------------------------------------------------*/
 
-static inline void
+CS_F_HOST_DEVICE
+inline void
 cs_rotation_velocity(const cs_rotation_t  *r,
                      const cs_real_t       coords[3],
                      cs_real_t             vr[3])
@@ -146,7 +143,7 @@ cs_rotation_velocity(const cs_rotation_t  *r,
  *   vr <-> vector to which Coriolis term is added
  *---------------------------------------------------------------------------*/
 
-static inline void
+CS_F_HOST_DEVICE inline void
 cs_rotation_add_coriolis_v(const cs_rotation_t  *r,
                            cs_real_t             c,
                            const cs_real_t       v[3],
@@ -169,7 +166,7 @@ cs_rotation_add_coriolis_v(const cs_rotation_t  *r,
  *   vr --> vector associted to Coriolis term
  *---------------------------------------------------------------------------*/
 
-static inline void
+inline void
 cs_rotation_coriolis_v(const cs_rotation_t  *r,
                        cs_real_t             c,
                        const cs_real_t       v[3],
@@ -193,7 +190,7 @@ cs_rotation_coriolis_v(const cs_rotation_t  *r,
  *   tr <-> tensor to which dual tensor of rotation is added
  *---------------------------------------------------------------------------*/
 
-static inline void
+CS_F_HOST_DEVICE inline void
 cs_rotation_add_coriolis_t(const cs_rotation_t  *r,
                            cs_real_t             c,
                            cs_real_t             tr[3][3])
@@ -221,7 +218,7 @@ cs_rotation_add_coriolis_t(const cs_rotation_t  *r,
  *   tr --> dual tensor of rotation
  *---------------------------------------------------------------------------*/
 
-static inline void
+CS_F_HOST_DEVICE inline void
 cs_rotation_coriolis_t(const cs_rotation_t  *r,
                        cs_real_t             c,
                        cs_real_t             tr[3][3])
@@ -245,10 +242,10 @@ cs_rotation_coriolis_t(const cs_rotation_t  *r,
 /*!
  * \brief Express a vector in the cyclindrical system associated to a rotation.
  *
- * \param[in]   r   pointer to rotation structure
- * \param[in]   p   cartesian coordinates of the location point
- * \param[in]   v   vector components in cartesian coordinates system
- * \param[out]  vc  vector components in cylindrical coordinates system
+ * \param[in]   r       pointer to rotation structure
+ * \param[in]   coords  cartesian coordinates of the location point
+ * \param[in]   v       vector components in cartesian coordinates system
+ * \param[out]  vc      vector components in cylindrical coordinates system
  */
 /*----------------------------------------------------------------------------*/
 
@@ -276,6 +273,4 @@ cs_rotation_to_array(int        r_num,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_ROTATION_H__ */
+#endif /* CS_ROTATION_H */

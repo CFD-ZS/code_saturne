@@ -1,14 +1,14 @@
-#ifndef __FVM_NODAL_PRIV_H__
-#define __FVM_NODAL_PRIV_H__
+#ifndef FVM_NODAL_PRIV_H
+#define FVM_NODAL_PRIV_H
 
 /*============================================================================
  * Main structure for a nodal representation associated with a mesh
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,21 +27,17 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_mesh.h"
-#include "fvm_defs.h"
-#include "fvm_group.h"
-#include "fvm_nodal.h"
-#include "fvm_tesselation.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_tesselation.h"
 
 /*=============================================================================
  * Macro definitions
@@ -65,6 +61,11 @@ typedef struct _fvm_nodal_section_t {
   cs_lnum_t   n_elements;          /* Number of elements */
 
   fvm_element_t  type;             /* Element types */
+
+  int         boundary_flag;       /* Is section on boundary ?
+                                      -1: does not apply or unspecified;
+                                      0: no
+                                      1: yes */
 
   /* Connectivity */
   /*--------------*/
@@ -121,27 +122,27 @@ typedef struct _fvm_nodal_section_t {
   /* Numbering */
   /*-----------*/
 
-  const cs_lnum_t   *parent_element_num; /* Local numbers (1 to n) of local
-                                            elements in the parent mesh,
-                                            associated with the section's
-                                            elements.
+  const cs_lnum_t   *parent_element_id; /* Local ids (0 to n-1) of local
+                                           elements in the parent mesh,
+                                           associated with the section's
+                                           elements.
 
-                                            This array is necessary to redis-
-                                            tribute output fields when the
-                                            section has been either associated
-                                            with an unsorted mixed mesh,
-                                            renumbered, or is associated with a
-                                            subset of a more complete mesh,
-                                            such as a clip plane. When used for
-                                            a subset, it also defines the lists
-                                            of elements of the parent mesh
-                                            belonging to that subset.
+                                           This array is necessary to redis-
+                                           tribute output fields when the
+                                           section has been either associated
+                                           with an unsorted mixed mesh,
+                                           renumbered, or is associated with a
+                                           subset of a more complete mesh,
+                                           such as a clip plane. When used for
+                                           a subset, it also defines the lists
+                                           of elements of the parent mesh
+                                           belonging to that subset.
 
-                                            This array is present only when non
-                                            "trivial" (i.e. not 1, 2, ..., n). */
+                                           This array is present only when non
+                                           "trivial" (i.e. not 0, 1, ..., n-1). */
 
-  cs_lnum_t     *_parent_element_num;    /* pointer to parent_element_num if
-                                            owner, NULL otherwise */
+  cs_lnum_t     *_parent_element_id;    /* pointer to parent_element_num if
+                                           owner, NULL otherwise */
 
   fvm_io_num_t  *global_element_num;     /* Global element numbers */
 
@@ -181,7 +182,7 @@ struct _fvm_nodal_t {
   cs_coord_t        *_vertex_coords;    /* pointer to vertex coordinates if
                                            owner (for use with own algorithms) */
 
-  const cs_lnum_t   *parent_vertex_num; /* Local numbers (1 to n) of local
+  const cs_lnum_t   *parent_vertex_id;  /* Local ids (0 to n-1) of local
                                            vertices in the parent mesh.
 
                                            This array is necessary to redis-
@@ -194,9 +195,9 @@ struct _fvm_nodal_t {
                                            mesh in that subset).
 
                                            This array is present only when non
-                                           "trivial" (i.e. not 1, 2, ..., n). */
+                                           "trivial" (i.e. not 0, 1, ..., n-1). */
 
-  cs_lnum_t     *_parent_vertex_num;    /* pointer to parent_vertex_num if
+  cs_lnum_t     *_parent_vertex_id;     /* pointer to parent_vertex_id if
                                            owner, NULL otherwise */
 
   fvm_io_num_t  *global_vertex_num;     /* Global vertex numbering */
@@ -251,7 +252,7 @@ fvm_nodal_section_create(const fvm_element_t  type);
  *   this_section <-> pointer to structure that should be destroyed
  *
  * returns:
- *  NULL pointer
+ *  null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_nodal_section_t *
@@ -320,6 +321,4 @@ fvm_nodal_cell_face_connect(fvm_element_t   element_type,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_NODAL_PRIV_H__ */
+#endif /* FVM_NODAL_PRIV_H */

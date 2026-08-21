@@ -1,14 +1,14 @@
-#ifndef __CS_BLAS_H__
-#define __CS_BLAS_H__
+#ifndef CS_BLAS_H
+#define CS_BLAS_H
 
 /*============================================================================
  * BLAS (Basic Linear Algebra Subroutine) functions
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,21 +27,19 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
  * External library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_dispatch.h"
+#include "base/cs_log.h"
 
 /*============================================================================
  * Macro definitions
@@ -53,10 +51,13 @@ BEGIN_C_DECLS
 
 /* BLAS reduction algorithm families */
 
+/*! Reduction algorithm type */
 typedef enum {
 
-  CS_BLAS_REDUCE_SUPERBLOCK,
-  CS_BLAS_REDUCE_KAHAN
+  CS_BLAS_REDUCE_SUPERBLOCK, /*!< Reduction based on l3superblock60 algorithm,
+                                  described in \cite Castaldo:2008 */
+  CS_BLAS_REDUCE_KAHAN       /*!< Reduction based on Kahan's compensated
+                                  summation, described in \cite Kahan:1965 */
 
 } cs_blas_reduce_t;
 
@@ -65,7 +66,75 @@ typedef enum {
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Constant times a vector plus a vector: y <-- ax + y
+ *
+ * \param[in]     ctx  reference to dispatch context
+ * \param[in]       n  size of arrays x and y
+ * \param[in]       a  multiplier for x
+ * \param[in]       x  array of floating-point values
+ * \param[in, out]  y  array of floating-point values
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_axpy(cs_dispatch_context  &ctx,
+        cs_lnum_t             n,
+        cs_real_t             a,
+        const cs_real_t      *x,
+        cs_real_t            *restrict y);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return the dot product of 2 vectors: x.y
+ *
+ * \param[in]  ctx  reference to dispatch context
+ * \param[in]  n    size of arrays x and y
+ * \param[in]  x    array of floating-point values
+ * \param[in]  y    array of floating-point values
+ *
+ * \return  dot product
+ */
+/*----------------------------------------------------------------------------*/
+
+double
+cs_dot(cs_dispatch_context   &ctx,
+       cs_lnum_t              n,
+       const cs_real_t       *x,
+       const cs_real_t       *y);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return dot products of a vector with itself: x.x
+ *
+ * For better precision, a superblock algorithm is used.
+ *
+ * \param[in]  ctx  reference to dispatch context
+ * \param[in]  n    size of array x
+ * \param[in]  x    array of floating-point values
+ *
+ * \return  dot product
+ */
+/*----------------------------------------------------------------------------*/
+
+double
+cs_dot_xx([[maybe_unused]] cs_dispatch_context  &ctx,
+          cs_lnum_t                              n,
+          const cs_real_t                       *x);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Print information on BLAS libraries used.
+ *
+ * \param[in]  log_type  log type
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_blas_library_info(cs_log_t  log_type);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Set the preferred BLAS reduction algorithm family.
  *
  * This may not be enforced for all algorithms, though it should at least
@@ -92,7 +161,7 @@ void
 cs_axpy(cs_lnum_t         n,
         double            a,
         const cs_real_t  *x,
-        cs_real_t        *restrict y);
+        cs_real_t        *y);
 
 /*----------------------------------------------------------------------------
  * Return the sum of a vector. For better precision, a superblock algorithm
@@ -125,6 +194,7 @@ double
 cs_weighted_sum(cs_lnum_t         n,
                 const cs_real_t  *w,
                 const cs_real_t  *x);
+
 
 /*----------------------------------------------------------------------------
  * Return the dot product of 2 vectors: x.y
@@ -193,11 +263,11 @@ cs_dot_wxx(cs_lnum_t         n,
  *----------------------------------------------------------------------------*/
 
 void
-cs_dot_xx_xy(cs_lnum_t                    n,
-             const cs_real_t  *restrict   x,
-             const cs_real_t  *restrict   y,
-             double                      *xx,
-             double                      *xy);
+cs_dot_xx_xy(cs_lnum_t         n,
+             const cs_real_t  *x,
+             const cs_real_t  *y,
+             double           *xx,
+             double           *xy);
 
 /*----------------------------------------------------------------------------
  * Return the double dot product of 3 vectors: x.y, and y.z
@@ -216,12 +286,12 @@ cs_dot_xx_xy(cs_lnum_t                    n,
  *----------------------------------------------------------------------------*/
 
 void
-cs_dot_xy_yz(cs_lnum_t                    n,
-             const cs_real_t  *restrict   x,
-             const cs_real_t  *restrict   y,
-             const cs_real_t  *restrict   z,
-             double                      *xx,
-             double                      *xy);
+cs_dot_xy_yz(cs_lnum_t         n,
+             const cs_real_t  *x,
+             const cs_real_t  *y,
+             const cs_real_t  *z,
+             double           *xx,
+             double           *xy);
 
 /*----------------------------------------------------------------------------
  * Return 3 dot products of 3 vectors: x.x, x.y, and y.z
@@ -241,13 +311,13 @@ cs_dot_xy_yz(cs_lnum_t                    n,
  *----------------------------------------------------------------------------*/
 
 void
-cs_dot_xx_xy_yz(cs_lnum_t                    n,
-                const cs_real_t  *restrict   x,
-                const cs_real_t  *restrict   y,
-                const cs_real_t  *restrict   z,
-                double                      *xx,
-                double                      *xy,
-                double                      *yz);
+cs_dot_xx_xy_yz(cs_lnum_t         n,
+                const cs_real_t  *x,
+                const cs_real_t  *y,
+                const cs_real_t  *z,
+                double           *xx,
+                double           *xy,
+                double           *yz);
 
 /*----------------------------------------------------------------------------
  * Return 5 dot products of 3 vectors: x.x, y.y, x.y, x.z, and y.z
@@ -269,15 +339,15 @@ cs_dot_xx_xy_yz(cs_lnum_t                    n,
  *----------------------------------------------------------------------------*/
 
 void
-cs_dot_xx_yy_xy_xz_yz(cs_lnum_t                    n,
-                      const cs_real_t  *restrict   x,
-                      const cs_real_t  *restrict   y,
-                      const cs_real_t  *restrict   z,
-                      double                      *xx,
-                      double                      *yy,
-                      double                      *xy,
-                      double                      *xz,
-                      double                      *yz);
+cs_dot_xx_yy_xy_xz_yz(cs_lnum_t         n,
+                      const cs_real_t  *x,
+                      const cs_real_t  *y,
+                      const cs_real_t  *z,
+                      double           *xx,
+                      double           *yy,
+                      double           *xy,
+                      double           *xz,
+                      double           *yz);
 
 /*----------------------------------------------------------------------------
  * Return the global dot product of 2 vectors: x.y
@@ -300,8 +370,50 @@ cs_gdot(cs_lnum_t         n,
         const cs_real_t  *y);
 
 /*----------------------------------------------------------------------------
- * Return the global residual of 2 extensive vectors:
- *  1/sum(vol) . sum(X.Y/vol)
+ * Return the global dot product of a vector: x.x
+ *
+ * In parallel mode, the local results are summed on the default
+ * global communicator.
+ *
+ * parameters:
+ *   n <-- size of arrays x and y
+ *   x <-- array of floating-point values
+ *
+ * returns:
+ *   dot product
+ *----------------------------------------------------------------------------*/
+
+double
+cs_gdot_xx(cs_lnum_t n, const cs_real_t *x);
+
+/*----------------------------------------------------------------------------
+ * Return the global double dot product of 2 vectors: x.x, and x.y
+ *
+ * The products could be computed separately, but computing them
+ * simultaneously adds more optimization opportunities and possibly better
+ * cache behavior.
+ *
+ * In parallel mode, the local results are summed on the default
+ * global communicator.
+ *
+ * parameters:
+ *   n  <-- size of arrays x and y
+ *   x  <-- array of floating-point values
+ *   y  <-- array of floating-point values
+ *   xx --> x.x dot product
+ *   xy --> x.y dot product
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gdot_xx_xy(cs_lnum_t        n,
+              const cs_real_t *x,
+              const cs_real_t *y,
+              double          *xx,
+              double          *xy);
+
+/*----------------------------------------------------------------------------
+ * Return the global residual of 2 intensive vectors:
+ *  1/sum(vol) . sum(vol.x.y)
  *
  * parameters:
  *   n   <-- size of arrays x and y
@@ -319,8 +431,24 @@ cs_gres(cs_lnum_t         n,
         const cs_real_t  *x,
         const cs_real_t  *y);
 
+/*----------------------------------------------------------------------------
+ * Return the global volume weighted mean
+ *  1/sum(vol) . sum(vol.x)
+ *
+ * parameters:
+ *   n   <-- size of arrays x
+ *   vol <-- array of floating-point values
+ *   x   <-- array of floating-point values
+ *
+ * returns:
+ *   global residual
+ *----------------------------------------------------------------------------*/
+
+double
+cs_gmean(cs_lnum_t         n,
+         const cs_real_t  *vol,
+         const cs_real_t  *x);
+
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BLAS_H__ */
+#endif /* CS_BLAS_H */

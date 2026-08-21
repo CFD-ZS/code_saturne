@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_LAGESP_H__
-#define __CS_LAGR_LAGESP_H__
+#ifndef CS_LAGR_LAGESP_H
+#define CS_LAGR_LAGESP_H
 
 /*============================================================================
  * Functions and types for LAGESP
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,48 +27,90 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------*/
 
-BEGIN_C_DECLS
+#if defined(__cplusplus)
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Integration of particle equations of motion:
+/*! \brief Integration of SDEs by 1st order time scheme for one particle
  *
- * - Standard Model : First or second order
- * - Deposition submodel (Guingo & Minier, 2008) if needed
- *
- * \param[in]  dt_p      lagrangian time step
+ * \param[in]  p_set     reference to particle set
+ * \param[in]  p_id      particle index in set
+ * \param[in]  dt_part   remaining time step associated to the particle
+ * \param[in]  nor       current step id (for 2nd order scheme)
  * \param[in]  taup      dynamic characteristic time
- * \param[in]  tlag      fluid characteristic time
- * \param[in]  piil      terme in P-U SDE integration
+ * \param[in]  tlag      lagrangian fluid characteristic time
+ * \param[in]  piil      term in integration of up sdes
  * \param[in]  bx        turbulence characteristics
- * \param[out] tsfext    info for return coupling source terms
- * \param[in]  gradpr    pressure gradient
- * \param[in]  gradvf    fluid velocity gradient
- * \param[out] terbru    FIXME
- * \param[in]  vislen    FIXME
+ * \param[in]  vagaus    gaussian random variables
+ * \param[in]  brgaus    gaussian random variables
+ * \param[in]  force_p   forces per mass unit on particles (m/s^2)
+ * \param[in]  beta      proportional to the gradient of T_lag
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_lagr_sde(cs_real_t           dt_p,
-            const cs_real_t     taup[],
-            const cs_real_3_t   tlag[],
-            const cs_real_3_t   piil[],
-            const cs_real_33_t  bx[],
-            cs_real_t           tsfext[],
-            const cs_real_3_t   gradpr[],
-            const cs_real_33_t  gradvf[],
-            cs_real_t           terbru[],
-            const cs_real_t     vislen[],
-            cs_lnum_t          *nresnew);
+cs_sde_vels_pos_1_st_order_time_integ(cs_lagr_particle_set_t          &p_set,
+                                      cs_lnum_t                       p_id,
+                                      cs_real_t                       dt_part,
+                                      int                             nor,
+                                      const cs_array<cs_real_t>&      taup,
+                                      const cs_array_2d<cs_real_t>&   tlag,
+                                      const cs_array_2d<cs_real_t>&   piil,
+                                      const cs_array_3d<cs_real_t>&   bx,
+                                      const cs_array_2d<cs_real_t>&   vagaus,
+                                      const cs_real_6_t               brgaus,
+                                      const cs_real_3_t               force_p,
+                                      const cs_real_3_t               beta);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Integration of particle equations of motion:
+ *
+ * - Standard Model : First or second order
+ * - Deposition submodel (Guingo & Minier, 2007) if needed
+ *
+ * \param[in]  p_set     reference to particle set
+ * \param[in]  p_id      particle index in set
+ * \param[in]  dt_part   remaining time step associated to the particle
+ * \param[in]  nor       current step id (for 2nd order scheme)
+ * \param[in]  taup      dynamic characteristic time
+ * \param[in]  tlag      fluid characteristic time
+ * \param[in]  piil      term in integration of U-P SDEs
+ * \param[in]  bx        turbulence characteristics
+ * \param[out] tsfext    info for return coupling source terms
+ * \param[out] force_p   forces per mass unit on particles (m/s^2)
+ * \param[in]  vislen    nu/u* = y/y+
+ * \param[in]  beta      proportional to the gradient of T_lag
+ * \param[out] vagaus    gaussian random variables
+ * \param[out] brgaus    gaussian random variables
+ * \param[in]  nresnew
+ *
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_lagr_sde(cs_lagr_particle_set_t          &p_set,
+            cs_lnum_t                        p_id,
+            cs_real_t                        dt_part,
+            int                              nor,
+            const cs_array<cs_real_t>&       taup,
+            const cs_array_2d<cs_real_t>&    tlag,
+            const cs_array_2d<cs_real_t>&    piil,
+            const cs_array_3d<cs_real_t>&    bx,
+            cs_real_t                       *tsfext,
+            const cs_real_3_t                force_p,
+            const cs_real_t                  vislen[],
+            const cs_real_3_t                beta,
+            cs_array_2d<cs_real_t>&          vagaus,
+            cs_real_6_t                      brgaus,
+            cs_lnum_t                       *nresnew);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -83,17 +125,23 @@ cs_lagr_sde(cs_real_t           dt_p,
  * degenerates to order 1 (even if the 2nd order scheme is active).
  *
  * \param[in]  attr    attribute/variable
+ * \param[in]  p_id    particle id
+ * \param[in]  nor     current step id (for 2nd order scheme)
+ * \param[in]  dt_part remaining time step associated to the particle
  * \param[in]  tcarac  variable characteristic time
  * \param[in]  pip     right-hand side associated with SDE
  *----------------------------------------------------------------------------*/
 
 void
 cs_lagr_sde_attr(cs_lagr_attribute_t   attr,
-                 cs_real_t            *tcarac,
-                 cs_real_t            *pip);
+                 const cs_lnum_t       p_id,
+                 int                   nor,
+                 const cs_real_t       dt_part,
+                 cs_real_t             tcarac,
+                 cs_real_t             pip);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+#endif /* __cplusplus */
 
-#endif /* __CS_LAGR_LAGESP_H__ */
+#endif /* CS_LAGR_LAGESP_H */

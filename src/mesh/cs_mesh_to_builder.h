@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_TO_BUILDER_H__
-#define __CS_MESH_TO_BUILDER_H__
+#ifndef CS_MESH_TO_BUILDER_H
+#define CS_MESH_TO_BUILDER_H
 
 /*============================================================================
  * Define cs_mesh_builder_t fields from cs_mesh_t fields.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,25 +28,21 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "fvm_group.h"
-#include "fvm_selector.h"
-#include "fvm_periodicity.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_selector.h"
+#include "fvm/fvm_periodicity.h"
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
-#include "cs_io.h"
-#include "cs_mesh.h"
-#include "cs_mesh_builder.h"
-#include "cs_part_to_block.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_io.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_builder.h"
+#include "base/cs_part_to_block.h"
 
 /*=============================================================================
  * Macro definitions
@@ -112,6 +108,4 @@ cs_mesh_to_builder_perio_faces(const cs_mesh_t    *mesh,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_TO_BUILDER_H__ */
+#endif /* CS_MESH_TO_BUILDER_H */

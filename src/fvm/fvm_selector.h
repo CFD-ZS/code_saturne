@@ -1,14 +1,14 @@
-#ifndef __FVM_SELECTOR_H__
-#define __FVM_SELECTOR_H__
+#ifndef FVM_SELECTOR_H
+#define FVM_SELECTOR_H
 
 /*============================================================================
  * Mechanism for entity selection based on groups or attributes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,18 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_group.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_group.h"
 
 /*=============================================================================
  * Macro definitions
@@ -64,10 +60,9 @@ typedef struct _fvm_selector_t  fvm_selector_t;
  *   group_class_id       <-- group class id associated with each element
  *                            (size: n_elements)
  *   group_class_id_base; <-- Starting group class id base (usually 0 or 1)
- *   coords               <-- coordinates (interlaced) associated with each
+ *   coords               <-- coordinates associated with each
  *                            element, whether vertex, face or cell center, ...
- *                            (size: n_elements * dim)
- *   normals              <-- normals (interlaced) associated with each element
+ *   u_normals            <-- unit normals associated with each element
  *                            if applicable (such as for face normals), or NULL
  *
  * returns:
@@ -80,8 +75,8 @@ fvm_selector_create(int                           dim,
                     const fvm_group_class_set_t  *group_class_set,
                     const int                     group_class_id[],
                     int                           group_class_id_base,
-                    const double                  coords[],
-                    const double                  normals[]);
+                    const cs_real_3_t             coords[],
+                    const cs_nreal_3_t            u_normals[]);
 
 /*----------------------------------------------------------------------------
  * Destruction of a selector structure.
@@ -90,7 +85,7 @@ fvm_selector_create(int                           dim,
  *   this_selector <-> selector to destroy
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_selector_t *
@@ -205,6 +200,4 @@ fvm_selector_dump(const fvm_selector_t  *this_selector);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_SELECTOR_H__ */
+#endif /* FVM_SELECTOR_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_CDO_QUANTITIES_H__
-#define __CS_CDO_QUANTITIES_H__
+#ifndef CS_CDO_QUANTITIES_H
+#define CS_CDO_QUANTITIES_H
 
 /*============================================================================
- * Manage geometrical quantities needed in CDO schemes
+ * Manage geometrical quantities needed in CDO/MAC schemes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_cdo_connect.h"
-#include "cs_flag.h"
-#include "cs_math.h"
-#include "cs_mesh.h"
-#include "cs_mesh_quantities.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_math.h"
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_flag.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*============================================================================
  * Macro definitions
@@ -50,56 +46,117 @@ BEGIN_C_DECLS
  * Type definitions
  *============================================================================*/
 
-/* Type of algorithm used to compute the cell center */
+/*! \enum cs_cdo_quantities_cell_center_algo_t
+ *  \brief Type of algorithm used to compute the cell centers
+ *
+ * \var CS_CDO_QUANTITIES_MEANV_CENTER
+ * Cell center is computed as the mean of cell vertices
+ *
+ * \var CS_CDO_QUANTITIES_BARYC_CENTER
+ * Cell center is computed as the real cell barycenter (default choice relying
+ * on an adaptation of the Mirtich algorithm
+ *
+ * \var CS_CDO_QUANTITIES_SATURNE_CENTER
+ * Cell center corresponds to the one defined in cs_mesh_quantities_t (i.e. one
+ * points to the one used in the legacy Finite Volume scheme).
+ *
+ * \var CS_CDO_QUANTITIES_SUBDIV_CENTER
+ * Cell center is computed thanks to an implicit face/cell subdivision into
+ * tetrahedra. This may be useful to handle properly meshes with non-planar
+ * faces or with a poor mesh quality.
+ */
+
 typedef enum {
 
-  /* Center is computed as the mean of cell vertices */
   CS_CDO_QUANTITIES_MEANV_CENTER,
-
-  /* Center is computed as the real cell barycenter */
   CS_CDO_QUANTITIES_BARYC_CENTER,
-
-  /* Use the cell center computed in cs_mesh_quantities.c (Default behavior) */
   CS_CDO_QUANTITIES_SATURNE_CENTER,
+  CS_CDO_QUANTITIES_SUBDIV_CENTER,
 
-  CS_CDO_QUANTITIES_N_CENTER_ALGOS
+} cs_cdo_quantities_cell_center_algo_t;
 
-} cs_cdo_quantities_algo_ccenter_t;
+/*! \enum cs_cdo_quantities_bit_t
+ *  \brief Bit values for setting which quantities to compute
+ *
+ * \var CS_CDO_QUANTITIES_EB_SCHEME
+ * Geometrical quantities related to edge-based schemes
+ *
+ * \var CS_CDO_QUANTITIES_FB_SCHEME
+ * Geometrical quantities related to face-based schemes
+ *
+ * \var CS_CDO_QUANTITIES_HHO_SCHEME
+ * Geometrical quantities related to HHO schemes
+ *
+ * \var CS_CDO_QUANTITIES_VB_SCHEME
+ * Geometrical quantities related to vertex-based schemes
+ *
+ * \var CS_CDO_QUANTITIES_VCB_SCHEME
+ * Geometrical quantities related to vertex+cell-based schemes
+ *
+ * \var CS_CDO_QUANTITIES_CB_SCHEME
+ * Geometrical quantities related to cell-based schemes
+ *
+ * \var CS_CDO_QUANTITIES_MAC_SCHEME
+ * Geometrical quantities related to MAC face-based schemes
+ */
+
+typedef enum {
+
+  /* Set of geometrical quantities related to CDO schemes */
+
+  CS_CDO_QUANTITIES_EB_SCHEME  = 1 << 0, /* =   1 */
+  CS_CDO_QUANTITIES_FB_SCHEME  = 1 << 1, /* =   2 */
+  CS_CDO_QUANTITIES_HHO_SCHEME = 1 << 2, /* =   4 */
+  CS_CDO_QUANTITIES_VB_SCHEME  = 1 << 3, /* =   8 */
+  CS_CDO_QUANTITIES_VCB_SCHEME = 1 << 4, /* =  16 */
+  CS_CDO_QUANTITIES_CB_SCHEME  = 1 << 5, /* =  32 */
+  CS_CDO_QUANTITIES_MAC_SCHEME = 1 << 6, /* =  64 */
+
+} cs_cdo_quantities_bit_t;
 
 /* Structure storing information about variation of entities across the
    mesh for a given type of entity (cell, face and edge) */
-typedef struct {
+
+struct cs_quant_info_t {
 
   /* Measure is either a volume for cells, a surface for faces or a length
      for edges */
+
   double   meas_min;  /* Min. value of the entity measure */
   double   meas_max;  /* Max. value of the entity measure */
   double   h_min;     /* Estimation of the min. value of the diameter */
   double   h_max;     /* Estimation of the max. value of the diameter */
 
-} cs_quant_info_t;
+} ;
 
 /* For primal vector quantities (edge or face) */
-typedef struct {
+
+struct cs_quant_t {
 
   double  meas;       /* length or area */
   double  unitv[3];   /* unitary vector: tangent or normal to the element */
   double  center[3];
 
-} cs_quant_t;
+};
 
-typedef struct { /* Specific mesh quantities */
+struct cs_cdo_quantities_t { /* Specific mesh quantities */
+
+  /* Keep the information about the removal of boundary faces in case of 2D
+     computations */
+
+  bool             remove_boundary_faces;
 
   /* Global mesh quantities */
+
   double           vol_tot;
 
   /* Cell-based quantities */
   /* ===================== */
 
-  cs_lnum_t         n_cells;        /* Local number of cells */
-  cs_gnum_t         n_g_cells;      /* Global number of cells */
-  cs_real_t        *cell_centers;
-  cs_real_t        *cell_vol;
+  cs_lnum_t         n_cells;        // Local number of cells
+  cs_gnum_t         n_g_cells;      // Global number of cells
+  cs_real_3_t      *cell_centers;   // May be shared according to options
+  cs_real_t        *cell_vol;       // Can be shared with cs_mesh_quantities_t
 
   cs_quant_info_t   cell_info;
 
@@ -107,29 +164,47 @@ typedef struct { /* Specific mesh quantities */
   /* ===================== */
 
   cs_lnum_t         n_faces;        /* n_i_faces + n_b_faces */
+  cs_lnum_t         n_i_faces;      /* Local number of interior faces */
+  cs_lnum_t         n_b_faces;      /* Local number of border faces */
   cs_gnum_t         n_g_faces;      /* Global number of faces */
 
-  /* cs_quant_t structure attached to a face (interior or border) can be built
-     on-the-fly: cs_quant_get(flag, f_id, quant). In order to reduce the memory
-     consumption one shares face quantities with the ones defined in the legacy
-     part and stored in the cs_mesh_quantities_t structure */
+  /* Remark: cs_quant_t structure attached to a face (interior or border) can
+     be built on-the-fly calling the function cdoq.get_face(f_id).
+     See \ref get_face for more details.
 
-  cs_lnum_t         n_i_faces;      /* Local number of interior faces */
-  const cs_real_t  *i_face_normal;  /* Shared with cs_mesh_quantities_t */
-  const cs_real_t  *i_face_center;  /* Shared with cs_mesh_quantities_t */
-  const cs_real_t  *i_face_surf;    /* Shared with cs_mesh_quantities_t */
+     In order to reduce the memory consumption one shares face quantities with
+     the ones defined in the legacy part and stored in the cs_mesh_quantities_t
+     structure that's why a distinction is made between interior and border
+     faces.
 
-  cs_lnum_t         n_b_faces;      /* Local number of border faces */
-  const cs_real_t  *b_face_normal;  /* Shared with cs_mesh_quantities_t */
-  const cs_real_t  *b_face_center;  /* Shared with cs_mesh_quantities_t */
-  const cs_real_t  *b_face_surf;    /* Shared with cs_mesh_quantities_t */
+     cs_nvec3_t structure associated to a face can also be built on-the-fly
+     using cdoq.get_face_nvec(f_id).
+     See \ref get_face_nvec for more details.
+  */
 
-  /* cs_nvec3_t structure attached to a dual edge can be built on-the-fly to
-     access to its length and its unit tangential vector. One
-     recalls that a dual edge is associated to a primal face and is shared with
-     two cells if the face lies inside the domain and shared with one cell if
-     the face lies on the domain boundary.
-     Scan this quantity with the c2f connectivity
+  cs_nreal_3_t     *i_face_u_normal;  // Can be shared with cs_mesh_quantities_t
+  cs_real_t        *i_face_normal;    // Can be shared with cs_mesh_quantities_t
+  cs_real_t        *i_face_surf;      // Can be shared with cs_mesh_quantities_t
+  cs_real_3_t      *i_face_center;    // Can be shared with cs_mesh_quantities_t
+  const cs_real_t  *i_dist;           // Always shared with cs_mesh_quantities_t
+
+  cs_nreal_3_t     *b_face_u_normal;  // Can be shared with cs_mesh_quantities_t
+  cs_real_t        *b_face_normal;    // Can be shared with cs_mesh_quantities_t
+  cs_real_t        *b_face_surf;      // Can be shared with cs_mesh_quantities_t
+  cs_real_3_t      *b_face_center;    // Can be shared with cs_mesh_quantities_t
+  const cs_real_t  *b_dist;           // Always shared with cs_mesh_quantities_t
+
+  cs_flag_cartesian_axis_t *face_axis; /* Enum for normal direction of faces
+                                        * Not always allocated
+                                        */
+
+  /* Remark: cs_nvec3_t structure attached to a dual edge can be built
+     on-the-fly to access to its length and its unit tangential vector using
+     the function cdoq.get_dedge_nvec(shift)
+
+     One recalls that a dual edge is associated to a primal face and is shared
+     with two cells for an interior face and shared with one cell for a
+     boundary face.  Scan this quantity with the c2f connectivity.
   */
 
   cs_real_t        *dedge_vector;   /* Allocation to 3*c2f->idx[n_faces] */
@@ -154,8 +229,9 @@ typedef struct { /* Specific mesh quantities */
                                        Unit vector is the tangential direction
                                        attached to the edge */
 
-  /* For each edge e belonging to a cell c, two contributions coming from 2
-     triangles  s(x_c, x_f, x_e) for a face f in Face_e are considered.
+  /* For each edge e belonging to a cell c, the dual face is built from the
+     contributions of two triangles s(x_c, x_f, x_e) and s(x_c, x_f', x_e) with
+     the faces f and f' belonging to F_e \cap F_c
      Scan this quantity with the c2e connectivity */
 
   cs_real_t        *dface_normal;   /* Vector-valued normal for each dual face
@@ -173,13 +249,212 @@ typedef struct { /* Specific mesh quantities */
   cs_lnum_t         n_vertices;      /* Local number of vertices */
   cs_gnum_t         n_g_vertices;    /* Global number of vertices */
 
-  cs_real_t        *dcell_vol;       /* Dual volume related to each vertex.
-                                      * Scanned with the c2v adjacency.
-                                      * Not always allocated.
-                                      */
-  const cs_real_t  *vtx_coord;       /* Shared with the cs_mesh_t structure */
+  cs_real_t        *pvol_vc;         /* Part of the dual cell associated to a
+                                      * vertex in each cell. These quantities
+                                      * are scanned thanks to the c2v
+                                      * adjacency structure */
 
-} cs_cdo_quantities_t;
+  const cs_real_t  *vtx_coord;       /* Coordinates of the mesh vertices.
+                                      * Always shared with the global cs_mesh_t
+                                      * structure */
+
+  /* Dual volume related to the dual cell associated in a one-to-one pairing to
+   * each vertex. This quantity has been synchronized in case of parallel
+   * computing. Size of the array = n_vertices. Not always allocated */
+
+  cs_real_t        *dual_vol;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the face surface for a primal face (interior or border)
+   *
+   * \param[in] f_id  id related to the face (f_id > n_i_face -> border face)
+   *
+   * \return the value of the face surface
+   */
+  /*--------------------------------------------------------------------------*/
+
+  inline cs_real_t
+  get_face_surf(const cs_lnum_t f_id) const
+  {
+    return (f_id < this->n_i_faces) ? this->i_face_surf[f_id]
+                                    : this->b_face_surf[f_id - this->n_i_faces];
+  };
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the face surface for a border primal face
+   *
+   * \param[in] bf_id  id related to the border face
+   *
+   * \return the value of the border face surface
+   */
+  /*--------------------------------------------------------------------------*/
+
+  inline cs_real_t
+  get_bface_surf(const cs_lnum_t bf_id) const
+  {
+    assert(bf_id >= 0 && bf_id < this->n_b_faces);
+    return this->b_face_surf[bf_id];
+  };
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the unit normal for a border primal face
+   *
+   * \param[in] bf_id  id related to the border face
+   *
+   * \return a pointer to the face normal
+   */
+  /*--------------------------------------------------------------------------*/
+
+  inline const cs_nreal_t *
+  get_bface_normal(cs_lnum_t bf_id) const
+  {
+    assert(bf_id >= 0 && bf_id < this->n_b_faces);
+    return this->b_face_u_normal[bf_id];
+  };
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the face vector which the face_area * face_normal for a
+   *        primal face (interior or border)
+   *
+   * \param[in] f_id  id related to the face (f_id > n_i_face -> border face)
+   *
+   * \return a pointer to the face vector
+   */
+  /*--------------------------------------------------------------------------*/
+
+  inline const cs_real_t *
+  get_face_vector_area(cs_lnum_t f_id) const
+  {
+    if (f_id < this->n_i_faces) /* Interior face */
+      return this->i_face_normal + 3 * f_id;
+    else /* Border face */
+      return this->b_face_normal + 3 * (f_id - this->n_i_faces);
+  };
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the face center for a primal face (interior or border)
+   *
+   * \param[in] f_id  id related to the face (f_id > n_i_face -> border face)
+   *
+   * \return a pointer to the face center coordinates
+   */
+  /*--------------------------------------------------------------------------*/
+
+  inline const cs_real_t *
+  get_face_center(cs_lnum_t f_id) const
+  {
+    if (f_id < this->n_i_faces) /* Interior face */
+      return this->i_face_center[f_id];
+    else /* Border face */
+      return this->b_face_center[f_id - this->n_i_faces];
+  }
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get a cs_quant_t structure for a primal face (interior or border)
+   *
+   * \param[in] f_id  id related to the face (f_id > n_i_face -> border face)
+   *
+   * \return a initialize structure
+   */
+  /*--------------------------------------------------------------------------*/
+
+  cs_quant_t
+  get_face(cs_lnum_t f_id) const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the face surface and its unit normal vector for a primal
+   *        face (interior or border)
+   *
+   * \param[in] f_id  id related to the face (f_id > n_i_face -> border
+   *
+   * \return a pointer to the face normalized vector
+   */
+  /*--------------------------------------------------------------------------*/
+
+  cs_nvec3_t
+  get_face_nvec(cs_lnum_t f_id) const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Retrieve the edge center for a primal edge (interior or border)
+   *
+   * \param[in] e_id  id related to the edfe
+   * \param[in] topo  pointer to a cs_cdo_connect_t structure
+   *
+   * \return a pointer to the edge center coordinates
+   */
+  /*--------------------------------------------------------------------------*/
+
+  cs_quant_t
+  get_edge_center(cs_lnum_t e_id, const cs_cdo_connect_t *topo) const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the normalized vector associated to a primal edge
+   *
+   * \param[in] e_id  id related to an edge
+   *
+   * \return a pointer to the edge normalized vector
+   */
+  /*--------------------------------------------------------------------------*/
+
+  cs_nvec3_t
+  get_edge_nvec(cs_lnum_t e_id) const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Get the two normalized vector associated to a dual edge
+   *
+   * \param[in] shift  position in c2f_idx
+   *
+   * \return a pointer to the dual edge normalized vector
+   */
+  /*--------------------------------------------------------------------------*/
+
+  cs_nvec3_t
+  get_dedge_nvec(cs_lnum_t shift) const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Summarize generic information about the cdo mesh quantities
+   */
+  /*--------------------------------------------------------------------------*/
+
+  void
+  log_summary() const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Dump a cs_cdo_quantities_t structure (for debugging purpose)
+   */
+  /*--------------------------------------------------------------------------*/
+
+  void
+  dump() const;
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Check that global quantities are consistently computed
+   *
+   * \param[in] verb  level of verbosity
+   * \param[in] mq    pointer to a cs_mesh_quantities_t structure
+   * \param[in] topo  pointer to a cs_cdo_connect_t structure
+   */
+  /*--------------------------------------------------------------------------*/
+
+  void
+  check(int                         verb,
+        const cs_mesh_quantities_t *mq,
+        const cs_cdo_connect_t     *topo) const;
+
+};
 
 /*============================================================================
  * Global variables
@@ -217,6 +492,29 @@ cs_compute_area_from_quant(const cs_quant_t    qa,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Retrieve the time elapsed to build the cs_cdo_quantities_t structure
+ *
+ * \return the value of the time elapsed in ns
+ */
+/*----------------------------------------------------------------------------*/
+
+long long
+cs_cdo_quantities_get_time_perfo(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Set which quantities have to be computed. Additionnal quantities
+ *         are added to cs_cdo_quantities_flag (static variable)
+ *
+ * \param[in]  option_flag     flag to set geometrical quantities to compute
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_cdo_quantities_set(cs_flag_t   option_flag);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Set the type of algorithm to use for computing the cell center
  *
  * \param[in]  algo     type of algorithm
@@ -224,82 +522,76 @@ cs_compute_area_from_quant(const cs_quant_t    qa,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdo_quantities_set_algo_ccenter(cs_cdo_quantities_algo_ccenter_t   algo);
+cs_cdo_quantities_set_algo_ccenter(cs_cdo_quantities_cell_center_algo_t   algo);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Build a cs_cdo_quantities_t structure. Some quantities are shared
  *        with the \ref cs_mesh_quantities_t structure and other are not
- *        built according to the given scheme flags.
+ *        built according to the given flags in cs_cdo_quantities_flag.
  *
- * \param[in]  m                 pointer to a cs_mesh_t structure
- * \param[in]  mq                pointer to a cs_mesh_quantities_t structure
- * \param[in]  topo              pointer to a cs_cdo_connect_t structure
- * \param[in]  eb_scheme_flag    metadata for Edge-based schemes
- * \param[in]  fb_scheme_flag    metadata for Face-based schemes
- * \param[in]  vb_scheme_flag    metadata for Vertex-based schemes
- * \param[in]  vcb_scheme_flag   metadata for Vertex+Cell-based schemes
- * \param[in]  hho_scheme_flag   metadata for HHO schemes
+ * \param[in] m                 pointer to a cs_mesh_t structure
+ * \param[in] mq                pointer to a cs_mesh_quantities_t structure
+ * \param[in] topo              pointer to a cs_cdo_connect_t structure
  *
- * \return  a new allocated pointer to a cs_cdo_quantities_t structure
+ * \return a new allocated pointer to a cs_cdo_quantities_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 cs_cdo_quantities_t *
 cs_cdo_quantities_build(const cs_mesh_t             *m,
                         const cs_mesh_quantities_t  *mq,
-                        const cs_cdo_connect_t      *topo,
-                        cs_flag_t                    eb_scheme_flag,
-                        cs_flag_t                    fb_scheme_flag,
-                        cs_flag_t                    vb_scheme_flag,
-                        cs_flag_t                    vcb_scheme_flag,
-                        cs_flag_t                    hho_scheme_flag);
+                        const cs_cdo_connect_t      *topo);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Destroy a cs_cdo_quantities_t structure
  *
- * \param[in]  q        pointer to the cs_cdo_quantities_t struct. to free
+ * \param[in]  cdoq    pointer to structure to free
  *
- * \return a NULL pointer
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
 cs_cdo_quantities_t *
-cs_cdo_quantities_free(cs_cdo_quantities_t   *q);
+cs_cdo_quantities_free(cs_cdo_quantities_t   *cdoq);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Summarize generic information about the cdo mesh quantities
+ * \brief Properly free the cell_vol array according to the settings
  *
- * \param[in]  quant   pointer to cs_cdo_quantities_t structure
- *
+ * \param[in, out] cdoq  pointer to cs_cdo_quantities_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdo_quantities_summary(const cs_cdo_quantities_t  *quant);
+cs_cdo_quantities_free_cell_vol(cs_cdo_quantities_t *cdoq);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Dump a cs_cdo_quantities_t structure
+ * \brief Retrieve the portion of volume surrounding each face of
+ *        a cell. This volume corresponds to a pyramid with base f and apex x_f
+ *        The computed quantity is scanned with the c2f adjacency structure.
  *
- * \param[in]  cdoq   pointer to cs_cdo_quantities_t structure
+ * \param[in]      cdoq    pointer to cs_cdo_quantities_t structure
+ * \param[in]      c2f     pointer to the cell --> faces connectivity
  *
+ * \return the volume associated to each face in each cell
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_cdo_quantities_dump(const cs_cdo_quantities_t  *cdoq);
+const cs_real_t *
+cs_cdo_quantities_get_pvol_fc(const cs_cdo_quantities_t *cdoq,
+                              const cs_adjacency_t      *c2f);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Compute the portion of volume surrounding each face of a cell.
  *        This volume corresponds to a pyramid with base f and apex x_f
- *        The computed quantity is scanned with the c2f adjacency
+ *        The computed quantity is scanned with the c2f adjacency structure.
  *
  * \param[in]      cdoq        pointer to cs_cdo_quantities_t structure
- * \param[in]      c2f         pointer to the cell --> edges connectivity
+ * \param[in]      c2f         pointer to the cell --> faces connectivity
  * \param[in, out] p_pvol_fc   double pointer to the face volume in each cell
  *                             If not allocated before calling this function,
  *                             one allocates the array storing the volumes
@@ -307,14 +599,33 @@ cs_cdo_quantities_dump(const cs_cdo_quantities_t  *cdoq);
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdo_quantities_compute_pvol_fc(const cs_cdo_quantities_t    *cdoq,
-                                  const cs_adjacency_t         *c2f,
-                                  cs_real_t                   **p_pvol_fc);
+cs_cdo_quantities_compute_pvol_fc(const cs_cdo_quantities_t *cdoq,
+                                  const cs_adjacency_t      *c2f,
+                                  cs_real_t                **p_pvol_fc);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Compute the portion of volume surrounding each edge of a cell
- *        The computed quantity is scanned with the c2e adjacency
+ * \brief Retrieve the portion of volume surrounding each edge of a
+ *        cell. This volume corresponds to an octahedron with a vertical axis
+ *        defined by the edge.  If this quantity does not exist, then one
+ *        computes it and stores it inside the cdoq structures. The computed
+ *        quantity is scanned with the c2e adjacency structure.
+ *
+ * \param[in]      cdoq    pointer to cs_cdo_quantities_t structure
+ * \param[in]      c2e     pointer to the cell --> edges connectivity
+ *
+ * \return the volume associated to each edge in each cell
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_real_t *
+cs_cdo_quantities_get_pvol_ec(const cs_cdo_quantities_t *cdoq,
+                              const cs_adjacency_t      *c2e);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the portion of volume surrounding each edge of a cell.
+ *        The computed quantity is scanned with the c2e adjacency structure
  *
  * \param[in]      cdoq        pointer to cs_cdo_quantities_t structure
  * \param[in]      c2e         pointer to the cell --> edges connectivity
@@ -331,18 +642,42 @@ cs_cdo_quantities_compute_pvol_ec(const cs_cdo_quantities_t   *cdoq,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Compute the dual volume surrounding each vertex
+ * \brief Compute or retrieve the dual volume surrounding each vertex.
+ *        The parallel operation (sum reduction) is performed inside this
+ *        function so that the full dual volume (i.e. taking into account all
+ *        ranks) is computed. The sum of all the portions of dual cell
+ *        associated to a vertex in each cell is taken into account.
  *
- * \param[in]      cdoq       pointer to cs_cdo_quantities_t structure
- * \param[in]      c2v        pointer to the cell-->vertices connectivity
- * \param[in, out] dual_vol   dual volumes related to each vertex
+ * \param[in, out] cdoq         additional quantities for CDO schemes
+ * \param[in]      connect      additional connectivities for CDO schemes
+ *
+ * \return the dual volume associated to each vertex
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_real_t *
+cs_cdo_quantities_get_dual_volumes(cs_cdo_quantities_t      *cdoq,
+                                   const cs_cdo_connect_t   *connect);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the dual volume surrounding each vertex.
+ *        The parallel operation (sum reduction) is performed inside this
+ *        function so that the full dual volume (i.e. taking into account all
+ *        ranks) is computed. The sum of all the portions of dual cell
+ *        associated to a vertex in each cell is taken into account.
+ *
+ * \param[in]      cdoq         additional quantities for CDO schemes
+ * \param[in]      connect      additional connectivities for CDO schemes
+ * \param[in, out] p_dual_vol   double pointer to the dual volumes related to
+ *                              each vertex. Allocated if null.
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_cdo_quantities_compute_dual_volumes(const cs_cdo_quantities_t   *cdoq,
-                                       const cs_adjacency_t        *c2v,
-                                       cs_real_t                   *dual_vol);
+                                       const cs_cdo_connect_t      *connect,
+                                       cs_real_t                  **p_dual_vol);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -426,125 +761,17 @@ cs_cdo_quantities_compute_b_wvf(const cs_cdo_connect_t       *connect,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Retrieve the face vector which the face_area * face_normal for a
- *        primal face (interior or border)
- *
- * \param[in]  f_id     id related to the face (f_id > n_i_face -> border face)
- * \param[in]  cdoq     pointer to a cs_cdo_quantities_t structure
- *
- * \return a pointer to the face vector
- */
-/*----------------------------------------------------------------------------*/
-
-inline static const cs_real_t *
-cs_quant_get_face_vector_area(cs_lnum_t                    f_id,
-                              const cs_cdo_quantities_t   *cdoq)
-{
-  if (f_id < cdoq->n_i_faces)   /* Interior face */
-    return cdoq->i_face_normal + 3*f_id;
-  else                          /* Border face */
-    return cdoq->b_face_normal + 3*(f_id - cdoq->n_i_faces);
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Retrieve the face center for a primal face (interior or border)
- *
- * \param[in]  f_id     id related to the face (f_id > n_i_face -> border face)
- * \param[in]  cdoq     pointer to a cs_cdo_quantities_t structure
- *
- * \return a pointer to the face center coordinates
- */
-/*----------------------------------------------------------------------------*/
-
-inline static const cs_real_t *
-cs_quant_get_face_center(cs_lnum_t                    f_id,
-                         const cs_cdo_quantities_t   *cdoq)
-{
-  if (f_id < cdoq->n_i_faces)   /* Interior face */
-    return cdoq->i_face_center + 3*f_id;
-  else                          /* Border face */
-    return cdoq->b_face_center + 3*(f_id - cdoq->n_i_faces);
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Define a cs_quant_t structure for a primal face (interior or border)
- *
- * \param[in]  f_id     id related to the face (f_id > n_i_face -> border face)
- * \param[in]  cdoq     pointer to a cs_cdo_quantities_t structure
- *
- * \return a initialize structure
- */
-/*----------------------------------------------------------------------------*/
-
-cs_quant_t
-cs_quant_set_face(cs_lnum_t                    f_id,
-                  const cs_cdo_quantities_t   *cdoq);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Retrieve the face surface and its unit normal vector for a primal
- *        face (interior or border)
- *
- * \param[in]  f_id     id related to the face (f_id > n_i_face -> border face)
- * \param[in]  cdoq     pointer to a cs_cdo_quantities_t structure
- *
- * \return a pointer to the face normalized vector
- */
-/*----------------------------------------------------------------------------*/
-
-cs_nvec3_t
-cs_quant_set_face_nvec(cs_lnum_t                    f_id,
-                       const cs_cdo_quantities_t   *cdoq);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Get the normalized vector associated to a primal edge
- *
- * \param[in]  e_id     id related to an edge
- * \param[in]  cdoq     pointer to a cs_cdo_quantities_t structure
- *
- * \return  a pointer to the edge normalized vector
- */
-/*----------------------------------------------------------------------------*/
-
-cs_nvec3_t
-cs_quant_set_edge_nvec(cs_lnum_t                    e_id,
-                       const cs_cdo_quantities_t   *cdoq);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Get the two normalized vector associated to a dual edge
- *
- * \param[in]  f_shift    position in c2f_idx
- * \param[in]  cdoq       pointer to a cs_cdo_quantities_t structure
- *
- * \return  a pointer to the dual edge normalized vector
- */
-/*----------------------------------------------------------------------------*/
-
-cs_nvec3_t
-cs_quant_set_dedge_nvec(cs_lnum_t                     f_shift,
-                        const cs_cdo_quantities_t    *cdoq);
-
-/*----------------------------------------------------------------------------*/
-/*!
  * \brief Dump a cs_quant_t structure
  *
- * \param[in]  f         FILE struct (stdout if NULL)
+ * \param[in]  f         FILE struct (stdout if nullptr)
  * \param[in]  num       entity number related to this quantity struct.
  * \param[in]  q         cs_quant_t structure to dump
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_quant_dump(FILE             *f,
-              cs_lnum_t         num,
-              const cs_quant_t  q);
+cs_quant_dump(FILE *f, cs_lnum_t num, const cs_quant_t q);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_CDO_QUANTITIES_H__ */
+#endif /* CS_CDO_QUANTITIES_H */

@@ -1,5 +1,5 @@
-#ifndef __CS_CDOEB_SCALEQ_H__
-#define __CS_CDOEB_SCALEQ_H__
+#ifndef CS_CDOEB_VECTEQ_H
+#define CS_CDOEB_VECTEQ_H
 
 /*============================================================================
  * Build an algebraic CDO edge-based system. Degrees of freedom are defined as
@@ -8,9 +8,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,26 +28,22 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_cdo_connect.h"
-#include "cs_cdo_local.h"
-#include "cs_cdo_quantities.h"
-#include "cs_cdoeb_priv.h"
-#include "cs_equation_common.h"
-#include "cs_equation_param.h"
-#include "cs_field.h"
-#include "cs_matrix.h"
-#include "cs_mesh.h"
-#include "cs_restart.h"
-#include "cs_source_term.h"
-#include "cs_time_step.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "alge/cs_matrix.h"
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_restart.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_cdo_local.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_cdoeb_priv.h"
+#include "cdo/cs_equation_builder.h"
+#include "cdo/cs_equation_param.h"
+#include "cdo/cs_source_term.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -58,7 +54,8 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /* Algebraic system for CDO edge-based discretization */
-typedef struct _cs_cdoeb_t cs_cdoeb_vecteq_t;
+
+typedef struct _cs_cdoeb_t  cs_cdoeb_vecteq_t;
 
 /*============================================================================
  * Public function prototypes
@@ -84,15 +81,13 @@ cs_cdoeb_vecteq_is_initialized(void);
  * \param[in]  quant       additional mesh quantities struct.
  * \param[in]  connect     pointer to a cs_cdo_connect_t struct.
  * \param[in]  time_step   pointer to a time step structure
- * \param[in]  ms          pointer to a cs_matrix_structure_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdoeb_vecteq_init_common(const cs_cdo_quantities_t    *quant,
-                            const cs_cdo_connect_t       *connect,
-                            const cs_time_step_t         *time_step,
-                            const cs_matrix_structure_t  *ms);
+cs_cdoeb_vecteq_init_sharing(const cs_cdo_quantities_t    *quant,
+                             const cs_cdo_connect_t       *connect,
+                             const cs_time_step_t         *time_step);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -116,27 +111,27 @@ cs_cdoeb_vecteq_get(cs_cell_sys_t       **csys,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdoeb_vecteq_finalize_common(void);
+cs_cdoeb_vecteq_finalize_sharing(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Initialize a cs_cdoeb_vecteq_t structure storing data useful for
- *         building and managing such a scheme
+ * \brief Initialize a cs_cdoeb_vecteq_t structure storing data useful for
+ *        building and managing such a scheme
  *
- * \param[in]      eqp        pointer to a \ref cs_equation_param_t structure
- * \param[in]      var_id     id of the variable field
- * \param[in]      bflux_id   id of the boundary flux field
- * \param[in, out] eqb        pointer to a \ref cs_equation_builder_t structure
+ * \param[in, out] eqp       set of parameters related an equation
+ * \param[in]      var_id    id of the variable field
+ * \param[in]      bflux_id  id of the boundary flux field
+ * \param[in, out] eqb       pointer to a \ref cs_equation_builder_t structure
  *
  * \return a pointer to a new allocated cs_cdoeb_vecteq_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void  *
-cs_cdoeb_vecteq_init_context(const cs_equation_param_t   *eqp,
-                             int                          var_id,
-                             int                          bflux_id,
-                             cs_equation_builder_t       *eqb);
+cs_cdoeb_vecteq_init_context(cs_equation_param_t    *eqp,
+                             int                     var_id,
+                             int                     bflux_id,
+                             cs_equation_builder_t  *eqb);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -144,7 +139,7 @@ cs_cdoeb_vecteq_init_context(const cs_equation_param_t   *eqp,
  *
  * \param[in, out]  builder   pointer to a cs_cdoeb_vecteq_t structure
  *
- * \return a NULL pointer
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
@@ -180,6 +175,7 @@ cs_cdoeb_vecteq_init_values(cs_real_t                     t_eval,
  *         convection/diffusion/reaction equation with a CDO-Eb scheme.
  *         One works cellwise and then process to the assembly.
  *
+ * \param[in]      cur2prev   true="current to previous" operation is performed
  * \param[in]      mesh       pointer to a cs_mesh_t structure
  * \param[in]      field_id   id of the variable field related to this equation
  * \param[in]      eqp        pointer to a cs_equation_param_t structure
@@ -189,7 +185,8 @@ cs_cdoeb_vecteq_init_values(cs_real_t                     t_eval,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdoeb_vecteq_solve_steady_state(const cs_mesh_t            *mesh,
+cs_cdoeb_vecteq_solve_steady_state(bool                        cur2prev,
+                                   const cs_mesh_t            *mesh,
                                    const int                   field_id,
                                    const cs_equation_param_t  *eqp,
                                    cs_equation_builder_t      *eqb,
@@ -197,22 +194,34 @@ cs_cdoeb_vecteq_solve_steady_state(const cs_mesh_t            *mesh,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Predefined extra-operations related to this equation
+ * \brief  Operate a current to previous operation for the field associated to
+ *         this equation and potentially for related fields/arrays.
  *
- * \param[in]       eqname     name of the equation
- * \param[in]       field      pointer to a field structure
  * \param[in]       eqp        pointer to a cs_equation_param_t structure
  * \param[in, out]  eqb        pointer to a cs_equation_builder_t structure
- * \param[in, out]  data       pointer to cs_cdoeb_vecteq_t structure
+ * \param[in, out]  context    pointer to cs_cdoeb_vecteq_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdoeb_vecteq_extra_op(const char                 *eqname,
-                         const cs_field_t           *field,
-                         const cs_equation_param_t  *eqp,
-                         cs_equation_builder_t      *eqb,
-                         void                       *data);
+cs_cdoeb_vecteq_current_to_previous(const cs_equation_param_t  *eqp,
+                                    cs_equation_builder_t      *eqb,
+                                    void                       *context);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Predefined extra-operations related to this equation
+ *
+ * \param[in]       eqp        pointer to a cs_equation_param_t structure
+ * \param[in, out]  eqb        pointer to a cs_equation_builder_t structure
+ * \param[in, out]  context    pointer to cs_cdoeb_vecteq_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_cdoeb_vecteq_extra_post(const cs_equation_param_t  *eqp,
+                           cs_equation_builder_t      *eqb,
+                           void                       *context);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -220,14 +229,16 @@ cs_cdoeb_vecteq_extra_op(const char                 *eqname,
  *         The lifecycle of this array is managed by the code. So one does not
  *         have to free the return pointer.
  *
- * \param[in, out]  context     pointer to a data structure cast on-the-fly
+ * \param[in, out]  context    pointer to a data structure cast on-the-fly
+ * \param[in]       previous   retrieve the previous state (true/false)
  *
- * \return  a pointer to an array of \ref cs_real_t
+ * \return  a pointer to an array of cs_real_t (size: n_edges)
  */
 /*----------------------------------------------------------------------------*/
 
 cs_real_t *
-cs_cdoeb_vecteq_get_edge_values(void      *context);
+cs_cdoeb_vecteq_get_edge_values(void      *context,
+                                bool       previous);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -235,14 +246,16 @@ cs_cdoeb_vecteq_get_edge_values(void      *context);
  *         The lifecycle of this array is managed by the code. So one does not
  *         have to free the return pointer.
  *
- * \param[in, out]  context     pointer to a data structure cast on-the-fly
+ * \param[in, out]  context    pointer to a data structure cast on-the-fly
+ * \param[in]       previous   retrieve the previous state (true/false)
  *
- * \return  a pointer to an array of \ref cs_real_t
+ * \return a pointer to an array of cs_real_t (size: n_cells)
  */
 /*----------------------------------------------------------------------------*/
 
 cs_real_t *
-cs_cdoeb_vecteq_get_cell_values(void      *context);
+cs_cdoeb_vecteq_get_cell_values(void      *context,
+                                bool       previous);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -276,8 +289,4 @@ cs_cdoeb_vecteq_write_restart(cs_restart_t    *restart,
                               const char      *eqname,
                               void            *scheme_context);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDOEB_VECTEQ_H__ */
+#endif /* CS_CDOEB_VECTEQ_H */

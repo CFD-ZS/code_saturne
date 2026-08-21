@@ -1,14 +1,14 @@
-#ifndef __CS_RECO_H__
-#define __CS_RECO_H__
+#ifndef CS_RECO_H
+#define CS_RECO_H
 
 /*============================================================================
- * Routines to handle the reconstruction of fields
+ * Functions to handle the reconstruction of fields
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
 #include "assert.h"
 
-#include "cs_cdo_connect.h"
-#include "cs_cdo_local.h"
-#include "cs_cdo_quantities.h"
-#include "cs_flag.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_cdo_local.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_flag.h"
 
 /*============================================================================
  * Macro definitions
@@ -51,167 +47,30 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- * Inline public function prototypes
- *============================================================================*/
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value at the face center from an array of values
- *         defined on primal vertices.
- *
- *  \param[in]      fm     pointer to cs_face_mesh_t structure
- *  \param[in]      p_v    pointer to an array of values (local to this face)
- *
- * \return the value of the reconstruction at the face center
- */
-/*----------------------------------------------------------------------------*/
-
-static inline cs_real_t
-cs_reco_fw_scalar_pv_at_face_center(const cs_face_mesh_t    *fm,
-                                    const cs_real_t         *p_v)
-{
-  cs_real_t  p_f = 0.;
-
-  if (p_v == NULL)
-    return p_f;
-
-  const cs_quant_t  pfq = fm->face;
-
-  for (short int e = 0; e < fm->n_ef; e++)
-    p_f += (p_v[fm->e2v_ids[2*e]] + p_v[fm->e2v_ids[2*e+1]]) * fm->tef[e];
-  p_f *= 0.5 / pfq.meas;
-
-  return p_f;
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value at the face center from an array of values
- *         defined on primal vertices.
- *
- * \param[in]  f      id of the face in the cellwise numbering
- * \param[in]  cm     pointer to cs_cell_mesh_t structure
- * \param[in]  p_v    pointer to an array of values (local to the cell)
- *
- * \return the value of the reconstruction at the face center
- */
-/*----------------------------------------------------------------------------*/
-
-static inline cs_real_t
-cs_reco_cw_scalar_pv_at_face_center(const short int          f,
-                                    const cs_cell_mesh_t    *cm,
-                                    const cs_real_t         *p_v)
-{
-  cs_real_t  p_f = 0.;
-
-  if (p_v == NULL)
-    return p_f;
-
-  assert(cs_eflag_test(cm->flag,
-                       CS_FLAG_COMP_PFQ | CS_FLAG_COMP_EV | CS_FLAG_COMP_FEQ |
-                       CS_FLAG_COMP_FE));
-
-  for (int ie = cm->f2e_idx[f]; ie < cm->f2e_idx[f+1]; ie++) {
-    const short int  *v = cm->e2v_ids + 2*cm->f2e_ids[ie];
-    p_f += (p_v[v[0]] + p_v[v[1]]) * cm->tef[ie];
-  }
-  p_f *= 0.5 / cm->face[f].meas;
-
-  return p_f;
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value of a scalar potential at the cell center from
- *         an array of values defined on primal vertices.
- *         Algorithm based on the cs_cell_mesh_t structure.
- *
- *  \param[in]      cm       pointer to a cs_cell_mesh_t structure
- *  \param[in]      array    pointer to the array of values (size: n_vc)
- *
- *  \return the value of the reconstruction at the cell center
- */
-/*----------------------------------------------------------------------------*/
-
-static inline cs_real_t
-cs_reco_cw_scalar_pv_at_cell_center(const cs_cell_mesh_t     *cm,
-                                    const cs_real_t          *p_v)
-{
-  cs_real_t  p_c = 0.;
-
-  if (p_v == NULL || cm == NULL)
-    return p_c;
-
-  assert(cs_eflag_test(cm->flag, CS_FLAG_COMP_PVQ)); /* Sanity check */
-
-  /* Reconstruct the value at the cell center */
-  for (short int v = 0; v < cm->n_vc; v++)
-    p_c += cm->wvc[v] * p_v[v];
-
-  return p_c;
-}
-
-/*============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Reconstruct at cell centers and face centers a vertex-based field
- *         Linear interpolation. If p_crec and/or p_frec are not allocated, this
- *         done in this subroutine.
+ * \brief  Apply 1/|dual_vol| to a synchronized array of DoF vertices
+ *         Parallel synchronization is done inside this function:
+ *         1) A parallel sum reduction is done on the vtx_values
+ *         2) Apply 1/|dual_vol| to each entry
  *
- *  \param[in]      connect  pointer to the connectivity struct.
- *  \param[in]      quant    pointer to the additional quantities struct.
- *  \param[in]      dof      pointer to the field of vtx-based DoFs
- *  \param[in, out] p_crec   reconstructed values at cell centers
- *  \param[in, out] p_frec   reconstructed values at face centers
+ *  \param[in]      connect    pointer to additional connectivities for CDO
+ *  \param[in]      quant      pointer to additional quantities for CDO
+ *  \param[in]      stride     number of entries for each vertex
+ *  \param[in]      interlace  interlaced array (useful if the stride > 1)
+ *  \param[in, out] array      array of DoF values
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_reco_conf_vtx_dofs(const cs_cdo_connect_t      *connect,
-                      const cs_cdo_quantities_t   *quant,
-                      const double                *dof,
-                      double                      *p_crec[],
-                      double                      *p_frec[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value at all cell centers from an array of values
- *         defined on primal vertices.
- *
- *  \param[in]      c2v      cell -> vertices connectivity
- *  \param[in]      quant    pointer to the additional quantities struct.
- *  \param[in]      array    pointer to the array of values
- *  \param[in, out] val_xc   values of the reconstruction at the cell center
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_reco_pv_at_cell_centers(const cs_adjacency_t        *c2v,
-                           const cs_cdo_quantities_t   *quant,
-                           const double                *array,
-                           cs_real_t                   *val_xc);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value at all cell centers from an array of values
- *         defined on primal vertices.
- *         Case of vector-valued fields.
- *
- *  \param[in]      c2v      cell -> vertices connectivity
- *  \param[in]      quant    pointer to the additional quantities struct.
- *  \param[in]      array    pointer to the array of values
- *  \param[in, out] val_xc   values of the reconstruction at the cell center
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_reco_vect_pv_at_cell_centers(const cs_adjacency_t        *c2v,
-                                const cs_cdo_quantities_t   *quant,
-                                const double                *array,
-                                cs_real_t                   *val_xc);
+cs_reco_dual_vol_weight_reduction(const cs_cdo_connect_t       *connect,
+                                  const cs_cdo_quantities_t    *quant,
+                                  int                           stride,
+                                  bool                          interlace,
+                                  cs_real_t                    *array);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -220,7 +79,7 @@ cs_reco_vect_pv_at_cell_centers(const cs_adjacency_t        *c2v,
  *        the normal flux across faces.
  *
  * \param[in]   c2f           cell -> faces connectivity
- * \param[in]   quant         pointer to the additional quantities struct.
+ * \param[in]   cdoq          pointer to the additional quantities struct.
  * \param[in]   i_face_vals   array of DoF values for interior faces
  * \param[in]   b_face_vals   array of DoF values for border faces
  * \param[out]  cell_reco     vector-valued reconstruction inside cells
@@ -240,13 +99,14 @@ cs_reco_cell_vectors_by_ib_face_dofs(const cs_adjacency_t       *c2f,
  *        DoFs (interior and boundary). Scalar-valued face DoFs are related to
  *        the normal flux across faces.
  *
- * \param[in]   c_id          id of the cell to handle
- * \param[in]   c2f           cell -> faces connectivity
- * \param[in]   quant         pointer to the additional quantities struct.
- * \param[in]   face_dofs     array of DoF values at faces
- * \param[out]  cell_reco     vector-valued reconstruction inside cells. This
- *                            quantity should have been allocated before calling
- *                            this function
+ * \param[in]  c_id          id of the cell to handle
+ * \param[in]  c2f           cell -> faces connectivity
+ * \param[in]  cdoq          pointer to the additional quantities struct.
+ * \param[in]  face_dofs     array of DoF values at faces
+ * \param[in]  local_input   true means that face_dofs is of size n_cell_faces
+ * \param[out] cell_reco     vector-valued reconstruction inside cells. This
+ *                           quantity should have been allocated before calling
+ *                           this function
  */
 /*----------------------------------------------------------------------------*/
 
@@ -255,6 +115,7 @@ cs_reco_cell_vector_by_face_dofs(cs_lnum_t                   c_id,
                                  const cs_adjacency_t       *c2f,
                                  const cs_cdo_quantities_t  *cdoq,
                                  const cs_real_t             face_dofs[],
+                                 bool                        local_input,
                                  cs_real_t                  *cell_reco);
 
 /*----------------------------------------------------------------------------*/
@@ -263,12 +124,12 @@ cs_reco_cell_vector_by_face_dofs(cs_lnum_t                   c_id,
  *        DoFs (interior and boundary). Scalar-valued face DoFs are related to
  *        the normal flux across faces.
  *
- * \param[in]   c2f           cell -> faces connectivity
- * \param[in]   quant         pointer to the additional quantities struct.
- * \param[in]   face_dofs     array of DoF values at faces
- * \param[out]  cell_reco     vector-valued reconstruction inside cells. This
- *                            quantity should have been allocated before calling
- *                            this function
+ * \param[in]  c2f          cell -> faces connectivity
+ * \param[in]  cdoq         pointer to the additional quantities struct.
+ * \param[in]  face_dofs    array of DoF values at faces
+ * \param[out] cell_reco    vector-valued reconstruction inside cells. This
+ *                          quantity should have been allocated before calling
+ *                          this function
  */
 /*----------------------------------------------------------------------------*/
 
@@ -280,61 +141,206 @@ cs_reco_cell_vectors_by_face_dofs(const cs_adjacency_t       *c2f,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Reconstruct the value at the cell center from an array of values
- *         defined on primal vertices.
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        at primal vertices.
+ *        Case of scalar-valued array.
  *
- *  \param[in]      c_id     cell id
- *  \param[in]      c2v      cell -> vertices connectivity
- *  \param[in]      quant    pointer to the additional quantities struct.
- *  \param[in]      array    pointer to the array of values
- *  \param[in, out] val_xc   value of the reconstruction at the cell center
+ * \param[in]      n_cells       number of selected cells
+ * \param[in]      cell_ids      list of cell ids or null
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at vertices
+ * \param[in]      dense_ouput   apply cell_ids on the reco array
+ * \param[in, out] reco          reconstructed values at the cell centers
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_reco_pv_at_cell_center(cs_lnum_t                    c_id,
-                          const cs_adjacency_t        *c2v,
-                          const cs_cdo_quantities_t   *quant,
-                          const double                *array,
-                          cs_real_t                   *val_xc);
+cs_reco_scalar_v2c(cs_lnum_t                    n_cells,
+                   const cs_lnum_t             *cell_ids,
+                   const cs_adjacency_t        *c2v,
+                   const cs_cdo_quantities_t   *cdoq,
+                   const double                *array,
+                   bool                         dense_ouput,
+                   cs_real_t                   *reco);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        for each couple (v, c) --> array which can be scanned by the c2v
+ *        adjacency).
+ *        Case of scalar-valued array.
+ *
+ * \param[in]      n_cells       number of selected cells
+ * \param[in]      cell_ids      list of cell ids or null
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at (v,c)
+ * \param[in]      dense_ouput   apply cell_ids on the reco array
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scalar_vbyc2c(cs_lnum_t                    n_cells,
+                      const cs_lnum_t             *cell_ids,
+                      const cs_adjacency_t        *c2v,
+                      const cs_cdo_quantities_t   *cdoq,
+                      const double                *array,
+                      bool                         dense_ouput,
+                      cs_real_t                   *reco);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        for each couple (e, c) --> array which can be scanned by the c2e
+ *        adjacency).
+ *        Case of scalar-valued array.
+ *
+ * \param[in]      n_cells       number of selected cells
+ * \param[in]      cell_ids      list of cell ids or null
+ * \param[in]      c2e           cell -> edges connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at (e,c)
+ * \param[in]      dense_ouput   apply cell_ids on the reco array
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scalar_ebyc2c(cs_lnum_t                    n_cells,
+                      const cs_lnum_t             *cell_ids,
+                      const cs_adjacency_t        *c2e,
+                      const cs_cdo_quantities_t   *cdoq,
+                      const double                *array,
+                      bool                         dense_ouput,
+                      cs_real_t                   *reco);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at all cell centers from an array of values
+ *        defined on primal vertices.
+ *        Case of vector-valued fields.
+ *
+ * \param[in]      n_cells       number of selected cells
+ * \param[in]      cell_ids      list of cell ids or null
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at vertices
+ * \param[in]      dense_ouput   apply cell_ids on the reco array
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_vector_v2c(cs_lnum_t                    n_cells,
+                   const cs_lnum_t             *cell_ids,
+                   const cs_adjacency_t        *c2v,
+                   const cs_cdo_quantities_t   *cdoq,
+                   const double                *array,
+                   bool                         dense_ouput,
+                   cs_real_t                   *reco);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at the face center from an array of values
+ *        defined on primal vertices.
+ *        Case of scalar-valued arrays.
+ *
+ * \param[in]      n_faces      number of faces
+ * \param[in]      face_ids     list of face ids (interior/border faces) or null
+ * \param[in]      connect      pointer to a cs_cdo_connect_t structure
+ * \param[in]      cdoq         pointer to the additional quantities struct.
+ * \param[in]      array        pointer to the array of values at vertices
+ * \param[in]      dense_ouput  apply cell_ids on the reco array
+ * \param[in, out] reco         value of the reconstruction at face centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scalar_v2f(cs_lnum_t                     n_faces,
+                   const cs_lnum_t              *face_ids,
+                   const cs_cdo_connect_t       *connect,
+                   const cs_cdo_quantities_t    *cdoq,
+                   const double                 *array,
+                   bool                          dense_ouput,
+                   cs_real_t                    *reco);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct at face centers by a cell-based field
+ *        weighted average.
+ *
+ *  \param[in]      connect   pointer to additional connectivities for CDO
+ *  \param[in]      cdoq      pointer to additional quantities for CDO
+ *  \param[in]      p_c       dofs at cell centers
+ *  \param[in, out] p_reco_f  reconstructed values at face centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scalar_c2f(const cs_cdo_connect_t     *connect,
+                   const cs_cdo_quantities_t  *cdoq,
+                   const double               *p_c,
+                   double                     *p_reco_f);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct at cell centers and face centers a vertex-based field
+ *        Linear interpolation. If p_reco_c and/or p_reco_f are not allocated,
+ *        this is done in this subroutine.
+ *        Case of scalar-valued arrays.
+ *
+ *  \param[in]      connect   pointer to additional connectivities for CDO
+ *  \param[in]      cdoq      pointer to additional quantities for CDO
+ *  \param[in]      dof       pointer to the field of vtx-based DoFs
+ *  \param[in, out] p_reco_c  reconstructed values at cell centers
+ *  \param[in, out] p_reco_f  reconstructed values at face centers
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scalar_v2c_v2f(const cs_cdo_connect_t     *connect,
+                       const cs_cdo_quantities_t  *cdoq,
+                       const double               *dof,
+                       double                     *p_reco_c[],
+                       double                     *p_reco_f[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Reconstruct a scalar-valued array at vertices from a scalar-valued
+ *         array at cells.
+ *
+ * \param[in]      connect   pointer to additional connectivities for CDO
+ * \param[in]      quant     pointer to the additional quantities for CDO
+ * \param[in]      cell_val  array of scalar-valued values at cells
+ * \param[in, out] vtx_val   array of scalar-valued values at vertices
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_scal_pv_from_pc(const cs_cdo_connect_t      *connect,
+                        const cs_cdo_quantities_t   *quant,
+                        const cs_real_t             *cell_val,
+                        cs_real_t                   *vtx_val);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Reconstruct a vector-valued array at vertices from a vector-valued
  *         array at cells.
  *
- *  \param[in]      c2v       cell -> vertices connectivity
- *  \param[in]      quant     pointer to the additional quantities struct.
- *  \param[in]      val       pointer to the array of values
- *  \param[in, out] reco_val  values of the reconstruction at vertices
+ * \param[in]      connect   pointer to additional connectivities for CDO
+ * \param[in]      quant     pointer to the additional quantities for CDO
+ * \param[in]      cell_val  array of vector-valued values at cells
+ * \param[in, out] vtx_val   array of vector-valued values at vertices
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_reco_vect_pv_from_pc(const cs_adjacency_t        *c2v,
+cs_reco_vect_pv_from_pc(const cs_cdo_connect_t      *connect,
                         const cs_cdo_quantities_t   *quant,
-                        const double                *val,
-                        cs_real_t                   *reco_val);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Reconstruct the value at the face center from an array of values
- *         defined on primal vertices.
- *
- *  \param[in]      f_id     face id (interior and border faces)
- *  \param[in]      connect  pointer to a cs_cdo_connect_t structure
- *  \param[in]      quant    pointer to the additional quantities struct.
- *  \param[in]      pdi      pointer to the array of values
- *  \param[in, out] pdi_f    value of the reconstruction at the face center
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_reco_pf_from_pv(cs_lnum_t                     f_id,
-                   const cs_cdo_connect_t       *connect,
-                   const cs_cdo_quantities_t    *quant,
-                   const double                 *pdi,
-                   cs_real_t                    *pdi_f);
+                        const cs_real_t             *cell_val,
+                        cs_real_t                   *vtx_val);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -443,7 +449,7 @@ cs_reco_ccen_edge_dofs(const cs_cdo_connect_t     *connect,
  * \param[in]      quant    pointer to the additional quantities struct.
  * \param[in]      circ     pointer to the array of circulations at edges
  * \param[in, out] p_curl   pointer to value of the reconstructed curl inside
- *                          cells (allocated if set to NULL)
+ *                          cells (allocated if set to null)
  */
 /*----------------------------------------------------------------------------*/
 
@@ -503,14 +509,14 @@ cs_reco_grad_33_cell_from_fb_dofs(cs_lnum_t                    c_id,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Reconstruct the value at the cell center of the gradient of a field
- *         defined on primal vertices.
+ * \brief Reconstruct the constant gradient vector in a cell (the mean value)
+ *        from the value at mesh vertices.
  *
- * \param[in]      c_id    cell id
+ * \param[in]      c_id     cell id
  * \param[in]      connect  pointer to a cs_cdo_connect_t structure
- * \param[in]      quant   pointer to the additional quantities struct.
- * \param[in]      pdi     pointer to the array of values
- * \param[in, out] val_xc  value of the reconstructed gradient at cell center
+ * \param[in]      quant    pointer to the additional quantities struct.
+ * \param[in]      pdi      pointer to the array of values
+ * \param[in, out] grdc     value of the reconstructed gradient
  */
 /*----------------------------------------------------------------------------*/
 
@@ -519,7 +525,49 @@ cs_reco_grad_cell_from_pv(cs_lnum_t                    c_id,
                           const cs_cdo_connect_t      *connect,
                           const cs_cdo_quantities_t   *quant,
                           const cs_real_t             *pdi,
-                          cs_real_t                    val_xc[]);
+                          cs_real_t                    grdc[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the constant gradient vector in a cell (the mean value)
+ *        from the value at mesh vertices. Case of two scalar fields.
+ *
+ * \param[in]      c_id     cell id
+ * \param[in]      connect  pointer to a cs_cdo_connect_t structure
+ * \param[in]      quant    pointer to the additional quantities struct.
+ * \param[in]      p1di     pointer to the array of values
+ * \param[in]      p2di     pointer to the array of values
+ * \param[in, out] grd1c    value of the reconstructed gradient for p1
+ * \param[in, out] grd2c    value of the reconstructed gradient for p2
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_2grad_cell_from_pv(cs_lnum_t                    c_id,
+                           const cs_cdo_connect_t      *connect,
+                           const cs_cdo_quantities_t   *quant,
+                           const cs_real_t             *p1di,
+                           const cs_real_t             *p2di,
+                           cs_real_t                    grd1c[],
+                           cs_real_t                    grd2c[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the vector-valued quantity inside each cell from the
+ *        given flux array. This array is stored in the same order as cm->f_ids
+ *        Scalar-valued face DoFs are related to the normal flux across primal
+ *        faces.
+ *
+ * \param[in]      cm             pointer to a cs_cell_mesh_t structure
+ * \param[in]      fluxes         array of normal fluxes on primal faces
+ * \param[out]     cell_reco      vector-valued reconstruction inside the cell
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_reco_cw_cell_vect_from_flux(const cs_cell_mesh_t    *cm,
+                               const cs_real_t         *fluxes,
+                               cs_real_t               *cell_reco);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -619,8 +667,98 @@ cs_reco_cw_cgrd_wbs_from_pvc(const cs_cell_mesh_t   *cm,
                              cs_cell_builder_t      *cb,
                              cs_real_t              *cgrd);
 
+/*============================================================================
+ * Inline public function prototypes
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        at primal vertices.
+ *        Case of scalar-valued array with all cells selected.
+ *
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at vertices
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+static inline void
+cs_reco_scalar_v2c_full(const cs_adjacency_t        *c2v,
+                        const cs_cdo_quantities_t   *cdoq,
+                        const double                *array,
+                        cs_real_t                   *reco)
+{
+  cs_reco_scalar_v2c(cdoq->n_cells, NULL, c2v, cdoq, array, false, reco);
+}
 
-#endif /* __CS_RECO_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        at primal vertices.
+ *        Case of vector-valued array with all cells selected.
+ *
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at vertices
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_reco_vector_v2c_full(const cs_adjacency_t        *c2v,
+                        const cs_cdo_quantities_t   *cdoq,
+                        const double                *array,
+                        cs_real_t                   *reco)
+{
+  cs_reco_vector_v2c(cdoq->n_cells, NULL, c2v, cdoq, array, false, reco);
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        for each couple (v, c) --> array which can be scanned by the c2v
+ *        adjacency).
+ *        Case of scalar-valued array with all cells selected.
+ *
+ * \param[in]      c2v           cell -> vertices connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at (v,c)
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_reco_scalar_vbyc2c_full(const cs_adjacency_t        *c2v,
+                           const cs_cdo_quantities_t   *cdoq,
+                           const double                *array,
+                           cs_real_t                   *reco)
+{
+  cs_reco_scalar_vbyc2c(cdoq->n_cells, NULL, c2v, cdoq, array, false, reco);
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Reconstruct the value at cell center from an array of values defined
+ *        for each couple (e, c) --> array which can be scanned by the c2e
+ *        adjacency).
+ *        Case of scalar-valued array with all cells selected.
+ *
+ * \param[in]      c2e           cell -> edges connectivity
+ * \param[in]      cdoq          pointer to the additional quantities struct.
+ * \param[in]      array         pointer to the array of values at (e,c)
+ * \param[in, out] reco          reconstructed values at the cell centers
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_reco_scalar_ebyc2c_full(const cs_adjacency_t        *c2e,
+                           const cs_cdo_quantities_t   *cdoq,
+                           const double                *array,
+                           cs_real_t                   *reco)
+{
+  cs_reco_scalar_ebyc2c(cdoq->n_cells, NULL, c2e, cdoq, array, false, reco);
+}
+
+#endif /* CS_RECO_H */

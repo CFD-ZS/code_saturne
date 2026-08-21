@@ -1,5 +1,3 @@
-#-------------------------------------------------------------------------------
-#
 # Batch options for Platform LSF
 # ==============================
 #
@@ -14,9 +12,3 @@
 #  -o : output file name
 #  -e : error file name
 #  -J : job name
-#
-#-------------------------------------------------------------------------------
-
-# Change to submission directory
-if test -n "$LS_SUBCWD" ; then cd $LS_SUBCWD ; fi
-

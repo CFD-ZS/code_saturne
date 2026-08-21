@@ -1,14 +1,14 @@
-#ifndef __CS_CF_THERMO_H__
-#define __CS_CF_THERMO_H__
+#ifndef CS_CF_THERMO_H
+#define CS_CF_THERMO_H
 
 /*============================================================================
  * Thermodynamic laws for the compressible module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,23 +27,18 @@
 
 /*----------------------------------------------------------------------------*/
 
-
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_physical_constants.h"
-#include "cs_cf_model.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_physical_constants.h"
+#include "cfbl/cs_cf_model.h"
 
 /*============================================================================
  * Type definitions
@@ -666,12 +661,12 @@ cs_cf_thermo_ph_inlet_bc(cs_real_t   *bc_en,
  *----------------------------------------------------------------------------*/
 
 void
-cs_cf_thermo_eps_sup(cs_real_t *dens,
-                     cs_real_t *eps_sup,
-                     cs_lnum_t  l_size);
+cs_cf_thermo_eps_sup(const cs_real_t  *dens,
+                     cs_real_t        *eps_sup,
+                     cs_lnum_t         l_size);
 
 /*----------------------------------------------------------------------------
- * This subroutine is a driver allowing to call the appropriate
+ * This function is a driver allowing to call the appropriate
  * thermodynamical functions depending on the quantities provided by the user.
  * Hence it is only used during the initialization step and at the boundaries
  * of type supersonic inlet. It is described in the following how to select the
@@ -719,9 +714,6 @@ cs_cf_thermo_eps_sup(cs_real_t *dens,
  *   bc_pr   <-- pressure values at boundary faces
  *   bc_tk   <-- temperature values at boundary faces
  *   bc_vel  <-- velocity values at boundary faces
- *   bc_fracv <--  volume fraction values at boundary faces
- *   bc_fracm <--  mass fraction values at boundary faces
- *   bc_frace <--  energy fraction values at boundary faces
  *----------------------------------------------------------------------------*/
 
 void
@@ -730,13 +722,27 @@ cs_cf_thermo(const int    iccfth,
              cs_real_t   *bc_en,
              cs_real_t   *bc_pr,
              cs_real_t   *bc_tk,
-             cs_real_3_t *bc_vel,
-             cs_real_t   *bc_fracv,
-             cs_real_t   *bc_fracm,
-             cs_real_t   *bc_frace);
+             cs_real_3_t *bc_vel);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute density at boundary based on pressure and temperature.
+ *
+ * This is needed when imposing a mass flow rate on a given inlet.
+ *
+ * \param[in]     face_id       face id
+ * \param[in] bc_pr         pressure value at boundary face
+ * \param[in] bc_tk         temperature value at boundary face
+ *
+ * \return density at boundary face
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t
+cs_cf_thermo_b_rho_from_pt(cs_lnum_t  face_id,
+                           cs_real_t  bc_pr,
+                           cs_real_t  bc_tk);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_CF_THERMO_H__ */
+#endif /* CS_CF_THERMO_H */

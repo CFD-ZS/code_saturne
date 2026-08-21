@@ -1,14 +1,14 @@
-#ifndef __FVM_SORT_PARTITION_H__
-#define __FVM_SORT_PARTITION_H__
+#ifndef FVM_SORT_PARTITION_H
+#define FVM_SORT_PARTITION_H
 
 /*============================================================================
  * Data partitioning for parallel sort or order operations.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,10 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -39,11 +39,7 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -107,12 +103,12 @@ typedef int
  * \param[in]   elt_size         size associated with each element
  * \param[in]   n_elts           number of elements to be indexed
  * \param[in]   elts             array of elements
- * \param[in]   weight           optional weight of each element, or NULL
+ * \param[in]   weight           optional weight of each element, or null
  * \param[in]   order            ordering array
  * \param[out]  dest_rank_id     destination rank id (size: n_elts)
  * \param[in]   s_to_elt         coordinate to element conversion function
  * \param[in]   compare          comparison function
- * \param[in]   f_input          optional input to s_to_elt and compare, or NULL
+ * \param[in]   f_input          optional input to s_to_elt and compare, or null
  * \param[in]   comm             MPI communicator on which we build the
  *                               global index
  */
@@ -135,6 +131,4 @@ cs_sort_partition_dest_rank_id(cs_lnum_t                      sampling_factor,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_SORT_PARTITION_H__ */
+#endif /* FVM_SORT_PARTITION_H */

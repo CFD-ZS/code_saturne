@@ -1,14 +1,14 @@
-#ifndef __FVM_WRITER_HELPER_H__
-#define __FVM_WRITER_HELPER_H__
+#ifndef FVM_WRITER_HELPER_H
+#define FVM_WRITER_HELPER_H
 
 /*============================================================================
  * Helper types and functions for mesh and field writers
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,21 +27,17 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_block_dist.h"
-#include "cs_part_to_block.h"
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_block_dist.h"
+#include "base/cs_part_to_block.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
 /*=============================================================================
  * Macro definitions
@@ -124,6 +120,9 @@ typedef void
  * parameters:
  *   mesh                 <-- pointer to nodal mesh structure
  *   min_export_dim       <-- minimum dimension of sections to export
+ *   max_export_dim       <-- maximum dimension of sections to export
+ *   boundary_flag        <-- -1 if ignored, otherwise only sections
+ *                            with -1 or matching boundary flag
  *   group_by_type        <-- if true, group sections of same type
  *   group_all            <-- if true, all sections continue previous ones
  *   discard_polygons     <-- ignore polygonal sections
@@ -139,6 +138,8 @@ typedef void
 fvm_writer_section_t *
 fvm_writer_export_list(const fvm_nodal_t          *mesh,
                        int                         min_export_dim,
+                       int                         max_export_dim,
+                       int                         boundary_flag,
                        bool                        group_by_type,
                        bool                        group_all,
                        bool                        discard_polygons,
@@ -493,6 +494,4 @@ fvm_writer_field_component_name(char    *s,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_WRITER_HELPER_H__ */
+#endif /* FVM_WRITER_HELPER_H */

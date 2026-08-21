@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_FROM_BUILDER_H__
-#define __CS_MESH_FROM_BUILDER_H__
+#ifndef CS_MESH_FROM_BUILDER_H
+#define CS_MESH_FROM_BUILDER_H
 
 /*============================================================================
  * Define cs_mesh_t fields from cs_mesh_builder_t fields.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,23 +28,19 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "fvm_group.h"
-#include "fvm_selector.h"
-#include "fvm_periodicity.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_selector.h"
+#include "fvm/fvm_periodicity.h"
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
-#include "cs_mesh.h"
-#include "cs_mesh_builder.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_builder.h"
 
 /*=============================================================================
  * Macro definitions
@@ -57,33 +53,6 @@ BEGIN_C_DECLS
 /*============================================================================
  * Static global variables
  *============================================================================*/
-
-/*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Query or modification of the option for domain partitioning when no
- * partitioning file is present.
- *
- * This function returns 1 or 2 according to the selected algorithm.
- *
- * Fortran interface :
- *
- * subroutine algdom (iopt)
- * *****************
- *
- * integer          iopt        : <-> : choice of the partitioning base
- *                                        0: query
- *                                        1: initial numbering
- *                                        2: Morton curve (bounding box)
- *                                        3: Morton curve (bounding cube)
- *                                        4: Hilbert curve (bounding box)
- *                                        5: Hilbert curve (bounding cube)
- *----------------------------------------------------------------------------*/
-
-void
-CS_PROCF (algdom, ALGDOM)(cs_int_t  *iopt);
 
 /*=============================================================================
  * Public function prototypes
@@ -103,6 +72,4 @@ cs_mesh_from_builder(cs_mesh_t          *mesh,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_FROM_BUILDER_H__ */
+#endif /* CS_MESH_FROM_BUILDER_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_TRACKING_H__
-#define __CS_LAGR_TRACKING_H__
+#ifndef CS_LAGR_TRACKING_H
+#define CS_LAGR_TRACKING_H
 
 /*============================================================================
  * Functions and types for the Lagrangian module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_lagr_particle.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "lagr/cs_lagr_particle.h"
 
 /*=============================================================================
  * Macro definitions
@@ -80,14 +76,22 @@ cs_lagr_tracking_initialize(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Apply one particle movement step.
+ * \brief Integrate or not SDEs associated tot the particle and apply one
+ * trajectography step to track the displacement.
  *
- * \param[in]   visc_length  viscous layer thickness
+ * \param[in]     visc_length     viscous layer thickness
+ * \param[in,out] particle_range  start and past-the-end ids of tracked
+ * \param[in,out] particle_range  start and past-the-end ids of tracked
+ * \param[in]     resol_sde       true  the sdes will be resolved
+ *                                false only the trajectography step is done
+ *
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_lagr_tracking_particle_movement(const cs_real_t  visc_length[]);
+cs_lagr_integ_track_particles(const cs_real_t  visc_length[],
+                              cs_lnum_t        particle_range[2],
+                              const bool       resol_sde);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -98,6 +102,12 @@ cs_lagr_tracking_particle_movement(const cs_real_t  visc_length[]);
 void
 cs_lagr_tracking_finalize(void);
 
+#if defined(__cplusplus)
+
+/*=============================================================================
+ * Public C++ functions
+ *============================================================================*/
+
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Determine the number of the closest wall face from the particle
@@ -105,39 +115,23 @@ cs_lagr_tracking_finalize(void);
  *
  * Used for the deposition model.
  *
- * \param[in]   particle     particle attributes for current time step
- * \param[in]   p_am         pointer to attributes map for current time step
+ * \param[in]   p_set        reference to particle set
+ * \param[in]   p_id         particle id
  * \param[in]   visc_length  viscous layer thickness
  * \param[out]  yplus        associated yplus value
  * \param[out]  face_id      associated neighbor wall face, or -1
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_lagr_test_wall_cell(const void                     *particle,
-                       const cs_lagr_attribute_map_t  *p_am,
-                       const cs_real_t                 visc_length[],
-                       cs_real_t                      *yplus,
-                       cs_lnum_t                      *face_id);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Get pointers to cell face connectivity used in particle tracking.
- *
- * \param[out]  cell_face_idx  cell face index
- * \param[out]  cell_face_lst  cell face connectivity (signed 1-to-n based,
- *                             negative for boundary faces, positive for
- *                             interior faces)
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_lagr_get_cell_face_connectivity(cs_lnum_t  **cell_face_idx,
-                                   cs_lnum_t  **cell_face_lst);
+ void
+ cs_lagr_test_wall_cell(cs_lagr_particle_set_t         &p_set,
+                        cs_lnum_t                       p_id,
+                        const cs_real_t                 visc_length[],
+                        cs_real_t                      *yplus,
+                        cs_lnum_t                      *face_id);
 
 /*----------------------------------------------------------------------------*/
 
+#endif //__cplusplus
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_TRACKING_H__ */
+#endif /* CS_LAGR_TRACKING_H */

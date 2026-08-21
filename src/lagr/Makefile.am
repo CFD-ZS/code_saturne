@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,102 +33,107 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/user \
--I$(top_srcdir)/src/gui \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/pprt \
--I$(top_srcdir)/src/turb \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+cslagr_includedir=$(pkgincludedir)/lagr
+cslagr_include_HEADERS = \
 cs_lagr.h \
-cs_lagr_clogging.h \
+cs_lagr_adh.h \
 cs_lagr_agglo.h \
-cs_lagr_fragmentation.h \
-cs_lagr_head_losses.h \
-cs_lagr_roughness.h \
+cs_lagr_aux_mean_fluid_quantities.h \
+cs_lagr_car.h \
+cs_lagr_clogging.h \
+cs_lagr_coupling.h \
+cs_lagr_deposition_model.h \
 cs_lagr_dlvo.h \
 cs_lagr_event.h \
 cs_lagr_extract.h \
-cs_lagr_injection.h \
+cs_lagr_fragmentation.h \
 cs_lagr_geom.h \
-cs_lagr_post.h \
-cs_lagr_restart.h \
-cs_lagr_query.h \
-cs_lagr_tracking.h \
-cs_lagr_stat.h \
-cs_lagr_new.h \
-cs_lagr_precipitation_model.h \
-cs_lagr_deposition_model.h \
-cs_lagr_car.h \
-cs_lagr_coupling.h \
-cs_lagr_adh.h \
-cs_lagr_resuspension.h \
-cs_lagr_poisson.h \
-cs_lagr_options.h \
-cs_lagr_orientation.h \
-cs_lagr_gradients.h \
-cs_lagr_particle.h \
-cs_lagr_print.h \
-cs_lagr_sde.h \
-cs_lagr_sde_model.h \
+cs_lagr_head_losses.h \
+cs_lagr_injection.h \
 cs_lagr_lec.h \
 cs_lagr_log.h \
+cs_lagr_new.h \
+cs_lagr_options.h \
+cs_lagr_orientation.h \
+cs_lagr_particle.h \
+cs_lagr_poisson.h \
+cs_lagr_porosity.h \
+cs_lagr_post.h \
+cs_lagr_precipitation_model.h \
+cs_lagr_print.h \
+cs_lagr_query.h \
+cs_lagr_restart.h \
+cs_lagr_resuspension.h \
+cs_lagr_roughness.h \
+cs_lagr_sde.h \
+cs_lagr_sde_model.h \
+cs_lagr_stat.h \
+cs_lagr_tracking.h \
 cs_lagr_prototypes.h \
 cs_lagr_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcslagr.la
-libcslagr_la_SOURCES = \
-cs_lagr_clogging.c \
-cs_lagr_agglo.c \
-cs_lagr_fragmentation.c \
-cs_lagr_roughness.c \
-cs_lagr.c \
-cs_lagr_dlvo.c \
-cs_lagr_event.c \
-cs_lagr_extract.c \
-cs_lagr_injection.c \
-cs_lagr_post.c \
-cs_lagr_restart.c \
-cs_lagr_query.c \
-cs_lagr_tracking.c \
-cs_lagr_stat.c \
-cs_lagr_adh.c \
-cs_lagr_print.c \
-cs_lagr_car.c \
-cs_lagr_coupling.c \
-cs_lagr_deposition_model.c \
-cs_lagr_geom.c \
-cs_lagr_poisson.c \
-cs_lagr_gradients.c \
-cs_lagr_head_losses.c \
-cs_lagr_new.c \
-cs_lagr_options.c \
-cs_lagr_orientation.c \
-cs_lagr_particle.c \
-cs_lagr_resuspension.c \
-cs_lagr_precipitation_model.c \
-cs_lagr_sde.c \
-cs_lagr_sde_model.c \
-cs_lagr_lec.c \
-cs_lagr_log.c
+noinst_LIBRARIES = libcslagr.a
+libcslagr_a_SOURCES = \
+cs_lagr.cpp \
+cs_lagr_adh.cpp \
+cs_lagr_agglo.cpp \
+cs_lagr_aux_mean_fluid_quantities.cpp \
+cs_lagr_car.cpp \
+cs_lagr_clogging.cpp \
+cs_lagr_coupling.cpp \
+cs_lagr_deposition_model.cpp \
+cs_lagr_dlvo.cpp \
+cs_lagr_event.cpp \
+cs_lagr_extract.cpp \
+cs_lagr_fragmentation.cpp \
+cs_lagr_geom.cpp \
+cs_lagr_head_losses.cpp \
+cs_lagr_injection.cpp \
+cs_lagr_lec.cpp \
+cs_lagr_log.cpp \
+cs_lagr_new.cpp \
+cs_lagr_options.cpp \
+cs_lagr_orientation.cpp \
+cs_lagr_particle.cpp \
+cs_lagr_poisson.cpp \
+cs_lagr_porosity.cpp \
+cs_lagr_post.cpp \
+cs_lagr_precipitation_model.cpp \
+cs_lagr_print.cpp \
+cs_lagr_query.cpp \
+cs_lagr_restart.cpp \
+cs_lagr_resuspension.cpp \
+cs_lagr_roughness.cpp \
+cs_lagr_sde.cpp \
+cs_lagr_sde_model.cpp \
+cs_lagr_stat.cpp \
+cs_lagr_tracking.cpp
 
-libcslagr_la_LDFLAGS = -no-undefined
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
 
 clean-local:
-	-rm -f *__genmod.f90 *.mod
+	-rm -rf .deps

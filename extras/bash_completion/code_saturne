@@ -1,23 +1,21 @@
 #------------------------------------------------------------------------------
-#   This file is part of the Code_Saturne Kernel, element of the
-#   Code_Saturne CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-#   Copyright (C) 2009-2019 EDF S.A., France
+# Copyright (C) 2009-2026 EDF S.A.
 #
-#   The Code_Saturne Kernel is free software; you can redistribute it
-#   and/or modify it under the terms of the GNU General Public License
-#   as published by the Free Software Foundation; either version 2 of
-#   the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
 #
-#   The Code_Saturne Kernel is distributed in the hope that it will be
-#   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-#   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 #
-#   You should have received a copy of the GNU General Public Licence
-#   along with the Code_Saturne Kernel; if not, write to the
-#   Free Software Foundation, Inc.,
-#   51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+# Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #-------------------------------------------------------------------------------
 
 # Bash completion script for:
@@ -34,7 +32,7 @@ _code_saturne() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Possible commands except "help", as given by "code_saturne help"
-    cmds="studymanager smgr studymanagergui smgrgui bdiff bdump compile config create gui info run trackcvg"
+    cmds="studymanager smgr studymanagergui smgrgui bdiff bdump compile config cplgui create gui info run trackcvg parametric submit symbol2line update up"
 
     # Help and Case options
     local helpOpts="-h --help"
@@ -42,7 +40,7 @@ _code_saturne() {
 
     # Readers and guides
     local readers="okular evince kpdf gpdf xpdf acroread"
-    local guides="refcard user theory tutorial developer studymanager Doxygen"
+    local guides="user theory"
 
     # Boolean values
     local isCmd=0
@@ -75,20 +73,6 @@ _code_saturne() {
                     return 0
                     ;;
                 *) return 0;;
-            esac
-            ;;
-        studymanager)
-            case ${prev} in
-                -f|--file) _filedir; return 0;;
-                -m|--mail) COMPREPLY=( ); return 0;;
-                *) cmdOpts="-q --quiet -r --run -c --compare -p --post";;
-            esac
-            ;;
-        smgr)
-            case ${prev} in
-                -f|--file) _filedir; return 0;;
-                -m|--mail) COMPREPLY=( ); return 0;;
-                *) cmdOpts="-q --quiet -r --run -c --compare -p --post";;
             esac
             ;;
         bdiff)
@@ -138,26 +122,14 @@ _code_saturne() {
                 -s|--study)    COMPREPLY=( ); return 0;;
                 --syrthes|--aster|--cathare) COMPREPLY=( ); return 0;;
                 --copy-from)   _filedir -d; return 0;;
-                *) cmdOpts="-s --study -c --case --noref --copy-from \
-                     --syrthes --cathare --import-only -q --quiet -v --verbose";;
+                *) cmdOpts="-s --study -c --case --noref --copy-ref --copy-from \
+                     --syrthes --aster --cathare --python -q --quiet -v --verbose";;
             esac
             ;;
         gui)
             case ${prev} in
                 -p|--param)  _filedir; return 0;;
                 *) cmdOpts="-p --param -n --new -z --no-splash";;
-            esac
-            ;;
-        studymanagergui)
-            case ${prev} in
-                -p|--param)  _filedir; return 0;;
-                *) cmdOpts="-p --param -n --new";;
-            esac
-            ;;
-	smgrgui)
-            case ${prev} in
-                -p|--param)  _filedir; return 0;;
-                *) cmdOpts="-p --param -n --new";;
             esac
             ;;
         info)
@@ -173,28 +145,49 @@ _code_saturne() {
                 *) cmdOpts="-r --reader -g --guide --modules --version"
             esac
             ;;
-        run)
+        run | submit)
             case ${prev} in
                 -p|--param)              _filedir; return 0;;
                 --case)                  _filedir -d; return 0;;
                 --compute-build)         _filedir -d; return 0;;
+                --dest)                  _filedir -d; return 0;;
                 --id)                    COMPREPLY=( ); return 0;;
                 --id-prefix)             COMPREPLY=( ); return 0;;
                 --id-suffix)             COMPREPLY=( ); return 0;;
-                --n|--nprocs)            COMPREPLY=( ); return 0;;
+                --n|--n-procs)           COMPREPLY=( ); return 0;;
                 --nt|--threads-per-task) COMPREPLY=( ); return 0;;
+                --with-resource)         COMPREPLY=( ); return 0;;
                 *) cmdOpts="-p --param --case --id --id-prefix --id-suffix \
-                     --suggest-id --force --stage --initialize --execute \
-                     --finalize -n --nprocs --nt --threads-per-task";;
+                     --suggest-id --force --stage --initialize --compute \
+                     --finalize -n --n-procs --nt --threads-per-task \
+                     --with-resource --notebook-args --kw-args";;
             esac
             ;;
-        submit)
-            _filedir; return 0
+        studymanager | smgr)
+            case ${prev} in
+                -f|--file) _filedir; return 0;;
+                -m|--mail) COMPREPLY=( ); return 0;;
+                --with-resource) COMPREPLY=( ); return 0;;
+                *) cmdOpts="-q --quiet -r --run -c --compare -p --post \
+                     --with-resource";;
+            esac
+            ;;
+        studymanagergui | smgrgui)
+            case ${prev} in
+                -p|--param)  _filedir; return 0;;
+                *) cmdOpts="-p --param -n --new";;
+            esac
             ;;
         trackcvg)
             case ${prev} in
                 -r|--resu)               _filedir -d; return 0;;
                 *) cmdOpts="-r --resu"
+            esac
+            ;;
+        update)
+            case ${prev} in
+                -c|--case)     COMPREPLY=( ); return 0;;
+                *) cmdOpts="-q --quiet -v --verbose";;
             esac
             ;;
         *)

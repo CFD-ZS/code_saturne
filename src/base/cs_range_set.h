@@ -1,14 +1,14 @@
-#ifndef __CS_RANGE_SET_H__
-#define __CS_RANGE_SET_H__
+#ifndef CS_RANGE_SET_H
+#define CS_RANGE_SET_H
 
 /*============================================================================
  * Operations related to handling of an owning rank for distributed entities.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,25 +28,21 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "fvm_group.h"
-#include "fvm_selector.h"
-#include "fvm_periodicity.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_selector.h"
+#include "fvm/fvm_periodicity.h"
 
-#include "cs_base.h"
-#include "cs_halo.h"
-#include "cs_interface.h"
-#include "cs_numbering.h"
+#include "base/cs_base.h"
+#include "base/cs_halo.h"
+#include "base/cs_interface.h"
+#include "base/cs_numbering.h"
 
-#include "cs_mesh_builder.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh_builder.h"
 
 /*=============================================================================
  * Macro definitions
@@ -56,8 +52,9 @@ BEGIN_C_DECLS
 
 typedef struct {
 
-  cs_lnum_t  n_elts[2];             /*!< Number of associated local elements
-                                         (0: local range, 1: total) */
+  cs_lnum_t  n_elts[3];             /*!< Number of associated local elements
+                                         (0: local range, 1: total,
+                                         2: first "out of local range" id) */
 
   cs_gnum_t  l_range[2];            /*!< global id range assigned to local
                                          rank: [start, past-the-end[ */
@@ -66,8 +63,8 @@ typedef struct {
   cs_gnum_t        *_g_id;          /*!< global id assigned to elements
                                          (private) */
 
-  const cs_interface_set_t  *ifs;   /*!< Associated interface set, or NULL */
-  const cs_halo_t           *halo;  /*!< Associated halo, or NULL */
+  const cs_interface_set_t  *ifs;   /*!< Associated interface set, or nullptr */
+  const cs_halo_t           *halo;  /*!< Associated halo, or nullptr */
 
 } cs_range_set_t;
 
@@ -84,7 +81,7 @@ typedef struct {
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define global ids and a partitioning of data based on local ranges
  *        for elements which may be shared across ranks or have halo elements.
  *
@@ -98,6 +95,7 @@ typedef struct {
  * by a parallel scan type operation counting elements on parallel
  * interfaces only once. Each element will appear inside one rank's range
  * and outside the range of all other ranks.
+ * Ranges across different ranks are contiguous.
  *
  * This allows building distribution information such as that used in many
  * external libraries, such as PETSc, HYPRE, and may also simplify many
@@ -106,13 +104,17 @@ typedef struct {
  * elements which may be on parallel boundaries, such as vertices, edges,
  * and faces).
  *
- * Elements and their periodic matches allways have distinct global ids;
+ * Elements and their periodic matches will have identical or distinct
+ * global ids depending on the tr_ignore argument.
  *
- * \param[in]   ifs          pointer to interface set structure, or NULL
- * \param[in]   halo         pointer to halo structure, or NULL
+ * \param[in]   ifs          pointer to interface set structure, or nullptr
+ * \param[in]   halo         pointer to halo structure, or nullptr
  * \param[in]   n_elts       number of elements
  * \param[in]   balance      try to balance shared elements across ranks ?
  *                           (for elements shared across an interface set)
+ * \param[in]   tr_ignore    0: periodic elements will share global ids
+ *                           > 0: ignore periodicity with rotation;
+ *                           > 1: ignore all periodic transforms
  * \param[in]   g_id_base    global id base index (usually 0, but 1
  *                           could be used to generate an IO numbering)
  * \param[out]  l_range      global id range assigned to local rank:
@@ -126,12 +128,13 @@ cs_range_set_define(const cs_interface_set_t  *ifs,
                     const cs_halo_t           *halo,
                     cs_lnum_t                  n_elts,
                     bool                       balance,
+                    int                        tr_ignore,
                     cs_gnum_t                  g_id_base,
                     cs_gnum_t                  l_range[2],
                     cs_gnum_t                 *g_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create a range set (with associated range and global ids) for the
  *        partitioning of data based on local ranges for elements which may
  *        be shared across ranks or have halo elements.
@@ -142,15 +145,21 @@ cs_range_set_define(const cs_interface_set_t  *ifs,
  * appear inside one rank's range and outside the range of all other ranks.
  * Ranges across different ranks are contiguous.
  *
+ * Elements and their periodic matches will have identical or distinct
+ * global ids depending on the tr_ignore argument.
+ *
  * The range set maintains pointers to the optional interface set and halo
  * structures, but does not copy them, so those structures should have a
  * lifetime at least as long as the returned range set.
  *
- * \param[in]   ifs          pointer to interface set structure, or NULL
- * \param[in]   halo         pointer to halo structure, or NULL
+ * \param[in]   ifs          pointer to interface set structure, or nullptr
+ * \param[in]   halo         pointer to halo structure, or nullptr
  * \param[in]   n_elts       number of elements
- * \param[in]   balance      try to balance shared elements across ranks ?
+ * \param[in]   balance      try to balance shared elements across ranks?
  *                           (for elements shared across an interface set)
+ * \param[in]   tr_ignore    0: periodic elements will share global ids
+ *                           > 0: ignore periodicity with rotation;
+ *                           > 1: ignore all periodic transforms
  * \param[in]   g_id_base    global id base index (usually 0, but 1
  *                           could be used to generate an IO numbering)
  *
@@ -163,10 +172,11 @@ cs_range_set_create(const cs_interface_set_t  *ifs,
                     const cs_halo_t           *halo,
                     cs_lnum_t                  n_elts,
                     bool                       balance,
+                    int                        tr_ignore,
                     cs_gnum_t                  g_id_base);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create a range set (with associated range and global ids) from
  *        an existing partition of data based on local ranges for elements
  *        which may be shared across ranks or have halo elements.
@@ -175,8 +185,8 @@ cs_range_set_create(const cs_interface_set_t  *ifs,
  * shared by the range set, not copied, so they should have a lifetime at
  * least as long as the returned range set.
  *
- * \param[in]  ifs      pointer to interface set structure, or NULL
- * \param[in]  halo     pointer to halo structure, or NULL
+ * \param[in]  ifs      pointer to interface set structure, or nullptr
+ * \param[in]  halo     pointer to halo structure, or nullptr
  * \param[in]  n_elts   number of elements
  * \param[in]  l_range  global id range assigned to local rank:
  *                      [start, past-the-end[
@@ -194,7 +204,7 @@ cs_range_set_create_from_shared(const cs_interface_set_t  *ifs,
                                 cs_gnum_t                 *g_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Destroy a range set structure.
  *
  * \param[in, out]  rs  pointer to pointer to structure to destroy
@@ -205,7 +215,7 @@ void
 cs_range_set_destroy(cs_range_set_t  **rs);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set values of a given array to zero for indexes of elements
  *        outside the local range.
  *
@@ -213,7 +223,7 @@ cs_range_set_destroy(cs_range_set_t  **rs);
  * used to accelerate this operation, as only elements on that interface need
  * to be checked.
  *
- * \param[in]       rs        pointer to range set structure, or NULL
+ * \param[in]       rs        pointer to range set structure, or nullptr
  * \param[in]       datatype  type of data considered
  * \param[in]       stride    number of values per entity (interlaced)
  * \param[in, out]  val       pointer to array values
@@ -227,11 +237,11 @@ cs_range_set_zero_out_of_range(const cs_range_set_t  *rs,
                                void                  *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Synchronize values elements associated with a range set, using
  *        either a halo or an interface set.
  *
- * \param[in]       rs        pointer to range set structure, or NULL
+ * \param[in]       rs        pointer to range set structure, or nullptr
  * \param[in]       datatype  type of data considered
  * \param[in]       stride    number of values per entity (interlaced)
  * \param[in, out]  val       values buffer
@@ -245,10 +255,10 @@ cs_range_set_sync(const cs_range_set_t  *rs,
                   void                  *val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Gather element values associated with a range set to a compact set.
  *
- * \param[in]   rs        pointer to range set structure, or NULL
+ * \param[in]   rs        pointer to range set structure, or nullptr
  * \param[in]   datatype  type of data considered
  * \param[in]   stride    number of values per entity (interlaced)
  * \param[in]   src_val   source values buffer
@@ -265,13 +275,13 @@ cs_range_set_gather(const cs_range_set_t  *rs,
                     void                  *dest_val);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Scatter element values associated with a range set to the full set.
  *
  * This includes parallel synchronization when the range set is associated
  * with a halo or interface set structure.
  *
- * \param[in]   rs        pointer to range set structure, or NULL
+ * \param[in]   rs        pointer to range set structure, or nullptr
  * \param[in]   datatype  type of data considered
  * \param[in]   stride    number of values per entity (interlaced)
  * \param[in]   src_val   source values buffer
@@ -289,6 +299,4 @@ cs_range_set_scatter(const cs_range_set_t  *rs,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RANGE_SET_H__ */
+#endif /* CS_RANGE_SET_H */

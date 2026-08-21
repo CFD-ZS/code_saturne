@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_ASSEMBLER_H__
-#define __CS_MATRIX_ASSEMBLER_H__
+#ifndef CS_MATRIX_ASSEMBLER_H
+#define CS_MATRIX_ASSEMBLER_H
 
 /*============================================================================
  * Incremental or general construction of matrix.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,17 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-#include "cs_log.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_halo.h"
+#include "base/cs_log.h"
 
 /*============================================================================
  * Macro definitions
@@ -75,15 +71,15 @@ typedef struct _cs_matrix_assembler_values_t  cs_matrix_assembler_values_t;
  *           structure.
  *
  * \param[in, out]  matrix   untyped pointer to matrix description structure
- * \param[in]       db size  optional diagonal block sizes
- * \param[in]       eb size  optional extra-diagonal block sizes
+ * \param[in]       db_size  diagonal block sizes
+ * \param[in]       eb_size  extra-diagonal block sizes
  */
 /*----------------------------------------------------------------------------*/
 
 typedef void
-(cs_matrix_assembler_values_init_t) (void             *matrix,
-                                     const cs_lnum_t  *db_size,
-                                     const cs_lnum_t  *eb_size);
+(cs_matrix_assembler_values_init_t) (void       *matrix,
+                                     cs_lnum_t   db_size,
+                                     cs_lnum_t   eb_size);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -118,47 +114,7 @@ typedef void
                                     cs_lnum_t         stride,
                                     const cs_lnum_t   row_id[],
                                     const cs_lnum_t   col_idx[],
-                                    const cs_real_t   vals[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Function pointer for addition to matrix coefficients using
- *        local row ids and column indexes in case of CDO schemes.
- *        Contrary to other add_values() function. Here values are structured
- *        in a CSR-like way. By this way one avoids to allocate specific
- *        arrays for this step.
- *
- * Values whose associated row index is negative should be ignored;
- * Values whose column index is -1 are assumed to be assigned to a
- * separately stored diagonal. Other indexes should be valid.
- *
- * \warning  The matrix pointer must point to valid data when the selection
- *           function is called, so the life cycle of the data pointed to
- *           should be at least as long as that of the assembler values
- *           structure.
- *
- * \remark  Note that we pass column indexes (not ids) here; as the
- *          caller is already assumed to have identified the index
- *          matching a given column id.
- *
- * \param[in, out] matrix_p   untyped pointer to matrix description structure
- * \param[in]      row_id     local row id to deal with
- * \param[in]      stride     associated data block size
- * \param[in]      n_cols     number of columns for the row to deal with
- * \param[in]      diag_val   pointer to the diagonal value(s)
- * \param[in]      col_idx    associated local column indexes
- * \param[in]      vals       pointer to values (size: n*stride*row_size)
- */
-/*----------------------------------------------------------------------------*/
-
-typedef void
-(cs_matrix_assembler_values_cdo_add_t) (void               *matrix,
-                                        cs_lnum_t           row_id,
-                                        cs_lnum_t           stride,
-                                        cs_lnum_t           n_cols,
-                                        const cs_real_t     diag_val[],
-                                        const cs_lnum_t     col_idx[],
-                                        const cs_real_t     vals[]);
+                                    const cs_real_t   val[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -178,8 +134,8 @@ typedef void
  * \param[in, out]  matrix    untyped pointer to matrix description structure
  * \param[in]       n         number of values to add
  * \param[in]       stride    associated data block size
- * \param[in]       g_row_id  associated global row ids
- * \param[in]       g_col_id  associated global column ids
+ * \param[in]       row_g_id  associated global row ids
+ * \param[in]       col_g_id  associated global column ids
  * \param[in]       val       pointer to values (size: n*stride)
  */
 /*----------------------------------------------------------------------------*/
@@ -190,7 +146,7 @@ typedef void
                                       cs_lnum_t        stride,
                                       const cs_gnum_t  row_g_id[],
                                       const cs_gnum_t  col_g_id[],
-                                      const cs_real_t  vals[]);
+                                      const cs_real_t  val[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -226,7 +182,7 @@ typedef void
 (cs_matrix_assembler_values_end_t) (void  *matrix);
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -234,7 +190,7 @@ typedef void
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create a matrix assembler structure.
  *
  * The associated matrix structure data will initially be empty, though
@@ -253,7 +209,7 @@ cs_matrix_assembler_create(const cs_gnum_t  l_range[2],
                            bool             separate_diag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create a matrix assembler structure based on a given connectivity
  *        and associated halo structure.
  *
@@ -280,7 +236,7 @@ cs_matrix_assembler_create_from_shared(cs_lnum_t         n_rows,
                                        const cs_halo_t  *halo);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Destroy a matrix assembler structure.
  *
  * \param[in, out]  ma  pointer to matrix assembler structure pointer
@@ -291,26 +247,7 @@ void
 cs_matrix_assembler_destroy(cs_matrix_assembler_t  **ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Add entries to a matrix assembler structure.
- *
- * This function should be called by a single thread for a given assembler.
- *
- * \param[in, out]  ma        pointer to matrix assembler structure
- * \param[in]       n         number of entries
- * \param[in]       g_col_id  global column ids associated with entries
- * \param[in]       g_row_id  global row ids associated with entries
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_matrix_assembler_add_g_ids(cs_matrix_assembler_t  *ma,
-                              cs_lnum_t               n,
-                              const cs_gnum_t         g_row_id[],
-                              const cs_gnum_t         g_col_id[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Compute internal structures required by a matrix assembler.
  *
  * The associated vector halo is also computed at this stage.
@@ -325,7 +262,7 @@ void
 cs_matrix_assembler_compute(cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set option flags for a given matrix assembler structure.
  *
  * When used, this function should be called before defining entries
@@ -363,7 +300,7 @@ cs_matrix_assembler_set_options(cs_matrix_assembler_t  *ma,
                                 int                     flags);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return the option flags for a given matrix assembler structure.
  *
  * Flags are defined as a sum (bitwise or) of constants, described in
@@ -378,10 +315,30 @@ cs_matrix_assembler_set_options(cs_matrix_assembler_t  *ma,
 int
 cs_matrix_assembler_get_options(const cs_matrix_assembler_t  *ma);
 
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Add entries to a matrix assembler structure.
+ *
+ * This function should be called by a single thread for a given assembler.
+ *
+ * \param[in, out]  ma        pointer to matrix assembler structure
+ * \param[in]       n         number of entries
+ * \param[in]       col_g_id  global column ids associated with entries
+ * \param[in]       row_g_id  global row ids associated with entries
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_assembler_add_g_ids(cs_matrix_assembler_t  *ma,
+                              cs_lnum_t               n,
+                              const cs_gnum_t         row_g_id[],
+                              const cs_gnum_t         col_g_id[]);
+
+
 #if defined(HAVE_MPI)
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Assign specific MPI communicator to matrix assembler.
  *
  * This must be called before \ref cs_matrix_assembler_compute.
@@ -398,7 +355,7 @@ cs_matrix_assembler_set_comm(cs_matrix_assembler_t  *ma,
 #endif /* HAVE_MPI */
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to local global row range associated with a
  *        matrix assembler.
  *
@@ -412,7 +369,7 @@ const cs_gnum_t *
 cs_matrix_assembler_get_l_range(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to the halo structure associated with a
  *        matrix assembler.
  *
@@ -426,7 +383,7 @@ const cs_halo_t *
 cs_matrix_assembler_get_halo(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Indicate if the matrix assembler is based on a separate diagonal.
  *
  * \param[in]  ma  pointer to matrix assembler structure
@@ -440,7 +397,7 @@ bool
 cs_matrix_assembler_get_separate_diag(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return the number of rows associated with a matrix assembler.
  *
  * \param[in]  ma  pointer to matrix assembler structure
@@ -453,7 +410,20 @@ cs_lnum_t
 cs_matrix_assembler_get_n_rows(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Return the global number of rows associated with a matrix assembler.
+ *
+ * \param[in]  ma  pointer to matrix assembler structure
+ *
+ * \return  number of rows associated with matrix assembler
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_gnum_t
+cs_matrix_assembler_get_n_g_rows(const cs_matrix_assembler_t  *ma);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Return the number of columns associated with a matrix assembler.
  *
  * \param[in]  ma  pointer to matrix assembler structure
@@ -466,7 +436,7 @@ cs_lnum_t
 cs_matrix_assembler_get_n_columns(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a row index associated with a matrix assembler.
  *
  * This index is a CSR type index relative to all columns, including or
@@ -487,7 +457,7 @@ const cs_lnum_t *
 cs_matrix_assembler_get_row_index(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a column ids associated with a matrix assembler.
  *
  * These ids relative to all columns of successive rows, with columns
@@ -510,7 +480,7 @@ const cs_lnum_t *
 cs_matrix_assembler_get_col_ids(const cs_matrix_assembler_t  *ma);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return info on the number of neighbor ranks a matrix assembler
  *        may communicate with.
  *
@@ -530,7 +500,7 @@ cs_matrix_assembler_get_rank_counts(const cs_matrix_assembler_t  *ma,
                                     int                           rc[4]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Log rank counts for a given matrix assembler.
  *
  * \param[in]  ma      pointer to matrix assembler structure
@@ -545,14 +515,10 @@ cs_matrix_assembler_log_rank_counts(const cs_matrix_assembler_t  *ma,
                                     const char                   *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create and initialize a matrix assembler values structure.
  *
  * The associated values will initially be set to zero.
- *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
  *
  * This is a low-level function, which should be called by a simpler
  * function (\ref cs_matrix_assembler_values_init) which provides
@@ -567,8 +533,8 @@ cs_matrix_assembler_log_rank_counts(const cs_matrix_assembler_t  *ma,
  *
  * \param[in]       ma        associated matrix assembly structure
  * \param[in]       sep_diag  true if diagonal terms are stored separately
- * \param[in]       db_size   optional diagonal block sizes
- * \param[in]       eb_size   optional extra-diagonal block sizes
+ * \param[in]       db_size   diagonal block sizes
+ * \param[in]       eb_size   extra-diagonal block sizes
  * \param[in, out]  matrix    untyped pointer to matrix description structure
  * \param[in]       init      pointer to matrix coefficients
  *                            initialization function
@@ -588,8 +554,8 @@ cs_matrix_assembler_log_rank_counts(const cs_matrix_assembler_t  *ma,
 cs_matrix_assembler_values_t *
 cs_matrix_assembler_values_create(const cs_matrix_assembler_t          *ma,
                                   bool                                  sep_diag,
-                                  const cs_lnum_t                      *db_size,
-                                  const cs_lnum_t                      *eb_size,
+                                  cs_lnum_t                             db_size,
+                                  cs_lnum_t                             eb_size,
                                   void                                 *matrix,
                                   cs_matrix_assembler_values_init_t    *init,
                                   cs_matrix_assembler_values_add_t     *add,
@@ -598,7 +564,7 @@ cs_matrix_assembler_values_create(const cs_matrix_assembler_t          *ma,
                                   cs_matrix_assembler_values_end_t     *end);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Finalize matrix assembler values structure.
  *
  * When this function returns, the assembler values structure has been
@@ -613,7 +579,7 @@ void
 cs_matrix_assembler_values_finalize(cs_matrix_assembler_values_t  **mav);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Add values to a matrix assembler values structure using local
  *        row and column ids.
  *
@@ -629,7 +595,7 @@ cs_matrix_assembler_values_finalize(cs_matrix_assembler_values_t  **mav);
  * This function may be called by different threads, as long those threads
  * do not add contributions to the same rows (assuming caution is taken
  * in the case of external libraries so that their builder functions
- * have tht same property).
+ * have the same property).
  *
  * \param[in, out]  mav     pointer to matrix assembler values structure
  * \param[in]       n       number of entries
@@ -647,7 +613,7 @@ cs_matrix_assembler_values_add(cs_matrix_assembler_values_t  *mav,
                                const cs_real_t                val[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Add values to a matrix assembler values structure using global
  *        row and column ids.
  *
@@ -663,12 +629,12 @@ cs_matrix_assembler_values_add(cs_matrix_assembler_values_t  *mav,
  * This function may be called by different threads, as long those threads
  * do not add contributions to the same rows (assuming caution is taken
  * in the case of external libraries so that their builder functions
- * have tht same property).
+ * have the same property).
  *
  * \param[in, out]  mav       pointer to matrix assembler values structure
  * \param[in]       n         number of entries
- * \param[in]       g_col_id  global column ids associated with entries
- * \param[in]       g_row_id  global row ids associated with entries
+ * \param[in]       col_g_id  global column ids associated with entries
+ * \param[in]       row_g_id  global row ids associated with entries
  * \param[in]       val       values associated with entries
  */
 /*----------------------------------------------------------------------------*/
@@ -676,12 +642,12 @@ cs_matrix_assembler_values_add(cs_matrix_assembler_values_t  *mav,
 void
 cs_matrix_assembler_values_add_g(cs_matrix_assembler_values_t  *mav,
                                  cs_lnum_t                      n,
-                                 const cs_gnum_t                g_row_id[],
-                                 const cs_gnum_t                g_col_id[],
+                                 const cs_gnum_t                row_g_id[],
+                                 const cs_gnum_t                col_g_id[],
                                  const cs_real_t                val[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Start assembly of matrix values structure.
  *
  * The call to this function is always optional, and indicates that assembly
@@ -705,6 +671,4 @@ cs_matrix_assembler_values_done(cs_matrix_assembler_values_t  *mav);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_ASSEMBLER_H__ */
+#endif /* CS_MATRIX_ASSEMBLER_H */

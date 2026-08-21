@@ -1,14 +1,14 @@
-#ifndef __CS_FIELD_OPERATOR_H__
-#define __CS_FIELD_OPERATOR_H__
+#ifndef CS_FIELD_OPERATOR_H
+#define CS_FIELD_OPERATOR_H
 
 /*============================================================================
  * Field based algebraic operators.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-#include "cs_gradient.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_field.h"
+#include "alge/cs_gradient.h"
 
 /*=============================================================================
  * Macro definitions
@@ -70,16 +66,34 @@ typedef enum {
  *   f              <-- pointer to field
  *   use_previous_t <-- should we use values from the previous time step ?
  *   inc            <-- if 0, solve on increment; 1 otherwise
- *   recompute_cocg <-- should COCG FV quantities be recomputed ?
  *   grad           --> gradient
  *----------------------------------------------------------------------------*/
 
 void
-cs_field_gradient_scalar(const cs_field_t          *f,
-                         bool                       use_previous_t,
-                         int                        inc,
-                         bool                       recompute_cocg,
-                         cs_real_3_t      *restrict grad);
+cs_field_gradient_scalar(const cs_field_t  *f,
+                         bool               use_previous_t,
+                         int                inc,
+                         cs_real_3_t       *grad);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute cell gradient of scalar array using parameters associated
+ *         with a given field.
+ *
+ * \param[in]       f_id           associated field id
+ * \param[in]       inc            if 0, solve on increment; 1 otherwise
+ * \param[in]       bc_coeffs      boundary condition structure
+ * \param[in, out]  var            gradient's base variable
+ * \param[out]      grad           gradient
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_gradient_scalar_array(int                         f_id,
+                               int                         inc,
+                               cs_field_bc_coeffs_t       *bc_coeffs,
+                               cs_real_t                   var[],
+                               cs_real_3_t                 grad[]);
 
 /*----------------------------------------------------------------------------
  * Compute cell gradient of scalar field or component of vector or
@@ -89,20 +103,18 @@ cs_field_gradient_scalar(const cs_field_t          *f,
  *   f              <-- pointer to field
  *   use_previous_t <-- should we use values from the previous time step ?
  *   inc            <-- if 0, solve on increment; 1 otherwise
- *   recompute_cocg <-- should COCG FV quantities be recomputed ?
  *   hyd_p_flag     <-- flag for hydrostatic pressure
  *   f_ext          <-- exterior force generating the hydrostatic pressure
  *   grad           --> gradient
  *----------------------------------------------------------------------------*/
 
 void
-cs_field_gradient_potential(const cs_field_t          *f,
-                            bool                       use_previous_t,
-                            int                        inc,
-                            bool                       recompute_cocg,
-                            int                        hyd_p_flag,
-                            cs_real_3_t                f_ext[],
-                            cs_real_3_t      *restrict grad);
+cs_field_gradient_potential(const cs_field_t  *f,
+                            bool               use_previous_t,
+                            int                inc,
+                            int                hyd_p_flag,
+                            cs_real_3_t        f_ext[],
+                            cs_real_3_t       *grad);
 
 /*----------------------------------------------------------------------------
  * Compute cell gradient of scalar field or component of vector or
@@ -116,10 +128,10 @@ cs_field_gradient_potential(const cs_field_t          *f,
  *----------------------------------------------------------------------------*/
 
 void
-cs_field_gradient_vector(const cs_field_t          *f,
-                         bool                       use_previous_t,
-                         int                        inc,
-                         cs_real_33_t     *restrict grad);
+cs_field_gradient_vector(const cs_field_t  *f,
+                         bool               use_previous_t,
+                         int                inc,
+                         cs_real_33_t      *grad);
 
 /*----------------------------------------------------------------------------
  * Compute cell gradient of tensor field.
@@ -132,10 +144,68 @@ cs_field_gradient_vector(const cs_field_t          *f,
  *----------------------------------------------------------------------------*/
 
 void
-cs_field_gradient_tensor(const cs_field_t          *f,
-                         bool                       use_previous_t,
-                         int                        inc,
-                         cs_real_63_t     *restrict grad);
+cs_field_gradient_tensor(const cs_field_t  *f,
+                         bool               use_previous_t,
+                         int                inc,
+                         cs_real_63_t      *grad);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the values of a scalar field at boundary face I' positions.
+ *
+ * \param[in]       f               pointer to field
+ * \param[in]       use_previous_t  should we use values from the previous
+ *                                  time step ?
+ * \param[in]       inc             if 0, solve on increment; 1 otherwise
+ * \param[out]      grad            gradient
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_gradient_boundary_iprime_scalar(const cs_field_t  *f,
+                                         bool               use_previous_t,
+                                         cs_lnum_t          n_faces,
+                                         const cs_lnum_t   *face_ids,
+                                         cs_real_t          var_iprime[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the values of a vector field at boundary face I' positions.
+ *
+ * \param[in]       f               pointer to field
+ * \param[in]       use_previous_t  should we use values from the previous
+ *                                  time step ?
+ * \param[in]       inc             if 0, solve on increment; 1 otherwise
+ * \param[out]      grad            gradient
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_gradient_boundary_iprime_vector(const cs_field_t  *f,
+                                         bool               use_previous_t,
+                                         cs_lnum_t          n_faces,
+                                         const cs_lnum_t   *face_ids,
+                                         cs_real_3_t        var_iprime[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the values of a symmetric tensor field at
+ *        boundary face I' positions.
+ *
+ * \param[in]       f               pointer to field
+ * \param[in]       use_previous_t  should we use values from the previous
+ *                                  time step ?
+ * \param[in]       inc             if 0, solve on increment; 1 otherwise
+ * \param[out]      grad            gradient
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_gradient_boundary_iprime_tensor(const cs_field_t  *f,
+                                         bool               use_previous_t,
+                                         cs_lnum_t          n_faces,
+                                         const cs_lnum_t   *face_ids,
+                                         cs_real_6_t        var_iprime[]);
 
 /*----------------------------------------------------------------------------
  * Interpolate field values at a given set of points.
@@ -165,7 +235,7 @@ cs_field_interpolate(cs_field_t              *f,
  *
  * This assumes the field values have been synchronized.
  *
- * \param[in]       f id        scalar field id
+ * \param[in]       f_id        scalar field id
  * \param[in]       halo_type   halo type
  * \param[in, out]  local_max   local maximum value
  * \param[in, out]  local_min   local minimum value
@@ -208,7 +278,22 @@ cs_field_synchronize(cs_field_t      *f,
                      cs_halo_type_t   halo_type);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Synchronize current parallel and periodic field values.
+ *
+ * This function currently only upates fields based on CS_MESH_LOCATION_CELLS.
+ *
+ * \param[in, out]   f           pointer to field
+ * \param[in]        halo_type   halo type
+ * \param[in]        on_device   specify whether sync is done on device
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_field_synchronize(cs_field_t            *f,
+                     cs_halo_type_t         halo_type,
+                     bool                   on_device);
 
-#endif /* __CS_FIELD_OPERATOR_H__ */
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_FIELD_OPERATOR_H */

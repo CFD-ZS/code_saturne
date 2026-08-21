@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -32,19 +32,29 @@ cs_have_hdf5_header=no
 cs_hdf5_libpath=""
 hdf5_prefix=""
 
+AC_ARG_VAR([HDF5_ROOT_DIR], [HDF5 root directory (superseded by --with-hdf5=PATH)])
+
 AC_ARG_WITH(hdf5,
             [AS_HELP_STRING([--with-hdf5=PATH],
                             [specify prefix directory for HDF5])],
-            [if test "x$withval" = "x"; then
-               with_hdf5=yes
+            [if test "x$withval" = "xyes"; then
+               if test "x$HDF5_ROOT_DIR" != "x"; then
+                 with_hdf5=$HDF5_ROOT_DIR
+               fi
              elif test "x$withval" = "xsalome"; then
-               if test -z "$HDF5HOME"; then
+               cs_salome_hdf5_root_dir=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD > /dev/null 2>&1 ; echo $HDF5_ROOT_DIR")`
+               if test -z "cs_salome_hdf5_root_dir"; then
                  AC_MSG_FAILURE([no SALOME path information for HDF5 (needed by --with-hdf5=salome)!])
                else
-                 with_hdf5=$HDF5HOME
+                 with_hdf5=$cs_salome_hdf5_root_dir
                fi
+               unset cs_salome_hdf5_root_dir
              fi],
-            [with_hdf5=check])
+            [if test "x$HDF5_ROOT_DIR" != "x"; then
+               with_hdf5=$HDF5_ROOT_DIR
+             else
+               with_hdf5=check
+             fi])
 
 AC_ARG_WITH(hdf5-include,
             [AS_HELP_STRING([--with-hdf5-include=PATH],
@@ -66,13 +76,13 @@ AC_ARG_WITH(hdf5-lib,
              fi
              HDF5_LDFLAGS="-L$with_hdf5_lib"
              cs_hdf5_libpath="$with_hdf5_lib"
-             # Add the libdir to the runpath as HDF5 might not be libtoolized
-             HDF5RUNPATH="-R$with_hdf5_lib"],
+             # Add the libdir to the runpath for the preprocessor build
+             HDF5RUNPATH="${LDRPATH}${with_hdf5_lib}"],
             [if test "x$with_hdf5" != "xno" -a "x$with_hdf5" != "xyes" \
 	          -a "x$with_hdf5" != "xcheck"; then
                HDF5_LDFLAGS="-L$with_hdf5/lib"
-               # Add the libdir to the runpath as HDF5 might not be libtoolized
-               HDF5RUNPATH="-R$with_hdf5/lib"
+               # Add the libdir to the runpath for the preprocessor build
+               HDF5RUNPATH="${LDRPATH}${with_hdf5}/lib"
                cs_hdf5_libpath="$with_hdf5/lib"
              fi])
 
@@ -128,7 +138,7 @@ if test "x$with_hdf5" != "xno" ; then
     fi
     for n in $cs_hdf5_libnames ; do
       if test "x$cs_hdf5_libname" = "x" ; then
-        ls "$cs_hdf5_libpath"/"$n".* > /dev/null 2>&1
+        ls "$cs_hdf5_libpath"/lib"$n".* > /dev/null 2>&1
         if test $? == "0"; then
           cs_hdf5_libname=$n
           cs_hdf5_libnames="$cs_hdf5_libname"

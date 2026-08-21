@@ -1,8 +1,8 @@
 !-------------------------------------------------------------------------------
 
-! This file is part of Code_Saturne, a general-purpose CFD tool.
+! This file is part of code_saturne, a general-purpose CFD tool.
 !
-! Copyright (C) 1998-2020 EDF S.A.
+! Copyright (C) 1998-2026 EDF S.A.
 !
 ! This program is free software; you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free Software
@@ -38,16 +38,9 @@ module cstnum
 
   !> epsilon \f$ 10^{-12}\f$
   double precision  epzero
-  !> infinite \f$ 10^{+30}\f$
-  double precision  rinfin
-  !> big value \f$ 10^{+12}\f$
-  double precision  grand
-  !> zero \f$ 0 \f$
-  double precision  zero
   !> \f$ \pi \f$ value with 16 digits
   double precision  pi
-  parameter        (epzero=1.d-12, rinfin=1.d+30, grand=1.d+12,  &
-                    zero=0.d0, pi=3.141592653589793d0)
+  parameter        (epzero=1.d-12, pi=3.141592653589793d0)
   !> \}
   !=============================================================================
 

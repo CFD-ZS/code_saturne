@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,21 +33,17 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/cdo \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
-
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+csmesh_includedir=$(pkgincludedir)/mesh
+csmesh_include_HEADERS = \
 cs_geom.h \
 cs_join.h \
 cs_join_intersect.h \
@@ -60,11 +56,13 @@ cs_join_split.h \
 cs_join_update.h \
 cs_join_util.h \
 cs_mesh.h \
+cs_mesh_adaptive_refinement.h \
 cs_mesh_adjacencies.h \
 cs_mesh_bad_cells.h \
 cs_mesh_boundary.h \
 cs_mesh_boundary_layer.h \
 cs_mesh_builder.h \
+cs_mesh_cartesian.h \
 cs_mesh_coherency.h \
 cs_mesh_coarsen.h \
 cs_mesh_connect.h \
@@ -74,64 +72,87 @@ cs_mesh_group.h \
 cs_mesh_halo.h \
 cs_mesh_headers.h \
 cs_mesh_location.h \
+cs_mesh_intersect.h \
 cs_mesh_quality.h \
 cs_mesh_quantities.h \
 cs_mesh_refine.h \
 cs_mesh_remove.h \
 cs_mesh_save.h \
-cs_mesh_thinwall.h \
 cs_mesh_to_builder.h \
 cs_mesh_warping.h \
 cs_mesh_smoother.h \
-cs_partition.h
+cs_partition.h \
+cs_stl.h \
+cs_symmetry_faces_filter.h \
+cs_mesh_cut.h \
+cs_redistribute.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcsmesh.la \
-                     libcspartition.la
+noinst_LIBRARIES = libcsmesh.a \
+		   libcspartition.a
 
-libcsmesh_la_SOURCES = \
-cs_geom.c \
-cs_join.c \
-cs_join_intersect.c \
-cs_join_merge.c \
-cs_join_mesh.c \
-cs_join_perio.c \
-cs_join_post.c \
-cs_join_set.c \
-cs_join_split.c \
-cs_join_update.c \
-cs_join_util.c \
-cs_mesh.c \
-cs_mesh_adjacencies.c \
-cs_mesh_bad_cells.c \
-cs_mesh_boundary.c \
-cs_mesh_boundary_layer.c \
-cs_mesh_builder.c \
-cs_mesh_coarsen.c \
-cs_mesh_coherency.c \
-cs_mesh_connect.c \
-cs_mesh_extrude.c \
-cs_mesh_from_builder.c \
-cs_mesh_group.c \
-cs_mesh_halo.c \
-cs_mesh_location.c \
-cs_mesh_quality.c \
-cs_mesh_quantities.c \
-cs_mesh_refine.c \
-cs_mesh_remove.c \
-cs_mesh_save.c \
-cs_mesh_thinwall.c \
-cs_mesh_to_builder.c \
-cs_mesh_warping.c \
-cs_mesh_smoother.c
-
-libcsmesh_la_LDFLAGS = -no-undefined
+libcsmesh_a_SOURCES = \
+cs_geom.cpp \
+cs_join.cpp \
+cs_join_intersect.cpp \
+cs_join_merge.cpp \
+cs_join_mesh.cpp \
+cs_join_perio.cpp \
+cs_join_post.cpp \
+cs_join_set.cpp \
+cs_join_split.cpp \
+cs_join_update.cpp \
+cs_join_util.cpp \
+cs_mesh.cpp \
+cs_mesh_adaptive_refinement.cpp \
+cs_mesh_adjacencies.cpp \
+cs_mesh_bad_cells.cpp \
+cs_mesh_boundary.cpp \
+cs_mesh_boundary_layer.cpp \
+cs_mesh_builder.cpp \
+cs_mesh_cartesian.cpp \
+cs_mesh_coarsen.cpp \
+cs_mesh_coherency.cpp \
+cs_mesh_connect.cpp \
+cs_mesh_extrude.cpp \
+cs_mesh_from_builder.cpp \
+cs_mesh_group.cpp \
+cs_mesh_halo.cpp \
+cs_mesh_intersect.cpp \
+cs_mesh_location.cpp \
+cs_mesh_quality.cpp \
+cs_mesh_quantities.cpp \
+cs_mesh_refine.cpp \
+cs_mesh_remove.cpp \
+cs_mesh_save.cpp \
+cs_mesh_smoother.cpp \
+cs_mesh_to_builder.cpp \
+cs_mesh_warping.cpp \
+cs_stl.cpp \
+cs_symmetry_faces_filter.cpp \
+cs_mesh_cut.cpp \
+cs_redistribute.cpp
 
 # Partitioner (may require extra headers)
 
-libcspartition_la_CPPFLAGS = $(AM_CPPFLAGS) \
+libcspartition_a_CPPFLAGS = $(AM_CPPFLAGS) \
 $(METIS_CPPFLAGS) $(SCOTCH_CPPFLAGS)
-libcspartition_la_SOURCES = cs_partition.c
-libcspartition_la_LDFLAGS = -no-undefined
+libcspartition_a_SOURCES = cs_partition.cpp
 
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
+
+clean-local:
+	-rm -rf .deps

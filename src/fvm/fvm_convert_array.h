@@ -1,5 +1,5 @@
-#ifndef __FVM_CONVERT_ARRAY_H__
-#define __FVM_CONVERT_ARRAY_H__
+#ifndef FVM_CONVERT_ARRAY_H
+#define FVM_CONVERT_ARRAY_H
 
 /*============================================================================
  * Functions related to the transformation of data arrays for import
@@ -10,9 +10,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,18 +31,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
 
 /*=============================================================================
  * Macro definitions
@@ -84,10 +80,10 @@ BEGIN_C_DECLS
  *   src_interlace    <-- indicates if source data is interlaced
  *   src_datatype     <-- source data type (float, double, or int)
  *   dest_datatype    <-- destination data type (float, double, or int)
- *   n_parent_lists   <-- number of parent lists (if parent_num != NULL)
- *   parent_num_shift <-- parent number to value array index shifts;
+ *   n_parent_lists   <-- number of parent lists (if parent_id != NULL)
+ *   parent_id_shift  <-- parent id to value array index shifts;
  *                        size: n_parent_lists
- *   parent_num       <-- if n_parent_lists > 0, parent entity numbers
+ *   parent_id        <-- if n_parent_lists > 0, parent entity ids
  *   src_data         <-- array of source arrays (at least one, with one per
  *                        source dimension if non interlaced, times one per
  *                        parent list if multiple parent lists, with
@@ -105,13 +101,11 @@ fvm_convert_array(const int                     src_dim,
                   const cs_datatype_t           src_datatype,
                   const cs_datatype_t           dest_datatype,
                   const int                     n_parent_lists,
-                  const cs_lnum_t               parent_num_shift[],
-                  const cs_lnum_t               parent_num[],
+                  const cs_lnum_t               parent_id_shift[],
+                  const cs_lnum_t               parent_id[],
                   const void             *const src_data[],
                   void                   *const dest_data);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_CONVERT_ARRAY_H__ */
+#endif /* FVM_CONVERT_ARRAY_H */

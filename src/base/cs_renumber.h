@@ -1,14 +1,14 @@
-#ifndef __CS_RENUMBER_H__
-#define __CS_RENUMBER_H__
+#ifndef CS_RENUMBER_H
+#define CS_RENUMBER_H
 
 /*============================================================================
  * Optional mesh renumbering
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -48,51 +44,74 @@ BEGIN_C_DECLS
 
 /* Renumbering algorithms */
 
+/*! Cell renumbering algorithm types */
 typedef enum {
 
-  CS_RENUMBER_CELLS_SCOTCH_PART,     /* SCOTCH partitioning */
-  CS_RENUMBER_CELLS_SCOTCH_ORDER,    /* SCOTCH ordering */
-  CS_RENUMBER_CELLS_METIS_PART,      /* METIS partitioning */
-  CS_RENUMBER_CELLS_METIS_ORDER,     /* METIS ordering */
-  CS_RENUMBER_CELLS_MORTON,          /* Morton space filling curve */
-  CS_RENUMBER_CELLS_HILBERT,         /* Hilbert space filling curve */
-  CS_RENUMBER_CELLS_RCM,             /* Reverse Cuthill-McKee */
-  CS_RENUMBER_CELLS_NONE             /* No cells renumbering */
+  CS_RENUMBER_CELLS_SCOTCH_PART,  /*!< Subpartition for thread blocks based
+                                       SCOTCH library. */
+  CS_RENUMBER_CELLS_SCOTCH_ORDER, /*!< Fill-reducing ordering based on SCOTCH
+                                       library. */
+  CS_RENUMBER_CELLS_METIS_PART,   /*!< Subpartition for thread blocks based
+                                       METIS library. */
+  CS_RENUMBER_CELLS_METIS_ORDER,  /*!< Fill-reducing ordering based on METIS
+                                       library. */
+  CS_RENUMBER_CELLS_MORTON,       /*!< Order cells using domain-local Morton
+                                       space-filling curve. */
+  CS_RENUMBER_CELLS_HILBERT,      /*!< Order cells using domain-local Hilbert
+                                       space-filling curve. */
+  CS_RENUMBER_CELLS_RCM,          /*!< Order cells using domain-local reverse
+                                       Cuthill-McKee algorithm. */
+  CS_RENUMBER_CELLS_NONE          /*!< No cells renumbering */
 
 } cs_renumber_cells_type_t;
 
+/*! Interior faces renumbering algorithm types */
 typedef enum {
 
-  CS_RENUMBER_I_FACES_BLOCK,         /* No shared cell in block */
-  CS_RENUMBER_I_FACES_MULTIPASS,     /* Use multipass face numbering */
-  CS_RENUMBER_I_FACES_SIMD,          /* Renumber for vector (SIMD) operations */
-  CS_RENUMBER_I_FACES_NONE           /* No interior face numbering */
+  CS_RENUMBER_I_FACES_BLOCK,     /*!< No shared cell in block
+                                      This should produce blocks of similar
+                                      (prescribed) size across thread groups.*/
+  CS_RENUMBER_I_FACES_MULTIPASS, /*!< Use multipass face numbering.
+                                      This should produce a smaller number of
+                                      blocks, with a diminishing number of
+                                      faces per thread group.*/
+  CS_RENUMBER_I_FACES_SIMD,      /*!< Renumber to allow SIMD operations in
+                                      interior face->cell gather operations
+                                      (such as SpMV products with native matrix
+                                      representation).*/
+  CS_RENUMBER_I_FACES_NONE       /*!< No interior face numbering */
 
 } cs_renumber_i_faces_type_t;
 
+/*! Boundary faces renumbering algorithm types */
 typedef enum {
 
-  CS_RENUMBER_B_FACES_THREAD,        /* No cell shared between threads */
-  CS_RENUMBER_B_FACES_SIMD,          /* Renumber for vector (SIMD) operations */
-  CS_RENUMBER_B_FACES_NONE           /* No boundary face numbering */
+  CS_RENUMBER_B_FACES_THREAD, /*!< Renumber for threads, with one block per
+                                   thread, and no cell referenced by faces in
+                                   different threads blocks.*/
+  CS_RENUMBER_B_FACES_SIMD,   /*!< Renumber to allow SIMD operations in boundary
+                                   face->cell gather operations. */
+  CS_RENUMBER_B_FACES_NONE    /*!< No boundary face numbering */
 
 } cs_renumber_b_faces_type_t;
 
+/*! Vertices renumbering algorithm types */
 typedef enum {
 
-  CS_RENUMBER_VERTICES_BY_CELL_ADJ,  /* Renumbering based on cell adjacency */
-  CS_RENUMBER_VERTICES_BY_FACE_ADJ,  /* Renumbering based on face adjacency */
-  CS_RENUMBER_VERTICES_NONE          /* No vertex numbering */
+  CS_RENUMBER_VERTICES_BY_CELL_ADJ, /*!< Renumbering based on cell adjacency */
+  CS_RENUMBER_VERTICES_BY_FACE_ADJ, /*!< Renumbering based on face adjacency */
+  CS_RENUMBER_VERTICES_NONE         /*!< No vertex renumbering */
 
 } cs_renumber_vertices_type_t;
 
 /* Ordering options for adjacency arrays */
 
+/*! Ordering options for adjacency arrays */
 typedef enum {
-
-  CS_RENUMBER_ADJACENT_LOW,         /* Lowest adjacent id first */
-  CS_RENUMBER_ADJACENT_HIGH         /* Highest adjacent id first */
-
+  CS_RENUMBER_ADJACENT_LOW, /*!< Lexicographical ordering with lowest adjacent
+                                 id first */
+  CS_RENUMBER_ADJACENT_HIGH /*!< Lexicographical ordering with highest adjacent
+                                 id first */
 } cs_renumber_ordering_t;
 
 /*=============================================================================
@@ -151,7 +170,41 @@ cs_renumber_get_min_subset_size(cs_lnum_t  *min_i_subset_size,
                                 cs_lnum_t  *min_b_subset_size);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Set the relaxtion factor for rebalancing with the
+ *        multipass algorithm.
+ *
+ * A relaxation factor of 0 disables rebalancing.
+ *
+ * Depending on the mesh numbering, rebalancing may interfere with the
+ * multigrid algorithm's coarsening, especially in the presence of
+ * cell renumbering. In some cases, the coarsening will be less constrained
+ * and lead to better aggregation (and performance) when combining
+ * cells renumbering and multipass interior faces renumbering with no
+ * reblancing (i. e. with a relaxation factor of 0).
+ *
+ * \param[in]  relaxation factor  multipass renumbering rebalance step
+ *                                relaxation factor.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_renumber_set_multipass_rebalance_factor(float  relaxation_factor);
+
+/*----------------------------------------------------------------------------*/
 /*!
+ * \brief Get the relaxtion factor for rebalancing with the
+ *        multipass algorithm.
+ *
+ * \return  relaxation factor for multipass renumbering rebalance step.
+ */
+/*----------------------------------------------------------------------------*/
+
+float
+cs_renumber_get_multipass_rebalance_factor(void);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Select the algorithm for mesh renumbering.
  *
  * \param[in]  halo_adjacent_cells_last  if true, cells adjacent to ghost cells
@@ -181,7 +234,7 @@ cs_renumber_set_algorithm(bool                         halo_adjacent_cells_last,
                           cs_renumber_vertices_type_t  vertices_numbering);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return the algorithms for mesh renumbering.
  *
  * Any argument may be passed NULL if this option is not queried.
@@ -221,12 +274,24 @@ cs_renumber_get_algorithm(bool                        *halo_adjacent_cells_last,
  * It is also possible to place cells connected to ghost cells last,
  * which may be useful to enable computation/communication overlap.
  *
+ * If new_to_old pointers are provided, the new to old mappings will
+ * be passed to this pointer. The caller then takes ownership and is
+ * responsible for freeing them
+ *
  * parameters:
- *   mesh  <->  pointer to global mesh structure
+ *   mesh       <->  pointer to global mesh structure
+ *   cell_n2o   <-> pointer to new to old cells array, or nullptr
+ *   i_face_n2o <-> pointer to new to old interior faces array, or nullptr
+ *   b_face_n2o <-> pointer to new to old boundary faces array, or nullptr
+ *   vtx_n2o    <-> pointer to new to old vertices array, or nullptr
  *----------------------------------------------------------------------------*/
 
 void
-cs_renumber_mesh(cs_mesh_t  *mesh);
+cs_renumber_mesh(cs_mesh_t   *mesh,
+                 cs_lnum_t  **cell_n2o,
+                 cs_lnum_t  **i_face_n2o,
+                 cs_lnum_t  **b_face_n2o,
+                 cs_lnum_t  **vtx_n2o);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -290,6 +355,26 @@ cs_renumber_b_faces_by_gnum(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Renumber boundary faces such that selected faces appear last
+ *        and will be ignored.
+ *
+ * Those faces will appear last, and the local number of boundary faces set
+ * to the number of remaining faces; cs_mesh_n_b_faces_true() allows accessing
+ * the full boundary faces list.
+ *
+ * \param[in, out]  mesh      pointer to global mesh structure
+ * \param[in]       n_faces   number of selected faces
+ * \param[in]       face_ids  number of selected faces
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_renumber_b_faces_select_ignore(cs_mesh_t        *mesh,
+                                  cs_lnum_t         n_faces,
+                                  const cs_lnum_t   face_ids[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Renumber vertices depending on code options and target machine.
  *
  * parameters:
@@ -304,6 +389,4 @@ cs_renumber_vertices(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RENUMBER_H__ */
+#endif /* CS_RENUMBER_H */

@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -67,15 +67,6 @@ if test "x$MAKEINDEX" = "x"; then
   cs_have_latex=no
 fi
 
-AC_ARG_VAR([FIG2DEV], [Xfig translation tool])
-
-dnl where is fig2dev ?
-AC_PATH_PROG(FIG2DEV, [fig2dev])
-if test "x$FIG2DEV" = "x"; then
-  AC_MSG_WARN(fig2dev not found)
-  cs_have_latex=no
-fi
-
 dnl So as to correctly set TEXINPUTS environment variable, one needs to use
 dnl the system dependant path separator
 if test "$host_os" = mingw64 ; then
@@ -100,6 +91,7 @@ AC_SUBST(cs_have_latex)
 AC_DEFUN([CS_AC_TEST_DOXYGEN],[
 
 cs_have_doxygen=yes
+cs_have_dot=yes
 
 AC_ARG_VAR([DOXYGEN], [source code documentation generator])
 
@@ -112,15 +104,45 @@ fi
 
 AC_ARG_VAR([DOT], [graphs generator])
 
+AC_ARG_ENABLE(dot,
+  [AS_HELP_STRING([--enable-dot], [enable Graphviz dot for diagrams in html])],
+  [
+    case "${enableval}" in
+      yes) cs_have_dot=yes ;;
+      no)  cs_have_dot=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-dot]) ;;
+    esac
+  ],
+  [ cs_have_dot=yes ]
+)
+
 dnl where is dot ?
-AC_PATH_PROG(DOT, [dot])
-if test "x$DOT" = "x"; then
-  AC_MSG_WARN(dot not found)
-  cs_have_doxygen=no
+if test "x$cs_have_dot" = "xyes"; then
+  AC_PATH_PROG(DOT, [dot])
+  if test "x$DOT" = "x"; then
+    AC_MSG_WARN(dot not found)
+    cs_have_dot=no
+  fi
 fi
+
+# use MathJax for equations ?
+
+AC_ARG_ENABLE(mathjax,
+  [AS_HELP_STRING([--enable-mathjax], [enable MathJax for math in html])],
+  [
+    case "${enableval}" in
+      yes) cs_enable_mathjax=yes ;;
+      no)  cs_enable_mathjax=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-mathjax]) ;;
+    esac
+  ],
+  [ cs_enable_mathjax=no ]
+)
 
 AM_CONDITIONAL(HAVE_DOXYGEN, [test $cs_have_doxygen = yes])
 AC_SUBST(cs_have_doxygen)
+AC_SUBST(cs_have_dot)
+AC_SUBST(cs_enable_mathjax)
 
 ])dnl
 

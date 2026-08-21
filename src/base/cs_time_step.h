@@ -1,14 +1,14 @@
-#ifndef __CS_TIME_STEP_H__
-#define __CS_TIME_STEP_H__
+#ifndef CS_TIME_STEP_H
+#define CS_TIME_STEP_H
 
 /*============================================================================
  * Base time step data.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -61,7 +57,9 @@ typedef enum {
 /* time step descriptor */
 /*----------------------*/
 
-typedef struct {
+class cs_time_step_t {
+
+public:
 
   int           is_variable;  /* 0 if time step is fixed in time,
                                  1 if the time step is variable. */
@@ -84,7 +82,12 @@ typedef struct {
   double        dt_ref;       /* reference time step. */
   double        dt_next;      /* next (predicted) time step. */
 
-} cs_time_step_t;
+  /* Helper function to check if code needs to do at least one more iteration.
+     ------------------------------------------------------------------------ */
+
+  bool needs_iteration() const;
+
+};
 
 /* Time step options descriptor */
 /*------------------------------*/
@@ -138,18 +141,20 @@ extern const cs_time_step_options_t  *cs_glob_time_step_options;
  *============================================================================*/
 
 /*----------------------------------------------------------------------------
- * Provide access to cs_glob_time_step
+ * Provide read/write access to cs_glob_time_step
  *
- * needed to initialize structure with GUI
+ * returns:
+ *   pointer to global time step structure
  *----------------------------------------------------------------------------*/
 
 cs_time_step_t *
 cs_get_glob_time_step(void);
 
 /*----------------------------------------------------------------------------
- * Provide access to cs_glob_time_step_options
+ * Provide read/write access to cs_glob_time_step_options
  *
- * needed to initialize structure with GUI
+ * returns:
+ *  pointer to global time step options structure
  *----------------------------------------------------------------------------*/
 
 cs_time_step_options_t *
@@ -217,6 +222,20 @@ cs_time_step_define_prev(int     nt_prev,
 void
 cs_time_step_increment(double  dt);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Update global time step value for a time step in progress.
+ *
+ * This is useful when using an adaptive time step, which is incremented
+ * earlier based on an estimated time step but needs to be updated.
+ *
+ * \param[in]  dt  time step value to update
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_time_step_update_dt(double  dt);
+
 /*----------------------------------------------------------------------------
  * Redefine the current time values.
  *
@@ -241,6 +260,4 @@ cs_time_step_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_TIME_STEP_H__ */
+#endif /* CS_TIME_STEP_H */

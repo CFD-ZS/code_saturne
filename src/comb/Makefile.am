@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,91 +22,65 @@
 
 #-------------------------------------------------------------------------------
 
+# PLE dependency
+
+if HAVE_INTERNAL_PLE
+  CPPFLAGS_PLE = -I$(top_srcdir)/libple/src -I$(top_builddir)/libple
+else
+  CPPFLAGS_PLE = $(PLE_CPPFLAGS)
+endif
+
 # Main part
 
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/alge \
-$(FCMODINCLUDE)$(top_builddir)/src/base \
-$(FCMODINCLUDE)$(top_builddir)/src/atmo \
-$(FCMODINCLUDE)$(top_builddir)/src/cfbl \
-$(FCMODINCLUDE)$(top_builddir)/src/cogz \
-$(FCMODINCLUDE)$(top_builddir)/src/comb \
-$(FCMODINCLUDE)$(top_builddir)/src/ctwr \
-$(FCMODINCLUDE)$(top_builddir)/src/elec \
-$(FCMODINCLUDE)$(top_builddir)/src/lagr \
-$(FCMODINCLUDE)$(top_builddir)/src/pprt \
-$(FCMODINCLUDE)$(top_builddir)/src/rayt \
-$(FCMODINCLUDE)$(top_builddir)/src/turb \
-$(FCMODINCLUDE)$(top_builddir)/src/user \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CPPFLAGS = \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS_PLE) \
+$(MPI_CPPFLAGS)
+
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS =
+cscomb_includedir=$(pkgincludedir)/comb
+cscomb_include_HEADERS = \
+cs_coal.h \
+cs_coal_boundary_conditions.h \
+cs_coal_ht_convert.h \
+cs_coal_initialize.h \
+cs_coal_physical_properties.h \
+cs_coal_read_data.h \
+cs_coal_source_terms.h \
+cs_comb_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcscomb.la
-libcscomb_la_SOURCES = \
-cs_coal_bcond.f90 \
-cplin1.f90 \
-cplini.f90 \
-cplph1.f90 \
-cplphy.f90 \
-cplpro.f90 \
-cpltcl.f90 \
-cpltss.f90 \
-cplvar.f90 \
-cpthp1.f90 \
-cplver.f90 \
-cppdf4.f90 \
-cpltsv.f90 \
-cplym1.f90 \
-cppdfr.f90 \
-cpteh1.f90 \
-cs_coal_fp2st.f90 \
-cs_coal_htconvers1.f90 \
-cs_coal_htconvers2.f90 \
-cs_coal_masstransfer.f90 \
-cs_coal_noxst.f90 \
-cs_coal_param.f90 \
-cs_coal_physprop1.f90 \
-cs_coal_physprop2.f90 \
-cs_coal_physprop.f90 \
-cs_coal_prop.f90 \
-cs_coal_radst.f90 \
-cs_coal_readata.f90 \
-cs_coal_scast.f90 \
-cs_coal_thfieldconv1.f90 \
-cs_coal_thfieldconv2.f90 \
-cs_coal_varini.f90 \
-cs_coal_varpos.f90 \
-cs_coal_verify.f90 \
-cs_fuel_bcond.f90 \
-cs_fuel_fp2st.f90 \
-cs_fuel_htconvers1.f90 \
-cs_fuel_htconvers2.f90 \
-cs_fuel_masstransfer.f90 \
-cs_fuel_noxst.f90 \
-cs_fuel_param.f90 \
-cs_fuel_physprop1.f90 \
-cs_fuel_physprop2.f90 \
-cs_fuel_physprop.f90 \
-cs_fuel_prop.f90 \
-cs_fuel_radst.f90 \
-cs_fuel_readata.f90 \
-cs_fuel_scast.f90 \
-cs_fuel_thfieldconv1.f90 \
-cs_fuel_thfieldconv2.f90 \
-cs_fuel_varini.f90 \
-cs_fuel_varpos.f90 \
-cs_fuel_verify.f90 \
-cs_gascomb.f90 \
-cs_physical_properties_combustion_drift.f90 
-libcscomb_la_LDFLAGS = -no-undefined
+noinst_LIBRARIES = libcscomb.a
+libcscomb_a_SOURCES = \
+cs_coal.cpp \
+cs_coal_boundary_conditions.cpp \
+cs_coal_ht_convert.cpp \
+cs_coal_initialize.cpp \
+cs_coal_mass_transfer.cpp \
+cs_coal_noxst.cpp \
+cs_coal_physical_properties.cpp \
+cs_coal_read_data.cpp \
+cs_coal_source_terms.cpp
+
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
 
 clean-local:
-	-rm -f *__genmod.f90 *.mod
+	-rm -rf .deps

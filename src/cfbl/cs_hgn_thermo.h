@@ -1,14 +1,14 @@
-#ifndef __CS_HGN_THERMO_H__
-#define __CS_HGN_THERMO_H__
+#ifndef CS_HGN_THERMO_H
+#define CS_HGN_THERMO_H
 
 /*============================================================================
  * Thermodynamic for the compressible homogeneous two-phase flow model
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,20 +27,11 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*============================================================================
  * Public function definitions
@@ -191,6 +182,4 @@ cs_hgn_thermo_eq(cs_real_t  e,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_HGN_THERMO_H__ */
+#endif /* CS_HGN_THERMO_H */

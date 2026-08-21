@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_ROUGHNESS_H__
-#define __CS_LAGR_ROUGHNESS_H__
+#ifndef CS_LAGR_ROUGHNESS_H
+#define CS_LAGR_ROUGHNESS_H
 
 /*============================================================================
  * Surface roughness
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,15 +26,11 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_lagr_particle.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "lagr/cs_lagr_particle.h"
 
 /*============================================================================
  * Type definitions
@@ -100,21 +96,19 @@ cs_lagr_roughness_finalize(void);
  * Compute the energy barrier for a rough wall.
  *
  * parameters:
- *   particle       <-- pointer to particle data
- *   attr_map       <-- pointer to attribute map
+ *   p_set          <-- particle set
+ *   p_id           <-- particle id
  *   iel            <-- id of cell where the particle is
  *   energy_barrier <-> energy barrier
  *----------------------------------------------------------------------------*/
 
 void
-cs_lagr_roughness_barrier(const void                     *particle,
-                          const cs_lagr_attribute_map_t  *attr_map,
+cs_lagr_roughness_barrier(cs_lagr_particle_set_t          p_set,
+                          cs_lnum_t                       p_id,
                           cs_lnum_t                       iel,
                           cs_real_t                      *energy_barrier);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_ROUGHNESS_H__ */
+#endif /* CS_LAGR_ROUGHNESS_H */
 

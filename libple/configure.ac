@@ -4,7 +4,7 @@
 # This file is part of the "Parallel Location and Exchange" library,
 # intended to provide mesh or particle-based code coupling services.
 #
-# Copyright (C) 2005-2020 EDF S.A.
+# Copyright (C) 2005-2023 EDF S.A.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@ m4_define([ple_licence_c_comment],
   This file is part of the "Parallel Location and Exchange" library,
   intended to provide mesh or particle-based code coupling services.
 
-  Copyright (C) 2005-2020  EDF
+  Copyright (C) 2005-2023  EDF
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -49,22 +49,20 @@ m4_define([ple_licence_c_comment],
 
 m4_define([ple_major_version], [2])
 m4_define([ple_minor_version], [0])
-m4_define([ple_release_version], [2])
-m4_define([ple_version_extra], [])
+m4_define([ple_release_version], [4])
+m4_define([ple_version_extra], [-alpha])
 m4_define([ple_version_string],
           [ple_major_version.ple_minor_version.ple_release_version@&t@ple_version_extra])
 
 AC_INIT([ple],[ple_version_string],[saturne-support@edf.fr])
 AC_CONFIG_SRCDIR([src/ple_defs.h])
 
-# Use the config directory for libtool stuff ...
+# Use the config directory for autotools stuff ...
 AC_CONFIG_AUX_DIR(build-aux)
 AC_CONFIG_MACRO_DIR(m4)
 
 AC_CANONICAL_TARGET
 AC_CONFIG_HEADERS([ple_config_priv.h:ple_config_priv.h.in])
-
-AM_GNU_GETTEXT_VERSION([0.19])
 
 # Initialize automake with the following options:
 # - foreign, so as to handle the possible absence of ChangeLog
@@ -106,6 +104,14 @@ PLE_AC_CONFIG_PUBL_DEFINE(PLE_MINOR_VERSION, ple_minor_version,
                           [Minor version number])
 PLE_AC_CONFIG_PUBL_DEFINE(PLE_RELEASE_VERSION, ple_release_version,
                           [Release version number])
+
+# Version information for shared library
+
+PLE_LIB_VERSION_STRING_FULL=ple_major_version.ple_minor_version.ple_release_version
+PLE_LIB_VERSION_STRING_MAJOR=ple_major_version
+
+AC_SUBST(PLE_LIB_VERSION_STRING_FULL)
+AC_SUBST(PLE_LIB_VERSION_STRING_MAJOR)
 
 #------------------------------------------------------------------------------
 # Checks for programs.
@@ -187,6 +193,22 @@ if test "${relocatable}" = yes ; then
   AC_DEFINE([HAVE_RELOCATABLE], 1, [Relocatable installation])
 fi
 
+# Shared or static build ?
+
+AC_ARG_ENABLE(shared,
+  [AS_HELP_STRING([--enable-shared], [enable shared installation])],
+  [
+    case "${enableval}" in
+      yes) enable_shared=yes ;;
+      no)  enable_shared=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-shared]) ;;
+    esac
+  ],
+  [ enable_shared=yes ]
+)
+
+AC_SUBST(enable_shared)
+
 # Optionally install the code with python wrappers
 
 AC_ARG_ENABLE(python,
@@ -202,8 +224,8 @@ AC_ARG_ENABLE(python,
 )
 
 if test "${python_bindings}" = "yes" ; then
-  AM_PATH_PYTHON(2.6)
-  AX_PYTHON_DEVEL([>='2.6'])
+  AM_PATH_PYTHON(3.4)
+  PLE_AC_PYTHON_DEV
   PLE_AC_TEST_MPI4PY
 fi
 
@@ -238,11 +260,32 @@ if test "x$auto_flags" = "xyes" ; then
   fi
 
   # Default flags
-  CPPFLAGS="$cppflags_default $user_CPPFLAGS"
-  CFLAGS="$cflags_default $user_CFLAGS"
-  LDFLAGS="$ldflags_default $user_LDFLAGS"
-  LIBS="$libs_default $user_LIBS"
+  CPPFLAGS="$cppflags_default"
+  CFLAGS="$cflags_default"
+  LDFLAGS="$ldflags_default"
+  LIBS="$libs_default"
   LDRPATH="$ldflags_rpath"
+
+  # Shared library flags
+  if test "x$enable_shared" = xyes; then
+    CFLAGS="$CFLAGS $cflags_default_shared"
+    LDFLAGS_SHARED="$ldflags_default_shared"
+    LDFLAGS_SONAME="$ldflags_default_soname"
+  fi
+
+  # User flags
+  if test "x$user_CPPFLAGS" != "x"; then
+    CPPFLAGS="$CPPFLAGS $user_CPPFLAGS"
+  fi
+  if test "x$user_CFLAGS" != "x"; then
+    CFLAGS="$CFLAGS $user_CFLAGS"
+  fi
+  if test "x$user_LDFLAGS" != "x"; then
+    LDFLAGS="$LDFLAGS $user_LDFLAGS"
+  fi
+  if test "x$user_LIBS" != "x"; then
+    LIBS="$LIBS $user_LIBS"
+  fi
 
   if test "x$debug" = xyes; then
     # Debug flags
@@ -263,9 +306,17 @@ if test "x$auto_flags" = "xyes" ; then
   AC_SUBST(CFLAGS_DBG)
   AC_SUBST(CFLAGS_OPT)
 
+  AC_SUBST(LDFLAGS_SHARED)
+  AC_SUBST(LDFLAGS_SONAME)
+
   AC_SUBST(LDRPATH)
 
 fi
+
+if test x$PLE_LD = "x" ; then
+  PLE_LD=$CC
+fi
+AC_SUBST(PLE_LD)
 
 LIBS="${LIBS} -lm"
 
@@ -279,37 +330,35 @@ fi
 
 #------------------------------------------------------------------------------
 
-# We may only turn on processing for libtool now that the basic compiler
-# and linker flags are set (to avoid issues with linkers with different
-# modes such as 32 and 64 bit which may be modified by compiler or
-# linker flags).
+# Library extension based on system type
+#---------------------------------------
 
-# AC_DISABLE_SHARED may not be used inside a test, as it seems to
-# take effect whether the result is true or not (maybe due to a bug),
-# so we directly use autoconf's enable_shared variable.
+case "$host_os" in
+  darwin*)
+    SHARED_LIB_EXT=dylib
+    ;;
+  linux*)
+    SHARED_LIB_EXT=so
+    ;;
+  *)
+    AC_MSG_WARN([Not sure how to build shared lib for $target_os; assuming Linux-like])
+    SHARED_LIB_EXT=so
+    ;;
+esac
 
-if test "$host_os" = mingw64 ; then
-   enable_shared=no
+if test $enable_shared = yes; then
+  LIB_EXT=$SHARED_LIB_EXT
+else
+  LIB_EXT=a
 fi
-AC_SUBST(enable_shared)
 
-# Initialize libtool.
+AC_SUBST(SHARED_LIB_EXT)
+AC_SUBST(LIB_EXT)
 
-LT_INIT([disable-static, win32-dll])
+# Tools for static builds
 
-# Add some preprocessor flags on some systems to work around autotools issues
-#----------------------------------------------------------------------------
-
-if test "x$enable_shared" = "xyes" ; then
-  if test "x$auto_flags" = "xyes" ; then
-    case "$ple_ac_cc_version" in
-      Cray* )
-        CFLAGS="${CFLAGS} -fPIC"
-        ;;
-      *)
-        ;;
-    esac
-  fi
+if test "x$enable_shared" = xno; then
+  AC_PROG_RANLIB
 fi
 
 #------------------------------------------------------------------------------
@@ -320,8 +369,7 @@ fi
 # Checks for header files.
 #------------------------------------------------------------------------------
 
-AC_HEADER_STDC
-AC_CHECK_HEADERS([sys/types.h stddef.h])
+AC_CHECK_HEADERS([sys/time.h sys/types.h stddef.h])
 
 #------------------------------------------------------------------------------
 # Checks for typedefs, structures, and compiler characteristics.
@@ -332,7 +380,6 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 AC_TYPE_PID_T
 
-AC_HEADER_TIME
 AC_HEADER_STDBOOL
 
 AC_CHECK_TYPES([long long, unsigned long long])
@@ -350,11 +397,34 @@ PLE_AC_CHECK_SIZEOF([long long], [ple])
 PLE_AC_CHECK_SIZEOF([float], [ple])
 PLE_AC_CHECK_SIZEOF([double], [ple])
 
+# Use long local numbers ?
+AC_ARG_ENABLE(long-lnum,
+  [AS_HELP_STRING([--enable-long-lnum],[use long local numbers])],
+  [
+    case "${enableval}" in
+      yes) ple_have_long_lnum=yes ;;
+      no)  ple_have_long_lnum=no ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-long-lnum]) ;;
+    esac
+  ],
+  [ ple_have_long_lnum=no ]
+)
+
+if test "x$ple_have_long_lnum" = "xyes"; then
+  PLE_AC_CONFIG_PUBL_DEFINE([PLE_HAVE_LONG_LNUM], [1],
+                            [Use 64-bit type for ple_lnum_t.])
+else
+  PLE_AC_CONFIG_PUBL_SET([PLE_HAVE_LONG_LNUM], [0],
+                         [Use 64-bit type for ple_lnum_t.])
+fi
+
+AC_SUBST(ple_have_long_lnum)
+
 #------------------------------------------------------------------------------
 # Determine OpenMP support (not used in source code yet)
 #------------------------------------------------------------------------------
 
-# For consistency with the auto_flags mechanisme and with Code_Saturne,
+# For consistency with the auto_flags mechanisme and with code_saturne,
 # we do not use AC_OPENMP, our own method here, based on flags already set
 # by default or by the user.
 
@@ -426,12 +496,6 @@ PLE_AC_TEST_MPI
 # Whether we used mpicc or $CC, we now know if we have MPI support
 PLE_AC_CONFIG_PUBL_SET(PLE_HAVE_MPI, $ple_have_mpi,
                        [PLE library configured with MPI support ?])
-
-#------------------------------------------------------------------------------
-# Internationalization
-#------------------------------------------------------------------------------
-
-AM_GNU_GETTEXT([external])
 
 #------------------------------------------------------------------------------
 # Documentation
@@ -520,11 +584,8 @@ PLE_AC_CONFIG_INFO_FINALIZE
 
 #------------------------------------------------------------------------------
 
-# If we use GNU gettext, we need to add po/Makefile.
-
 AC_CONFIG_FILES([Makefile src/Makefile pyple/Makefile tests/Makefile
-                 doc/Makefile doc/doxygen/Makefile
-                 po/Makefile.in])
+                 doc/Makefile doc/doxygen/Makefile])
 
 #------------------------------------------------------------------------------
 
@@ -534,29 +595,16 @@ AC_OUTPUT
 
 #------------------------------------------------------------------------------
 
-# Libtool configuration bug workaround (problem encountered with compilers
-# which do not recognize "-soname", so that "-Wl,-soname" is needed to pass
-# flags to the linker; Manually setting $wl to "-Wl" in libtool corrects
-# the problem, and so does this workaround borrowed from
-# the HDF5 configure.in, which does it automatically).
-
-if test "x$GCC" != "xyes"; then
-  echo 'fixing $wl in libtool'
-ed - libtool <<EOF 2> /dev/null
-/^wl=""/s//wl="-Wl,"/
-w
-q
-EOF
-fi
-
-#------------------------------------------------------------------------------
-
 echo
 echo "Configuration options:"
 echo " use debugging code: "$debug""
 echo " MPI (Message Passing Interface) support: "$ple_have_mpi""
 echo " OpenMP support: "$ple_have_openmp""
 echo " Python bindings: "$python_bindings""
+echo " Doxygen (document generation) available: "$ple_have_doxygen""
+if (test x$cs_have_doxygen = xyes) ; then
+  echo "   dot (Graphviz) available: "$ple_have_dot""
+fi
 echo
 echo "The package has been configured. Type:"
 echo " make"

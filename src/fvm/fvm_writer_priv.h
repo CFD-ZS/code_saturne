@@ -1,14 +1,14 @@
-#ifndef __FVM_WRITER_PRIV_H__
-#define __FVM_WRITER_PRIV_H__
+#ifndef FVM_WRITER_PRIV_H
+#define FVM_WRITER_PRIV_H
 
 /*============================================================================
  * Private types for mesh and field writers
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,21 +27,17 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_timer.h"
+#include "base/cs_timer.h"
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
 /*=============================================================================
  * Macro definitions
@@ -51,14 +47,15 @@ BEGIN_C_DECLS
  * Writer format implementation and functionality info
  */
 
-#define FVM_WRITER_FORMAT_USE_EXTERNAL      (1 << 0)
+#define FVM_WRITER_FORMAT_USE_EXTERNAL         (1 << 0)
 
-#define FVM_WRITER_FORMAT_HAS_POLYGON       (1 << 1)
-#define FVM_WRITER_FORMAT_HAS_POLYHEDRON    (1 << 2)
+#define FVM_WRITER_FORMAT_HAS_POLYGON          (1 << 1)
+#define FVM_WRITER_FORMAT_HAS_POLYHEDRON       (1 << 2)
 
-#define FVM_WRITER_FORMAT_SEPARATE_MESHES   (1 << 3)
+#define FVM_WRITER_FORMAT_SEPARATE_MESHES      (1 << 3)
+#define FVM_WRITER_FORMAT_NO_SEPARATE_MESHES   (1 << 4)
 
-#define FVM_WRITER_FORMAT_NAME_IS_OPTIONAL  (1 << 4)
+#define FVM_WRITER_FORMAT_NAME_IS_OPTIONAL     (1 << 5)
 
 /*============================================================================
  * Type definitions
@@ -143,6 +140,9 @@ typedef struct {
   int                      dl_count;     /* Number of writers using the
                                             dynamically loadable library
                                             for this format, if relevant */
+  int                      dl_flags;     /* dlopen flags for dynamically
+                                            loadable library, if used
+                                            (0 for default) */
   void                    *dl_lib;       /* Pointer to dynamically loadable
                                             library, if used */
   const char              *dl_name;      /* Prefix for name of dynamically
@@ -187,6 +187,4 @@ struct _fvm_writer_t {
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_WRITER_PRIV_H__ */
+#endif /* FVM_WRITER_PRIV_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_REFINE_H__
-#define __CS_MESH_REFINE_H__
+#ifndef CS_MESH_REFINE_H
+#define CS_MESH_REFINE_H
 
 /*============================================================================
  * Mesh refinement.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -87,7 +83,21 @@ cs_mesh_refine_simple_selected(cs_mesh_t        *m,
                                const cs_lnum_t   cells[]);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set refinement options, using key/value pairs.
+ *
+ * Accepted keys and values:
+ *
+ * - "triangle_subdivision"
+ *   - "triangle" (default)
+ *   - "quadrangle"
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_mesh_refine_set_option(const char  *key,
+                          const char  *value);
 
-#endif /* __CS_MESH_REFINE_H__ */
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_MESH_REFINE_H */

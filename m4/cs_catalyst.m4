@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -30,23 +30,55 @@ AC_DEFUN([CS_AC_TEST_CATALYST], [
 cs_have_catalyst=no
 cs_have_plugin_catalyst=yes
 
+cs_catalyst_version=""
+
+AC_ARG_VAR([PARAVIEW_ROOT_DIR], [ParaView root directory (superseded by --with-catalyst=PATH)])
+
 # Configure options
 #------------------
 
 AC_ARG_WITH(catalyst,
             [AS_HELP_STRING([--with-catalyst=PATH],
-                            [specify prefix directory for CATALYST])],
+                            [specify prefix directory for Catalyst])],
             [if test "x$withval" = "x"; then
                with_catalyst=no
-             elif test "x$withval" = "xsalome"; then
-               if test -z "$CATALYST_ROOT_DIR"; then
-                 AC_MSG_FAILURE([no SALOME  path information for Catalyst
-(CATALYST_ROOT_DIR environment variable needed by --with-catalyst=salome)!])
+             elif test "x$withval" = "xyes"; then
+               if test "x$PARAVIEW_ROOT_DIR" != "x" ; then
+                 with_catalyst=$PARAVIEW_ROOT_DIR
+                 if test -z "$CATALYST_LD_ADD_PATH" -a -n "$SALOMEENVCMD" ; then
+                   CATALYST_LD_ADD_PATH=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD ; python3 -B $ac_aux_dir/cs_config_test.py salome_paraview_ld_add_path_filter")`
+                 fi
                else
-                 with_catalyst=$CATALYST_ROOT_DIR
+                 with_catalyst=yes
                fi
-             fi],
+             elif test "x$withval" = "xsalome"; then
+               cs_salome_pv_root_dir=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD > /dev/null 2>&1 ; echo $PARAVIEW_ROOT_DIR")`
+               if test -z "$cs_salome_pv_root_dir"; then
+                 AC_MSG_FAILURE([no SALOME  path information for Catalyst
+(PARAVIEW_ROOT_DIR environment variable needed by --with-catalyst=salome)!])
+               else
+                 with_catalyst=$cs_salome_pv_root_dir
+                 if test -z "$CATALYST_LD_ADD_PATH" ; then
+                   CATALYST_LD_ADD_PATH=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD ; python3 -B $ac_aux_dir/cs_config_test.py salome_paraview_ld_add_path_filter")`
+                 fi
+               fi
+               unset cs_salome_pv_root_dir
+               if test -z "$TBB_INCLUDE_DIR" -a -z "$TBB_DIR"; then
+                 cs_salome_tbb_dir=`(/bin/bash -c "unset LD_LIBRARY_PATH ; $SALOMEENVCMD > /dev/null 2>&1 ; env | grep ^TBB_ROOT_DIR | cut -f2 -d'='")`
+               fi
+
+             fi
+
+],
             [with_catalyst=no])
+
+AC_ARG_WITH(catalyst-version,
+            [AS_HELP_STRING([--with-catalyst-version=x.y],
+                            [Specify Catalyst version (if <= 5.6)])],
+            [if test "x$withval" != "x"; then
+               cs_catalyst_version="$withval"
+             fi],
+            [cs_catalyst_version=""])
 
 AC_ARG_ENABLE(catalyst-as-plugin,
   [AS_HELP_STRING([--disable-catalyst-as-plugin], [do not use Catalyst as plugin])],
@@ -89,6 +121,7 @@ if test "x$with_catalyst" != "xno" ; then
 
   if test "$CMAKE" = : ; then
     AC_MSG_FAILURE([cannot find CMake, Catalyst plugin cannot be installed])
+    with_catalyst=no
   fi
 
 fi
@@ -98,63 +131,74 @@ if test "x$with_catalyst" != "xno" ; then
   # Check for a Catalyst library (using different CMakeLists variants depending on version)
   #-----------------------------
 
-  for detection_variant in catalyst catalyst-5.6; do
+  detection_variant=catalyst
 
-    if test $cs_have_catalyst != yes ; then
+  if test "x$cs_catalyst_version" != "x"; then
+    case "$cs_catalyst_version" in
+    5.6|5.5|5.4)
+      detection_variant=catalyst-5.6
+      ;;
+    esac
+  fi
 
-      if test $detection_variant = catalyst ; then
-        cs_catalyst_vers_check="above 5.6"
-      else
-        cs_catalyst_vers_check="5.6 or older"
-      fi
+  AC_MSG_CHECKING([ParaView/Catalyst])
 
-      AC_MSG_CHECKING([ParaView/Catalyst version $cs_catalyst_vers_check])
-      unset cs_catalyst_vers_check
+  cs_prv_dir=`pwd`
+  rm -rf "$cs_prv_dir"/catalyst_test
+  rm -rf "$cs_prv_dir"/CMakeFiles
+  rm -rf "$cs_prv_dir"/CMakeCache.txt
 
-      cs_prv_dir=`pwd`
-      rm -rf "$cs_prv_dir"/catalyst_test
-      rm -rf "$cs_prv_dir"/CMakeFiles
-      rm -rf "$cs_prv_dir"/CMakeCache.txt
+  cs_abs_srcdir=`cd $srcdir && pwd`
+  catalyst_cmake_options=""
 
-      cs_abs_srcdir=`cd $srcdir && pwd`
+  if test "x$with_catalyst" != "xyes" ; then
+    catalyst_cmake_options="-DCMAKE_PREFIX_PATH=${with_catalyst}"
+  fi
 
-      mkdir catalyst_test && cd catalyst_test
-      "$CMAKE" -DCMAKE_PREFIX_PATH="$with_catalyst" "$cs_abs_srcdir/build-aux/$detection_variant" >&5
+  # Work around some detection issues on some systems
+  if test "x$TBB_INCLUDE_DIR" != "x" ; then
+    catalyst_cmake_options="${catalyst_cmake_options} -DTBB_INCLUDE_DIR=${TBB_INCLUDE_DIR}"
+  elif test "x$TBB_DIR" != "x" ; then
+    catalyst_cmake_options="${catalyst_cmake_options} -DTBB_DIR=${TBB_DIR}"
+  elif test "x$cs_salome_tbb_dir" != "x" ; then
+    catalyst_cmake_options="${catalyst_cmake_options} -DTBB_DIR=${cs_salome_tbb_dir}/lib/cmake/TBB"
+    unset cs_salome_tbb_dir
+  fi
 
-      if test $? = 0 ; then
+  mkdir catalyst_test && cd catalyst_test
+  echo "$CMAKE" ${catalyst_cmake_options} "${cs_abs_srcdir}/build-aux/$detection_variant"
+  "$CMAKE" ${catalyst_cmake_options} "${cs_abs_srcdir}/build-aux/$detection_variant" >&5
 
-        CATALYST_CPPFLAGS=`grep CXX_DEFINES CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
-        CATALYST_INCLUDES=`grep CXX_INCLUDES CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
-        CATALYST_CPPFLAGS="${CATALYST_CPPFLAGS} ${CATALYST_INCLUDES}"
-        CATALYST_CXXFLAGS=`grep CXX_FLAGS CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
-        cs_link_opts=`sed -e 's/^.*CoProcessingTest//' CMakeFiles/CoProcessingTest.dir/link.txt`
-        for a in $cs_link_opts; do
-          case "{$a}" in
-          -l*) CATALYST_LIBS="${CATALYST_LIBS} ${a}"
-               ;;
-          *)   if test -f "$a" ; then
-                 CATALYST_LIBS="${CATALYST_LIBS} -Wl,${a}"
-               else
-                 CATALYST_LDFLAGS="${CATALYST_LDFLAGS} ${a}"
-               fi
-               ;;
-          esac
-        done
-        unset cs_link_opts
+  if test $? = 0 ; then
 
-      fi
+    CATALYST_CPPFLAGS=`grep CXX_DEFINES CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
+    CATALYST_INCLUDES=`grep CXX_INCLUDES CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
+    CATALYST_CPPFLAGS="${CATALYST_CPPFLAGS} ${CATALYST_INCLUDES}"
+    CATALYST_CXXFLAGS=`grep CXX_FLAGS CMakeFiles/CoProcessingTest.dir/flags.make | sed -e 's/^@<:@^=@:>@*=@<:@\ @:>@*//'`
+    cs_link_opts=`sed -e 's/^.*CoProcessingTest//' CMakeFiles/CoProcessingTest.dir/link.txt`
+    for a in $cs_link_opts; do
+      case "{$a}" in
+      -l*) CATALYST_LIBS="${CATALYST_LIBS} ${a}"
+           ;;
+      *)   if test -f "$a" ; then
+             CATALYST_LIBS="${CATALYST_LIBS} -Wl,${a}"
+           else
+             CATALYST_LDFLAGS="${CATALYST_LDFLAGS} ${a}"
+           fi
+           ;;
+      esac
+    done
+    unset cs_link_opts
 
-      cd "$cs_prv_dir"
+  fi
 
-      if test "x$CATALYST_LIBS" != "x" ; then
-        cs_have_catalyst=yes;
-      fi
+  cd "$cs_prv_dir"
 
-      AC_MSG_RESULT($cs_have_catalyst)
+  if test "x$CATALYST_LIBS" != "x" ; then
+    cs_have_catalyst=yes;
+  fi
 
-    fi
-
-  done
+  AC_MSG_RESULT($cs_have_catalyst)
 
   # Report Catalyst support
   #------------------------
@@ -180,6 +224,12 @@ if test "x$with_catalyst" != "xno" ; then
 
   if test "x$cs_have_catalyst" = "xno"; then
     CATALYST_LIBS=""
+  else
+    AC_LANG_PUSH([C++])
+    CPPFLAGS="${saved_CPPFLAGS} ${CATALYST_CPPFLAGS}"
+    AC_CHECK_HEADERS([vtkCPPythonScriptV2Pipeline.h])
+    AC_CHECK_HEADERS([vtkPVVersion.h])
+    AC_LANG_POP([C++])
   fi
 
   CPPFLAGS="$saved_CPPFLAGS"
@@ -191,6 +241,8 @@ if test "x$with_catalyst" != "xno" ; then
   unset saved_LIBS
 
 fi
+
+unset cs_catalyst_version
 
 if test x$cs_have_catalyst = xno ; then
   cs_have_plugin_catalyst=no
@@ -210,6 +262,6 @@ AC_SUBST(CATALYST_CPPFLAGS)
 AC_SUBST(CATALYST_CXXFLAGS)
 AC_SUBST(CATALYST_LDFLAGS)
 AC_SUBST(CATALYST_LIBS)
-AC_SUBST(CATALYSTRUNPATH)
+AC_SUBST(CATALYST_LD_ADD_PATH)
 
 ])dnl

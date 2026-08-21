@@ -1,30 +1,30 @@
-#ifndef __CS_MESH_LOCATION_H__
-#define __CS_MESH_LOCATION_H__
+#ifndef CS_MESH_LOCATION_H
+#define CS_MESH_LOCATION_H
 
 /*============================================================================
  * Mesh locations management.
  *============================================================================*/
 
 /*
-  This file is part of the Code_Saturne Kernel, element of the
-  Code_Saturne CFD tool.
+  This file is part of the code_saturne Kernel, element of the
+  code_saturne CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A., France
+  Copyright (C) 1998-2026 EDF S.A., France
 
   contact: saturne-support@edf.fr
 
-  The Code_Saturne Kernel is free software; you can redistribute it
+  The code_saturne Kernel is free software; you can redistribute it
   and/or modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2 of
   the License, or (at your option) any later version.
 
-  The Code_Saturne Kernel is distributed in the hope that it will be
+  The code_saturne Kernel is distributed in the hope that it will be
   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with the Code_Saturne Kernel; if not, write to the
+  along with the code_saturne Kernel; if not, write to the
   Free Software Foundation, Inc.,
   51 Franklin St, Fifth Floor,
   Boston, MA  02110-1301  USA
@@ -37,15 +37,11 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Macro definitions
@@ -71,6 +67,17 @@ typedef enum {
 
 } cs_mesh_location_type_t;
 
+/* Mesh location construction method type */
+
+typedef enum {
+
+  CS_MESH_LOCATION_DEF_NONE,
+  CS_MESH_LOCATION_DEF_SELECTION_STR,
+  CS_MESH_LOCATION_DEF_SELECTION_FUNC,
+  CS_MESH_LOCATION_DEF_UNION
+
+} cs_mesh_location_def_t;
+
 /* Opaque mesh location object */
 
 typedef struct _cs_mesh_location_t cs_mesh_location_t;
@@ -80,10 +87,10 @@ typedef struct _cs_mesh_location_t cs_mesh_location_t;
  *
  * If non-empty and not containing all elements, a list of elements
  * of the parent mesh belonging to the location should be allocated
- * (using BFT_MALLOC) and defined by this function when called.
+ * (using CS_MALLOC) and defined by this function when called.
  * This list's lifecycle is then managed by the mesh location object.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -310,6 +317,9 @@ cs_mesh_location_get_n_elts(int id);
  *   pointer to elements list (0 to n-1 numbering).
  *----------------------------------------------------------------------------*/
 
+[[deprecated(
+"Use cs_mesh_location_get_elt_ids_try or cs_mesh_location_get_elt_ids instead"
+)]]
 const cs_lnum_t *
 cs_mesh_location_get_elt_list(int id);
 
@@ -318,7 +328,7 @@ cs_mesh_location_get_elt_list(int id);
  * \brief  Get a mesh location's element ids, if present.
  *
  * An array of element ids is returned if the location is a subset of a main
- * main location type, and NULL is returned when the id array would map to
+ * main location type, and nullptr is returned when the id array would map to
  * the identity function (i.e. {0, 1, 2, ..., n_elts-1}).
  *
  * \param[in]  id  id of mesh location
@@ -349,6 +359,19 @@ cs_mesh_location_get_elt_ids(int id);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Get a mesh location's definition method.
+ *
+ * \param[in]  id  id of mesh location
+ *
+ * \return  enum value corresponding to the definition method
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_mesh_location_def_t
+cs_mesh_location_get_definition_method(int id);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Get a mesh location's selection criteria string
  *
  * \param[in]  id  id of mesh location
@@ -372,6 +395,46 @@ cs_mesh_location_get_selection_string(int  id);
 
 cs_mesh_location_select_t *
 cs_mesh_location_get_selection_function(int  id);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get a mesh location's number of sub ids
+ *
+ * \param[in]  id  id of mesh location
+ *
+ * \return integer value equal to the number of sub ids
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_mesh_location_get_n_sub_ids(int id);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get a mesh location's list of sub ids.
+ *
+ * \param[in]  id  id of mesh location
+ *
+ * \return pointer to the list of sub ids.
+ */
+/*----------------------------------------------------------------------------*/
+
+int *
+cs_mesh_location_get_sub_ids(int id);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Check if a mesh location is built as a complement of other mesh
+ * locations.
+ *
+ * \param[in]  id  id of mesh location
+ *
+ * \return true if build method is a complement, false otherwise.
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_mesh_location_is_complement(int id);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -403,6 +466,4 @@ cs_mesh_location_set_explicit_ids(int   id,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_LOCATION_H__ */
+#endif /* CS_MESH_LOCATION_H */

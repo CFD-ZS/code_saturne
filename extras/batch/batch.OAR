@@ -1,5 +1,3 @@
-#-------------------------------------------------------------------------------
-#
 # Batch options for OAR
 # =====================
 #
@@ -19,9 +17,3 @@
 #  -O, --stdout=<file>                : output file name pattern
 #  -E, --stderr=<file>                : error file name pattern
 #  -n, --name=<jobname>               : job name
-#
-#-------------------------------------------------------------------------------
-
-# Change to submission directory
-if test -n "$OAR_WORKING_DIRECTORY" ; then cd $OAR_WORKING_DIRECTORY ; fi
-

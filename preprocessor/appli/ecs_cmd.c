@@ -3,9 +3,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 #include "cs_config.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <assert.h>
@@ -67,9 +67,6 @@
 #endif
 
 #if defined(HAVE_SYS_SYSINFO_H) && defined(HAVE_SYSINFO)
-#  if defined(__uxpv__) && defined(HAVE_SYS_TYPES_H)
-#  include <sys/types.h> /* Workaround: missing include on VPP500 */
-#  endif
 #include <sys/sysinfo.h>
 #endif
 
@@ -321,7 +318,7 @@ _print_preamble(int    argc,
   printf(_("\n\n"
            "  .------------------------------.\n"
            "  |                              |\n"
-           "  |   Code_Saturne Preprocessor  |\n"
+           "  |   code_saturne Preprocessor  |\n"
            "  |                              |\n"
            "  `------------------------------'\n"));
 
@@ -393,9 +390,15 @@ _print_help(void)
 
   printf("\n");
 
+  _fct_prt("--discard-bad-cells", "",
+           _(": discard cells with negative volumes or"));
+  _fct_prt("", "", _("  incorrect connectivity"));
+
   _fct_prt("--reorient", "",
            _(": if necessary, correct orientation of"));
   _fct_prt("", "", _("  cells and faces"));
+
+  printf("\n");
 
   printf("\n");
 
@@ -610,6 +613,7 @@ _cmd_initialize(void)
 
   strcpy(cmd->post_err, "ens"); /* default */
 
+  cmd->discard_bad_cells = false;
   cmd->correct_orient = false;
 
   return cmd;
@@ -965,7 +969,7 @@ ecs_cmd__lit_arg(int    argc,
       else
         ecs_loc_cmd__aff_opt_en_double(argc, argv, argv[iarg]);
 
-      if (argc - 1 > iarg && strncmp(argv[iarg + 1], "-", 1))
+      if (argc - 2 > iarg && strncmp(argv[iarg + 1], "-", 1))
         outfic = argv[++iarg];
       else
         outfic = "preprocessor.log";
@@ -1011,6 +1015,9 @@ ecs_cmd__lit_arg(int    argc,
       strcpy(cmd->nom_out, outfic);
 
     }
+
+    else if (!strcmp ("--discard-bad-cells", argv[iarg]))
+      cmd->discard_bad_cells = true;
 
     else if (!strcmp ("--reorient", argv[iarg]))
       cmd->correct_orient = true;

@@ -1,14 +1,14 @@
-#ifndef __CS_CDOEB_PRIV_H__
-#define __CS_CDOEB_PRIV_H__
+#ifndef CS_CDOEB_PRIV_H
+#define CS_CDOEB_PRIV_H
 
 /*============================================================================
  * Definition of cs_cdovb_scaleq_t and cs_cdovb_vecteq structures
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,17 +26,12 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_hodge.h"
-#include "cs_equation_assemble.h"
-#include "cs_equation_bc.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "cdo/cs_equation_bc.h"
+#include "cdo/cs_hodge.h"
 
 /*!
   \file cs_cdoeb_priv.h
@@ -62,6 +57,7 @@ BEGIN_C_DECLS
 struct _cs_cdoeb_t {
 
   /* Ids related to the variable field and to the boundary flux field */
+
   int          var_field_id;
   int          bflux_field_id;
 
@@ -69,26 +65,30 @@ struct _cs_cdoeb_t {
   cs_lnum_t    n_dofs;
 
   /* Array storing the computed values */
+
   cs_real_t   *edge_values;
   cs_real_t   *edge_values_pre;
 
   /* Array storing the value arising from the contribution of all source
      terms */
+
   cs_real_t   *source_terms;
 
-  /* Assembly process */
-  cs_equation_assembly_t   *assemble;
-
   /* Boundary conditions */
+
   cs_flag_t                *edge_bc_flag;
   cs_cdo_enforce_bc_t      *enforce_essential_bc;
 
   /* Pointer of function to build the diffusion term */
-  cs_hodge_t               *get_curlcurl_hodge;
+
+  cs_hodge_t              **curlcurl_hodge;  /* one structure by thread */
+  cs_hodge_compute_t       *get_curlcurl;
 
   /* Mass matrix settings (useful for the unsteady and reaction terms) */
-  cs_param_hodge_t          hdg_mass;
-  cs_hodge_t               *get_mass_matrix;
+
+  cs_hodge_param_t          mass_hodgep;
+  cs_hodge_t              **mass_hodge;      /* one structure by thread */
+  cs_hodge_compute_t       *get_mass;
 
 };
 
@@ -96,8 +96,4 @@ struct _cs_cdoeb_t {
  * Public function prototypes
  *============================================================================*/
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDOEB_PRIV_H__ */
+#endif /* CS_CDOEB_PRIV_H */

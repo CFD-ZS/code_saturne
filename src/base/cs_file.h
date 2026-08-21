@@ -1,14 +1,14 @@
-#ifndef __CS_FILE_H__
-#define __CS_FILE_H__
+#ifndef CS_FILE_H
+#define CS_FILE_H
 
 /*============================================================================
  * File and directory operations, with parallel file I/O
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,14 +32,10 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -61,43 +57,61 @@ typedef struct _cs_file_serializer_t cs_file_serializer_t;
 
 /* File modes */
 
+/*! File acces modes */
 typedef enum {
 
-  CS_FILE_MODE_READ,   /* Read mode */
-  CS_FILE_MODE_WRITE,  /* Write mode */
-  CS_FILE_MODE_APPEND  /* Append mode */
+  CS_FILE_MODE_READ,   /*!< Read mode */
+  CS_FILE_MODE_WRITE,  /*!< Write mode */
+  CS_FILE_MODE_APPEND  /*!< Append mode */
 
 } cs_file_mode_t;
 
 /* Possibilities for the third argument of cs_file_seek() */
 
+/*! seek semantics (third argument of \ref cs_file_seek) */
 typedef enum {
 
-  CS_FILE_SEEK_SET,   /* Seek from beginning of file */
-  CS_FILE_SEEK_CUR,   /* Seek from current position */
-  CS_FILE_SEEK_END    /* Seek from end of file */
+  CS_FILE_SEEK_SET,   /*!< Seek from beginning of file */
+  CS_FILE_SEEK_CUR,   /*!< Seek from current position */
+  CS_FILE_SEEK_END    /*!< Seek from end of file */
 
 } cs_file_seek_t;
 
 /* File access methods */
 
+/*! Shared file access methods */
 typedef enum {
 
-  CS_FILE_DEFAULT,
-  CS_FILE_STDIO_SERIAL,
-  CS_FILE_STDIO_PARALLEL,
-  CS_FILE_MPI_INDEPENDENT,
-  CS_FILE_MPI_NON_COLLECTIVE,
-  CS_FILE_MPI_COLLECTIVE
+  CS_FILE_DEFAULT,            /*!< Default IO option */
+  CS_FILE_STDIO_SERIAL,       /*!< Serial standard C IO (funnelled through rank
+                                   0 in parallel) */
+  CS_FILE_STDIO_PARALLEL,     /*!< Per-process standard C IO (for reading only) */
+  CS_FILE_MPI_INDEPENDENT,    /*!< Non-collective MPI-IO with independent file
+                                   open and close (for reading only) */
+  CS_FILE_MPI_NON_COLLECTIVE, /*!< Non-collective MPI-IO with collective file
+                                   open and close */
+  CS_FILE_MPI_COLLECTIVE,     /*!< Collective MPI-IO */
+  CS_FILE_IN_MEMORY_SERIAL    /*!< Buffer in rank 0 memory
+                                   (serialized in parallel) */
 
 } cs_file_access_t;
 
 /* MPI-IO file positioning methods */
 
+/*! MPI-IO positioning methods
+ * \details It is not always known whether a performance or robustness
+ *          difference is to be expected using explicit file offsets
+ *          or individual file pointers. Perusal of a sampling of ROMIO
+ *          code would seem to indicate that no difference is to be
+ *          expected, but this might change with MPI IO variants
+ *          or file systems, so an advanced setting is made possible.
+ */
 typedef enum {
 
-  CS_FILE_MPI_EXPLICIT_OFFSETS,
-  CS_FILE_MPI_INDIVIDUAL_POINTERS
+  CS_FILE_MPI_EXPLICIT_OFFSETS,   /*!< Use explicit offsets positioning with
+                                       MPI-IO */
+  CS_FILE_MPI_INDIVIDUAL_POINTERS /*!< Use individual file pointer positioning
+                                       with MPI-IO */
 
 } cs_file_mpi_positioning_t;
 
@@ -212,11 +226,28 @@ cs_file_open_serial(const char      *name,
  *   f <-> file descriptor to destroy
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 cs_file_t *
 cs_file_free(cs_file_t  *f);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Transfer a block of data to file in memory.
+ *
+ * Only for files opened using CS_FILE_IN_MEMORY_SERIAL.
+ *
+ * \param[in]  f     cs_file_t descriptor
+ * \param[in]  nb    number of matching bytes for data
+ * \param[in]  data  data buffer (ownership is relinquished by caller)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_file_in_memory_transfer_data(cs_file_t  *f,
+                                size_t      nb,
+                                void       *data);
 
 /*----------------------------------------------------------------------------
  * Return a file's name.
@@ -230,6 +261,33 @@ cs_file_free(cs_file_t  *f);
 
 const char *
 cs_file_get_name(const cs_file_t  *f);
+
+/*----------------------------------------------------------------------------
+ * Get pointer to data for file in memory.
+ *
+ * parameters:
+ *   f <-- cs_file_t descriptor
+ *
+ * return:
+ *   pointer to file data.
+ *----------------------------------------------------------------------------*/
+
+void *
+cs_file_in_memory_get_data(cs_file_t  *f);
+
+/*----------------------------------------------------------------------------
+ * Allow global read attemps past end of file without throwing an error.
+ *
+ * Currently only for files with serial access.
+ *
+ * parameters:
+ *   f         <-> cs_file_t descriptor
+ *   allow_eof <-- allow read attempt pas EOF
+ *----------------------------------------------------------------------------*/
+
+void
+cs_file_set_allow_read_global_eof(cs_file_t  *f,
+                                  bool        allow_eof);
 
 /*----------------------------------------------------------------------------
  * Ensure that data is read or written in big-endian
@@ -458,6 +516,51 @@ cs_file_seek(cs_file_t       *f,
 cs_file_off_t
 cs_file_tell(cs_file_t  *f);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Formatted input from a text file (as fgets()).
+ *
+ * \param [out]      s     buffer to which string is to be read.
+ * \param [in]       size  maximum number of characters to be read plus one.
+ * \param [in]       f     ecs_file_t descriptor.
+ * \param [in, out]  line  file line number if available, or null.
+ *
+ * \return s on success, null on error or when end of file occurs and
+ *         no characters have been read.
+ */
+/*----------------------------------------------------------------------------*/
+
+char *
+cs_file_gets(char             *s,
+             const int         size,
+             const cs_file_t  *f,
+             int              *line);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Formatted input from a text file if possible (as fgets()).
+ *
+ * This function is similar to cs_file_gets(), but failure to read
+ * a line due to an end-of-file condition is not considered an error with
+ * this variant, which may be used to read text files or sections thereof
+ * of unknown length.
+ *
+ * \param [out]      s     buffer to which string is to be read.
+ * \param [in]       size  maximum number of characters to be read plus one.
+ * \param [in]       f     cs_file_t descriptor.
+ * \param [in, out]  line  file line number if available, or null.
+ *
+ * \return s on success, null on error or when end of file occurs and
+ *         no characters have been read.
+ */
+/*----------------------------------------------------------------------------*/
+
+char *
+cs_file_gets_try(char              *s,
+                 const int          size,
+                 const cs_file_t   *f,
+                 int               *line);
+
 /*----------------------------------------------------------------------------
  * Dump the metadata of a file structure in human readable form
  *
@@ -481,8 +584,8 @@ cs_file_free_defaults(void);
  * parameters:
  *   mode   <-- file mode for which the default is queried (write and
  *              append use the same method, and are interchangeable here)
- *   access --> default file access method, or NULL
- *   hints  --> MPI-IO hints, or NULL
+ *   access --> default file access method, or null
+ *   hints  --> MPI-IO hints, or null
  *----------------------------------------------------------------------------*/
 
 #if defined(HAVE_MPI)
@@ -540,24 +643,16 @@ cs_file_set_default_access(cs_file_mode_t    mode,
  * guaranteed to be empty for block reads and writes with files opened using
  * this default.
  *
- * A minimum block size target may also be used, so as to limit the number
- * of active blocks to a value proportional to the data size (limiting
- * latency issues for small data sets, while not requiring too much local
- * memory).
- *
  * parameters:
  *   block_rank_step --> MPI rank stepping between non-empty distributed blocks,
- *                       or NULL
- *   block_min_size  --> minimum block size target for non-empty distributed
- *                       blocks, or NULL
+ *                       or null
  *   block_comm      --> Handle to MPI communicator used for distributed
- *                       file block access, or NULL
- *   comm            --> Handle to main MPI communicator, or NULL
+ *                       file block access, or null
+ *   comm            --> Handle to main MPI communicator, or null
  *----------------------------------------------------------------------------*/
 
 void
 cs_file_get_default_comm(int       *block_rank_step,
-                         int       *block_min_size,
                          MPI_Comm  *block_comm,
                          MPI_Comm  *comm);
 
@@ -570,26 +665,18 @@ cs_file_get_default_comm(int       *block_rank_step,
  * guaranteed to be empty for block reads and writes with files opened using
  * this default.
  *
- * A minimum block size target may also be used, so as to limit the number
- * of active blocks to a value proportional to the data size (limiting
- * latency issues for small data sets, while not requiring too much local
- * memory).
- *
  * For each argument, an "out of range" value may be used to avoid modifying
  * the previous default for that argument.
  *
  * parameters:
  *   block_rank_step <-- MPI rank stepping between non-empty blocks for
  *                       file block reads and writes (not set if <= 0)
- *   block_min_size  <-- minimum block size target for non-empty distributed
- *                       blocks (not set if < 1)
  *   comm            <-- handle to main MPI communicator
  *                       (not set if MPI_COMM_SELF)
  *----------------------------------------------------------------------------*/
 
 void
 cs_file_set_default_comm(int       block_rank_step,
-                         int       block_min_size,
                          MPI_Comm  comm);
 
 /*----------------------------------------------------------------------------
@@ -707,17 +794,17 @@ cs_file_serializer_destroy(cs_file_serializer_t  **s);
  * initializing the serializer, or to an aditional buffer if the former is
  * too small to receive data from all ranks.
  *
- * Note also that for ranks > 0, this function always returns NULL,
+ * Note also that for ranks > 0, this function always returns null,
  * as only one call is needed for those ranks.
  *
  * parameters:
  *   s         <-- pointer to serializer structure
  *   cur_range --> optional start and past-the end global numbers for the
- *                 current block (size: 2), or NULL; only on rank 0
+ *                 current block (size: 2), or null; only on rank 0
  *
  * returns:
  *   a pointer to the buffer containing new data (first call counts as new),
- *   or NULL if we are finished; always NULL on ranks > 0
+ *   or null if we are finished; always null on ranks > 0
  *----------------------------------------------------------------------------*/
 
 void *
@@ -785,16 +872,16 @@ cs_file_isdir(const char  *path);
 /*----------------------------------------------------------------------------
  * List files inside a directory.
  *
- * The array returned must be freed by the caller using BFT_FREE,
+ * The array returned must be freed by the caller using CS_FREE,
  * as well as the individual entries in the array.
  *
  * parameters:
  *   path <-- name of directory.
  *
  * returns:
- *   an array of file names in a directory. The last entry is set to NULL.
+ *   an array of file names in a directory. The last entry is set to null.
  *   If no means to list the directory or an error occured, the return
- *    value is simply NULL.
+ *   value is simply null.
  *----------------------------------------------------------------------------*/
 
 char **
@@ -819,13 +906,13 @@ cs_file_off_t
 cs_file_size(const char  *path);
 
 /*----------------------------------------------------------------------------
- * Remove a file if it exists and is a regular file.
+ * Remove a file if it exists and is a regular file or an empty directory.
  *
  * parameters
  *   path <-- file path.
  *
  * returns:
- *   0 in case of success or if file does not exist, 0 otherwise.
+ *   0 in case of success or if file does not exist, not 0 otherwise.
  *----------------------------------------------------------------------------*/
 
 int
@@ -839,15 +926,13 @@ cs_file_remove(const char  *path);
  *   end  <-- string to compare
  *
  * returns:
- *   1 in case of success, 0 otherwise.
+ *   1 if the path ends with the given string, 0 otherwise.
  *----------------------------------------------------------------------------*/
 
 int
-cs_file_endswith(const char *path,
-                 const char *end);
+cs_file_endswith(const char  *path,
+                 const char  *end);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FILE_H__ */
+#endif /* CS_FILE_H */

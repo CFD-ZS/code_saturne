@@ -1,14 +1,14 @@
-#ifndef __CS_FIELD_H__
-#define __CS_FIELD_H__
+#ifndef CS_FIELD_H
+#define CS_FIELD_H
 
 /*============================================================================
  * Field management.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include <string>
 
-/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------
+ * Local headers
+ *----------------------------------------------------------------------------*/
 
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_array.h"
 
 /*=============================================================================
  * Macro definitions
@@ -98,13 +101,37 @@ typedef enum {
 
 } cs_field_error_type_t;
 
-/* Field boundary condition descriptor (for variables) */
-/*-----------------------------------------------------*/
+/*! Field boundary condition descriptor (for variables) */
+/*------------------------------------------------------*/
 
-typedef struct {
+class cs_field_bc_coeffs_t {
 
-  int                location_id;  /* Id of matching location */
+public:
 
+  int               *icodcl;       /* low-level BC type code */
+  cs_real_t         *rcodcl1;      /* 1st component of low-level BC */
+  cs_real_t         *rcodcl2;      /* 2nd component of low-level BC
+                                    (a.k.a. hext Exterior exchange coefficient */
+  cs_real_t         *rcodcl3;      /* 3rd component of low-level BC */
+
+  cs_real_t         *h_int_tot;    /* Total internal exchange coefficient
+                                      (used for internal coupling and
+                                      coupling) */
+
+  cs_real_t         *h_rad;       /* Exchange coef for radiative transfer
+                                     (used for internal coupling and
+                                      coupling) */
+
+  cs_real_t         *flux_rad;    /* Exchange coef for radiative transfer
+                                     (used for internal coupling and
+                                      coupling) */
+
+  cs_real_t         *val_f;       /* face value for gradient */
+  cs_real_t         *val_f_pre;   /* previous face value for gradient */
+
+  cs_real_t         *flux_diff;    /* face value for diffusion */
+
+  /* Members that should become private */
   cs_real_t         *a;            /* Explicit coefficient */
   cs_real_t         *b;            /* Implicit coefficient */
   cs_real_t         *af;           /* Explicit coefficient for flux */
@@ -114,15 +141,140 @@ typedef struct {
   cs_real_t         *ac;           /* Explicit coefficient for convection */
   cs_real_t         *bc;           /* Implicit coefficient for convection */
 
-  cs_real_t         *hint;         /* coefficient for internal coupling */
-  cs_real_t         *hext;         /* coefficient for internal coupling */
+  /*--------------------------------------------------------------------------
+   * Constructors
+   *--------------------------------------------------------------------------*/
 
-} cs_field_bc_coeffs_t;
+  cs_field_bc_coeffs_t(void)
+  {
+    cs_field_bc_coeffs_t(-1);
+  }
+
+  cs_field_bc_coeffs_t
+  (
+   int  field_dim   //!< Associated field dimension
+  )
+  {
+    icodcl = nullptr;
+    rcodcl1 = nullptr;
+    rcodcl2 = nullptr;
+    rcodcl3 = nullptr;
+
+    h_rad = nullptr;
+    flux_rad = nullptr;
+
+    h_int_tot = nullptr;
+
+    val_f = nullptr;
+    val_f_pre = nullptr;
+
+    flux_diff = nullptr;
+
+    a = nullptr;
+    b = nullptr;
+    af = nullptr;
+    bf = nullptr;
+    ad = nullptr;
+    bd = nullptr;
+    ac = nullptr;
+    bc = nullptr;
+
+    dim = field_dim;
+  }
+
+  /*--------------------------------------------------------------------------
+   * Destructor
+   *--------------------------------------------------------------------------*/
+
+  ~cs_field_bc_coeffs_t()
+  {
+    /* For now, do not delete data, as it may be shared */
+  }
+
+  /* Accessors for external value (e.g. rcodcl1)
+     ------------------------------------------- */
+
+  cs_span<cs_real_t>
+  get_val_ext
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_val_ext_2d
+  (
+  ) const;
+
+  cs_span<cs_real_t>
+  get_val_ext_s
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_val_ext_v
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_val_ext_t
+  (
+  ) const;
+
+  /* Accessors for external exchange coefficient (e.g. rcodcl2)
+     ---------------------------------------------------------- */
+
+  cs_span<cs_real_t>
+  get_h_ext
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_h_ext_2d
+  (
+  ) const;
+
+  cs_span<cs_real_t>
+  get_h_ext_s
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_h_ext_v
+  (
+  ) const;
+
+  /* Accessors for prescribed flux density (e.g. rcodcl3)
+     ---------------------------------------------------- */
+
+  cs_span<cs_real_t>
+  get_q_ext
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_q_ext_2d
+  (
+  ) const;
+
+  cs_span<cs_real_t>
+  get_q_ext_s
+  (
+  ) const;
+
+  cs::mdspan<cs_real_t, 2, cs::layout::left>
+  get_q_ext_v
+  (
+  ) const;
+
+private:
+  int dim;  //!< associated field dimension
+};
 
 /* Field descriptor */
 /*------------------*/
 
-typedef struct {
+class cs_field_t {
+
+public:
 
   const char             *name;         /* Canonical name */
 
@@ -150,12 +302,344 @@ typedef struct {
                                            to matching previous values array
                                            (if n_time_vals == 2) */
 
+  cs_real_t              *grad;         /* For each active location, pointer
+                                           to matching gradient array for
+                                           variable type fields */
+
   cs_field_bc_coeffs_t   *bc_coeffs;    /* Boundary condition coefficients,
                                            for variable type fields */
 
   bool                    is_owner;     /* Ownership flag for values */
 
-} cs_field_t;
+  int                     ns_size;      /* Multidim series size */
+  int                     ns_idx;       /* Multidim series index of field */
+  int                     ns_owner;     /* Multidim series owner id */
+
+  /* Setter and getter methods for key-based values
+     ---------------------------------------------- */
+
+  int
+  set_key_int(int  key_id,
+              int  value);
+
+  int
+  set_key_int(const char  *key,
+              int          value);
+
+  int
+  get_key_int(int  key_id) const;
+
+  int
+  get_key_int(const char  *key) const;
+
+  int
+  set_key_int_bits(int  key_id,
+                   int  mask);
+
+  int
+  set_key_int_bits(const char  *key,
+                   int          mask);
+
+  int
+  clear_key_int_bits(int  key_id,
+                     int  mask);
+
+  int
+  clear_key_int_bits(const char  *key,
+                     int          mask);
+
+  int
+  set_key_double(int  key_id,
+                 double  value);
+
+  int
+  set_key_double(const char  *key,
+                 double       value);
+
+  double
+  get_key_double(int  key_id) const;
+
+  double
+  get_key_double(const char  *key) const;
+
+  int
+  set_key_str(int          key_id,
+              const char  *str);
+
+  int
+  set_key_str(const char  *key,
+              const char  *str);
+
+  const char *
+  get_key_str(int  key_id) const;
+
+  const char *
+  get_key_str(const char  *key) const;
+
+  const void *
+  get_key_struct
+  (
+    const int  key_id,
+    void      *s
+  ) const;
+
+  const void *
+  get_key_struct
+  (
+    const char *key,
+    void       *s
+  ) const;
+
+  cs_span_2d<cs_real_t>
+  view
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_val_s` instead")]]
+  cs_span<cs_real_t>
+  get_vals_s
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_val_v` instead")]]
+  cs_span_2d<cs_real_t>
+  get_vals_v
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_val_t` instead")]]
+  cs_span_2d<cs_real_t>
+  get_vals_t
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span<cs_real_t>
+  get_val_s
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_2d<cs_real_t>
+  get_val_v
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_2d<cs_real_t>
+  get_val_t
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_2d<cs_real_t>
+  get_grad_s
+  () const;
+
+  cs_span_3d<cs_real_t>
+  get_grad_v
+  () const;
+
+  cs_span_3d<cs_real_t>
+  get_grad_t
+  () const;
+
+  cs_alloc_mode_t
+  get_vals_alloc_mode
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_3d<cs_real_t>
+  ns_view
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_ns_val_s` instead")]]
+  cs_span_2d<cs_real_t>
+  get_ns_vals_s
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_ns_val_v` instead")]]
+  cs_span_3d<cs_real_t>
+  get_ns_vals_v
+  (
+    const int time_id = 0
+  ) const;
+
+  [[deprecated("Use `get_ns_val_t` instead")]]
+  cs_span_3d<cs_real_t>
+  get_ns_vals_t
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_2d<cs_real_t>
+  get_ns_val_s
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_3d<cs_real_t>
+  get_ns_val_v
+  (
+    const int time_id = 0
+  ) const;
+
+  cs_span_3d<cs_real_t>
+  get_ns_val_t
+  (
+    const int time_id = 0
+  ) const;
+
+  /* State update methods
+     -------------------- */
+
+  void
+  update_public_pointers(void);
+
+  void
+  update_size
+  (
+    const int time_id = -1
+  );
+
+  void
+  clear
+  (
+    const int time_id = -1
+  );
+
+  void
+  update_sub_fields_mapping(void) const;
+
+  void
+  map_values
+  (
+    cs_real_t *val_new,
+    cs_real_t *val_pre_new
+  );
+
+  cs_array_2d<cs_real_t> **_vals;
+  cs_array_3d<cs_real_t> **_ns_vals;
+
+  CS_F_HOST_DEVICE
+  void
+  set_ns_owner
+  (
+    int owner_id
+  )
+  {
+    ns_owner = owner_id;
+  }
+
+  CS_F_HOST_DEVICE
+  void
+  set_ns_parameters
+  (
+    const int series_size,
+    const int series_idx,
+    const int series_owner
+  )
+  {
+    ns_size  = series_size;
+    ns_idx   = series_idx;
+    ns_owner = series_owner;
+  }
+
+  /* Query methods
+     ------------- */
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  is_series_owner() const
+  {
+    return (ns_owner == id);
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  is_part_of_series() const
+  {
+    return (ns_owner > -1);
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  owner() const
+  {
+    return (is_owner && (is_series_owner() || !is_part_of_series()) );
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  int
+  series_size() const
+  {
+    return ns_size;
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  int
+  series_owner() const
+  {
+    return ns_owner;
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  int
+  series_id() const
+  {
+    return ns_idx;
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  has_sub_fields() const
+  {
+    return (ns_size > 1 && is_series_owner());
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  is_sub_field() const
+  {
+    return (ns_size > 1 && !is_series_owner());
+  }
+
+  CS_F_HOST_DEVICE
+  inline
+  bool
+  is_sub_field_of
+  (
+    const int owner_id
+  ) const
+  {
+    return (is_sub_field() && ns_owner == owner_id);
+  }
+
+  CS_F_HOST
+  void
+  initialize_sub_fields(void);
+
+  CS_F_HOST
+  void
+  map_to_ns_data(void);
+
+};
 
 /*----------------------------------------------------------------------------
  * Function pointer for structure associated to field key
@@ -166,6 +650,16 @@ typedef struct {
 
 typedef void
 (cs_field_log_key_struct_t) (const void  *t);
+
+/*----------------------------------------------------------------------------
+ * Function pointer for structure associated to field key
+ *
+ * parameters:
+ *   t <-- pointer to structure
+ *----------------------------------------------------------------------------*/
+
+typedef void
+(cs_field_clear_key_struct_t) (void  *t);
 
 /*============================================================================
  * Global variables
@@ -180,6 +674,48 @@ extern const char *cs_glob_field_comp_name_9[];
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------
+ * Create bc_coeffs structure.
+ *
+ * \param[in]     bc_coeffs   bc coefficients
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_bc_coeffs_init(cs_field_bc_coeffs_t  *bc_coeffs);
+
+/*----------------------------------------------------------------------------
+ * Shallow copy of boundary condition coefficients.
+ *
+ * \param[in]     ref   source bc coefficients
+ * \param[inout]  copy  shallow copy of bc coefficients
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_bc_coeffs_shallow_copy(const cs_field_bc_coeffs_t  *ref,
+                                cs_field_bc_coeffs_t        *copy);
+
+/*----------------------------------------------------------------------------
+ * \brief  Free copy of boundary condition coefficients.
+ *
+ * \param[in]     ref   reference bc coefficients
+ * \param[inout]  copy  shallow copy of bc coefficients
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_bc_coeffs_free_copy(const cs_field_bc_coeffs_t  *ref,
+                             cs_field_bc_coeffs_t        *copy);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Free contents of local boundary condition coefficients.
+ *
+ * \param[inout]  bc_coeffs  bc coefficients
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_bc_coeffs_clear(cs_field_bc_coeffs_t  *bc_coeffs);
 
 /*----------------------------------------------------------------------------
  * Return the number of defined fields.
@@ -211,6 +747,28 @@ cs_field_create(const char   *name,
                 int           location_id,
                 int           dim,
                 bool          has_previous);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Create a field descriptor.
+ *
+ * \param[in]  name_prefix   first part of field name
+ * \param[in]  name_suffix   second part of field name
+ * \param[in]  location_id   id of associated location
+ * \param[in]  dim           field dimension (number of components)
+ * \param[in]  has_previous  maintain values at the previous time step ?
+ *
+ * \return  pointer to new field.
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field_create_by_composite_name(const char   *name_prefix,
+                                  const char   *name_suffix,
+                                  int           type_flag,
+                                  int           location_id,
+                                  int           dim,
+                                  bool          has_previous);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -265,12 +823,22 @@ void
 cs_field_allocate_values(cs_field_t  *f);
 
 /*----------------------------------------------------------------------------
+ * Remap arrays for sub-field values.
+ *
+ * parameters:
+ *   owner_id <-- id of owner field structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_remap_sub_fields_data(const int owner_id);
+
+/*----------------------------------------------------------------------------
  * Map existing value arrays to field descriptor.
  *
  * parameters:
  *   f           <-> pointer to field structure
  *   val         <-- pointer to array of values
- *   val_pre     <-- pointer to array of previous values, or NULL
+ *   val_pre     <-- pointer to array of previous values, or nullptr
  *----------------------------------------------------------------------------*/
 
 void
@@ -299,6 +867,8 @@ cs_field_map_values(cs_field_t   *f,
  *   have_conv_bc <-- if true, convection BC coefficients (ac and bc) are added
  *   have_exch_bc <-- if true, exchange boundary coefficients (hint and hext)
  *                    are added
+ *   have_rad_bc  <-- if true, radiative boundary coefficients (h_rad and
+ *                    flux_rad) are added
  *----------------------------------------------------------------------------*/
 
 void
@@ -306,7 +876,8 @@ cs_field_allocate_bc_coeffs(cs_field_t  *f,
                             bool         have_flux_bc,
                             bool         have_mom_bc,
                             bool         have_conv_bc,
-                            bool         have_exch_bc);
+                            bool         have_exch_bc,
+                            bool         have_rad_bc);
 
 /*----------------------------------------------------------------------------*/
 /* Initialize boundary condition coefficients arrays.
@@ -328,6 +899,16 @@ cs_field_allocate_bc_coeffs(cs_field_t  *f,
 
 void
 cs_field_init_bc_coeffs(cs_field_t  *f);
+
+/*----------------------------------------------------------------------------
+ * Allocate arrays for field gradient.
+ *
+ * parameters:
+ *   f <-- pointer to field structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_allocate_gradient(cs_field_t  *f);
 
 /*----------------------------------------------------------------------------
  * Set current field values to the given constant.
@@ -385,7 +966,7 @@ cs_field_allocate_or_map_all(void);
  *   pointer to the field structure
  *----------------------------------------------------------------------------*/
 
-cs_field_t  *
+extern "C" cs_field_t  *
 cs_field_by_id(int  id);
 
 /*----------------------------------------------------------------------------
@@ -406,17 +987,81 @@ cs_field_by_name(const char *name);
 /*----------------------------------------------------------------------------
  * Return a pointer to a field based on its name if present.
  *
- * If no field of the given name is defined, NULL is returned.
+ * If no field of the given name is defined, nullptr is returned.
  *
  * parameters:
  *   name <-- field name
  *
  * returns:
- *   pointer to the field structure, or NULL
+ *   pointer to the field structure, or nullptr
  *----------------------------------------------------------------------------*/
 
 cs_field_t  *
 cs_field_by_name_try(const char *name);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return a pointer to a field based on a composite name.
+ *
+ * The name is expected to be of the form <name_prefix>_<name_suffix>.
+ *
+ * \param[in]  name_prefix  first part of field name
+ * \param[in]  name_suffix  second part of field name
+ *
+ * \return  pointer to the field structure, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t  *
+cs_field_by_composite_name(const char  *name_prefix,
+                           const char  *name_suffix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return a pointer to a field based on a composite name if present.
+ *
+ * The name is expected to be of the form <name_prefix>_<name_suffix>.
+ * If no field of the given name is defined, nullptr is returned.
+ *
+ * \remark: in C++, we could simply have a cs_field_by_name_try template
+ *          with a variable number of arguments.
+ *
+ * \param[in]  name_prefix  first part of field name
+ * \param[in]  name_suffix  second part of field name
+ *
+ * \return  pointer to the field structure, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t  *
+cs_field_by_composite_name_try(const char  *name_prefix,
+                               const char  *name_suffix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return pointer to a field based on a double composite name if present.
+ *
+ * If no field of the given name is defined, a null pointer is returned.
+ *
+ * Contrary to \ref cs_field_by_composite_name_try, this function
+ * does not automatically add '_' characters between component names.
+ * This allows adding different separators, such as ':'.
+
+ * \remark: in C++, we could simply have a cs_field_by_name_try template
+ *          with a variable number of arguments.
+ *
+ * \param[in]  name_part_1  first part of field name
+ * \param[in]  name_part_2  second part of field name
+ * \param[in]  name_part_3  second part of field name
+ *
+ * \return  pointer to the field structure, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t  *
+cs_field_by_double_composite_name_try(const char  *name_part_1,
+                                      const char  *name_part_2,
+                                      const char  *name_part_3);
 
 /*----------------------------------------------------------------------------
  * Return the id of a defined field based on its name.
@@ -477,7 +1122,7 @@ cs_field_key_id(const char  *name);
  *   id associated with key, or -1
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" int
 cs_field_key_id_try(const char  *name);
 
 /*----------------------------------------------------------------------------
@@ -557,6 +1202,7 @@ cs_field_define_key_str(const char  *name,
  *   default_value    <-- pointer to default value associated with key
  *   log_funct        <-- pointer to logging function
  *   log_func_default <-- pointer to default logging function
+ *   clear_func       <-- pointer to substructures free function
  *   size             <-- sizeof structure
  *   type_flag        <-- mask associated with field types with which
  *                        the key may be associated, or 0
@@ -566,12 +1212,13 @@ cs_field_define_key_str(const char  *name,
  *----------------------------------------------------------------------------*/
 
 int
-cs_field_define_key_struct(const char                 *name,
-                           const void                 *default_value,
-                           cs_field_log_key_struct_t  *log_func,
-                           cs_field_log_key_struct_t  *log_func_default,
-                           size_t                      size,
-                           int                         type_flag);
+cs_field_define_key_struct(const char                   *name,
+                           const void                   *default_value,
+                           cs_field_log_key_struct_t    *log_func,
+                           cs_field_log_key_struct_t    *log_func_default,
+                           cs_field_clear_key_struct_t  *clear_func,
+                           size_t                        size,
+                           int                           type_flag);
 
 /*----------------------------------------------------------------------------
  * Define a sub key.
@@ -702,7 +1349,7 @@ cs_field_lock_key(cs_field_t  *f,
  *   0 in case of success, > 1 in case of error
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" [[deprecated("Use f->set_key_int instead")]] int
 cs_field_set_key_int(cs_field_t  *f,
                      int          key_id,
                      int          value);
@@ -721,7 +1368,7 @@ cs_field_set_key_int(cs_field_t  *f,
  *   integer value associated with the key id for this field
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" [[deprecated("Use f->get_key_int instead")]] int
 cs_field_get_key_int(const cs_field_t  *f,
                      int                key_id);
 
@@ -743,33 +1390,10 @@ cs_field_get_key_int(const cs_field_t  *f,
  *   0 in case of success, > 1 in case of error
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" [[deprecated("Use f->set_key_int_bits instead")]] int
 cs_field_set_key_int_bits(cs_field_t  *f,
                           int          key_id,
                           int          mask);
-
-/*----------------------------------------------------------------------------
- * Set integer bits matching a mask to 0 for a given key for a field.
- *
- * If the key id is not valid, CS_FIELD_INVALID_KEY_ID is returned.
- * If the field category is not compatible with the key (as defined
- * by its type flag), CS_FIELD_INVALID_CATEGORY is returned.
- * If the data type does not match, CS_FIELD_INVALID_TYPE is returned.
- * If the key value has been locked, CS_FIELD_LOCKED is returned.
- *
- * parameters:
- *   f             <-- pointer to field structure
- *   key_id        <-- id of associated key
- *   mask          <-- mask associated with key
- *
- * returns:
- *   0 in case of success, > 1 in case of error
- *----------------------------------------------------------------------------*/
-
-int
-cs_field_clear_key_int_bits(cs_field_t  *f,
-                            int          key_id,
-                            int          mask);
 
 /*----------------------------------------------------------------------------
  * Assign a floating point value for a given key to a field.
@@ -789,7 +1413,7 @@ cs_field_clear_key_int_bits(cs_field_t  *f,
  *   0 in case of success, > 1 in case of error
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" [[deprecated("Use f->set_key_double instead")]] int
 cs_field_set_key_double(cs_field_t  *f,
                         int          key_id,
                         double       value);
@@ -808,7 +1432,7 @@ cs_field_set_key_double(cs_field_t  *f,
  *   floating point value associated with the key id for this field
  *----------------------------------------------------------------------------*/
 
-double
+extern "C" [[deprecated("Use f->get_key_double instead")]] double
 cs_field_get_key_double(const cs_field_t  *f,
                         int                key_id);
 
@@ -830,7 +1454,7 @@ cs_field_get_key_double(const cs_field_t  *f,
  *   0 in case of success, > 1 in case of error
  *----------------------------------------------------------------------------*/
 
-int
+extern "C" [[deprecated("Use f->set_key_str instead")]] int
 cs_field_set_key_str(cs_field_t  *f,
                      int          key_id,
                      const char  *str);
@@ -849,10 +1473,9 @@ cs_field_set_key_str(cs_field_t  *f,
  *   pointer to character string associated with the key id for this field
  *----------------------------------------------------------------------------*/
 
-const char *
+extern "C" [[deprecated("Use f->get_key_str instead")]] const char *
 cs_field_get_key_str(const cs_field_t  *f,
                      int                key_id);
-
 
 /*----------------------------------------------------------------------------
  * Assign a simple structure for a given key to a field.
@@ -898,7 +1521,7 @@ cs_field_get_key_struct(const cs_field_t  *f,
                         void              *s);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a simple structure for a given key to a field.
  *
  * If the key id is not valid, the value type or field category is not
@@ -911,7 +1534,8 @@ cs_field_get_key_struct(const cs_field_t  *f,
  * \param[in]  f       pointer to field structure
  * \param[in]  key_id  id of associated key
  *
- * \return  pointer to key structure in case of success, NULL in case of error
+ * \return  pointer to key structure in case of success,
+ *          nullptr in case of error
  */
 /*----------------------------------------------------------------------------*/
 
@@ -920,7 +1544,7 @@ cs_field_get_key_struct_ptr(cs_field_t  *f,
                             int          key_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a read-only pointer to a simple structure for a given key
  *        to a field.
  *
@@ -930,7 +1554,8 @@ cs_field_get_key_struct_ptr(cs_field_t  *f,
  * \param[in]  f       pointer to field structure
  * \param[in]  key_id  id of associated key
  *
- * \return  pointer to key structure in case of success, NULL in case of error
+ * \return  pointer to key structure in case of success,
+ *          nullptr in case of error
  */
 /*----------------------------------------------------------------------------*/
 
@@ -1034,8 +1659,70 @@ cs_field_define_keys_base(void);
 const char *
 cs_field_get_label(const cs_field_t  *f);
 
+/*----------------------------------------------------------------------------
+ * Get the boundary coefficient multipliers for some field.
+ *
+ * This function is intended for use by the field redistribution routines.
+ *
+ * parameters:
+ *   f      <-- pointer to the field
+ *   i_mult <-> multiplier for the integer bc coefficients.
+ *   a_mult <-> multiplier for the "a" bc coefficients.
+ *   b_mult <-> multiplier for the "b" bc coefficients.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_get_bc_coeff_mult(const cs_field_t  *f,
+                           cs_lnum_t         *i_mult,
+                           cs_lnum_t         *a_mult,
+                           cs_lnum_t         *b_mult);
+
+/*=============================================================================
+ * C++ functions
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field name, raises error if fails */
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+cs_field_t *
+cs_field(const char *name);
 
-#endif /* __CS_FIELD_H__ */
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field name, raises error if fails */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field(const std::string& name);
+
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field id, raises error if fails */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field(const int id);
+
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field name, returns nullptr if fails */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field_try(const char *name);
+
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field name, returns nullptr if fails */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field_try(const std::string& name);
+
+/*----------------------------------------------------------------------------*/
+/* Getter function based on field id, returns nullptr if fails */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field_try(const int id);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_FIELD_H */

@@ -1,14 +1,14 @@
-#ifndef __FVM_NODAL_H__
-#define __FVM_NODAL_H__
+#ifndef FVM_NODAL_H
+#define FVM_NODAL_H
 
 /*============================================================================
  * Main structure for a nodal representation associated with a mesh
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,20 +27,16 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_mesh.h"
-#include "fvm_defs.h"
-#include "fvm_group.h"
-#include "fvm_io_num.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_io_num.h"
 
 /*=============================================================================
  * Macro definitions
@@ -90,7 +86,7 @@ fvm_nodal_create(const char  *name,
  *   this_nodal  <-> pointer to structure that should be destroyed
  *
  * returns:
- *  NULL pointer
+ *  null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_nodal_t *
@@ -134,25 +130,25 @@ fvm_nodal_reduce(fvm_nodal_t  *this_nodal,
  * structure's creation.
  *
  * parameters:
- *   this_nodal          <-- nodal mesh structure
- *   new_parent_num      <-- pointer to local parent renumbering array
- *                           ({1, ..., n} <-- {1, ..., n})
- *   entity_dim          <-- 3 for cells, 2 for faces, 1 for edges,
- *                           and 0 for vertices
+ *   this_nodal         <-- nodal mesh structure
+ *   new_parent_id      <-- pointer to local parent renumbering array
+ *                          ({0, ..., n-1} <-- {0, ..., n-1})
+ *   entity_dim         <-- 3 for cells, 2 for faces, 1 for edges,
+ *                          and 0 for vertices
  *----------------------------------------------------------------------------*/
 
 void
-fvm_nodal_change_parent_num(fvm_nodal_t        *this_nodal,
-                            const cs_lnum_t     new_parent_num[],
-                            int                 entity_dim);
+fvm_nodal_change_parent_id(fvm_nodal_t       *this_nodal,
+                           const cs_lnum_t    new_parent_id[],
+                           int                entity_dim);
 
 /*----------------------------------------------------------------------------
  * Remove entity parent numbering; this is useful for example when we
  * want to assign coordinates or fields to an extracted mesh using
  * arrays relative to the mesh, and not to its parent.
  *
- * This is equivalent to calling fvm_nodal_change_parent_num(), with
- * 'trivial' (1 o n) new_parent_num[] values.
+ * This is equivalent to calling fvm_nodal_change_parent_id(), with
+ * 'trivial' (1 o n) new_parent_id[] values.
  *
  * parameters:
  *   this_nodal          <-- nodal mesh structure
@@ -161,8 +157,8 @@ fvm_nodal_change_parent_num(fvm_nodal_t        *this_nodal,
  *----------------------------------------------------------------------------*/
 
 void
-fvm_nodal_remove_parent_num(fvm_nodal_t  *this_nodal,
-                            int           entity_dim);
+fvm_nodal_remove_parent_id(fvm_nodal_t  *this_nodal,
+                           int           entity_dim);
 
 /*----------------------------------------------------------------------------
  * Build external numbering for entities based on global numbers.
@@ -236,9 +232,9 @@ fvm_nodal_remove_tag(fvm_nodal_t  *this_nodal,
 /*----------------------------------------------------------------------------
  * Preset number and list of vertices to assign to a nodal mesh.
  *
- * If the parent_vertex_num argument is NULL, the list is assumed to
- * be {1, 2, ..., n}. If parent_vertex_num is given, it specifies a
- * list of n vertices from a larger set (1 to n numbering).
+ * If the parent_vertex_id argument is NULL, the list is assumed to
+ * be {0, 1, ..., n-1}. If parent_vertex_id is given, it specifies a
+ * list of n vertices from a larger set (0 to n-1 numbering).
  *
  * Ownership of the given parent vertex numbering array is
  * transferred to the nodal mesh representation structure.
@@ -249,15 +245,15 @@ fvm_nodal_remove_tag(fvm_nodal_t  *this_nodal,
  * a mesh containing only vertices).
  *
  * parameters:
- *   this_nodal        <-> nodal mesh structure
- *   n_vertices        <-- number of vertices to assign
- *   parent_vertex_num <-- parent numbers of vertices to assign
+ *   this_nodal       <-> nodal mesh structure
+ *   n_vertices       <-- number of vertices to assign
+ *   parent_vertex_id <-- parent ids of vertices to assign
  *----------------------------------------------------------------------------*/
 
 void
 fvm_nodal_define_vertex_list(fvm_nodal_t  *this_nodal,
                              cs_lnum_t     n_vertices,
-                             cs_lnum_t     parent_vertex_num[]);
+                             cs_lnum_t     parent_vertex_id[]);
 
 /*----------------------------------------------------------------------------
  * Assign shared vertex coordinates to an extracted nodal mesh,
@@ -457,24 +453,24 @@ fvm_nodal_get_n_elements(const fvm_nodal_t  *this_nodal,
                          fvm_element_t       element_type);
 
 /*----------------------------------------------------------------------------
- * Return local parent numbering array for all entities of a given
+ * Return local parent id array for all entities of a given
  * dimension in a nodal mesh.
  *
  * The number of entities of the given dimension may be obtained
- * through fvm_nodal_get_n_entities(), the parent_num[] array is populated
+ * through fvm_nodal_get_n_entities(), the parent_id[] array is populated
  * with the parent entity numbers of those entities, in order (i.e. in
  * local section order, section by section).
  *
  * parameters:
  *   this_nodal <-- pointer to nodal mesh structure
  *   entity_dim <-- dimension of entities we are interested in (0 to 3)
- *   parent_num --> entity parent numbering (array must be pre-allocated)
+ *   parent_id --> entity parent id (array must be pre-allocated)
  *----------------------------------------------------------------------------*/
 
 void
-fvm_nodal_get_parent_num(const fvm_nodal_t  *this_nodal,
-                         int                 entity_dim,
-                         cs_lnum_t           parent_num[]);
+fvm_nodal_get_parent_id(const fvm_nodal_t  *this_nodal,
+                        int                 entity_dim,
+                        cs_lnum_t           parent_id[]);
 
 /*----------------------------------------------------------------------------
  * Return pointer to global vertex labels of a nodal mesh.
@@ -569,6 +565,4 @@ fvm_nodal_dump(const fvm_nodal_t  *this_nodal);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_NODAL_H__ */
+#endif /* FVM_NODAL_H */

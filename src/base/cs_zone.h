@@ -1,14 +1,14 @@
-#ifndef __CS_ZONE_H__
-#define __CS_ZONE_H__
+#ifndef CS_ZONE_H
+#define CS_ZONE_H
 
 /*============================================================================
  * Base zones handling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh_location.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh_location.h"
 
 /*============================================================================
  * Macro definitions
@@ -78,6 +74,7 @@ typedef struct {
                                            the zone */
   cs_real_t         f_boundary_measure;  /*!< Fluid boundary measure
                                            of the zone */
+  cs_real_t         cog[3];              /*!< Center of gravity of the zone */
 
 } cs_zone_t;
 
@@ -86,7 +83,7 @@ typedef struct {
   * \deprecated  use cs_zone_t instead.
   */
 
-typedef struct {
+[[deprecated("Use cs_zone_t instead")]] typedef struct {
 
   const char       *name;           /*!< zone name */
 
@@ -110,7 +107,7 @@ typedef struct {
   * \deprecated  use cs_zone_t instead.
   */
 
-typedef struct {
+[[deprecated("Use cs_zone_t instead")]] typedef struct {
 
   const char       *name;           /*!< zone name */
 
@@ -135,6 +132,4 @@ typedef struct {
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_ZONE_H__ */
+#endif /* CS_ZONE_H */

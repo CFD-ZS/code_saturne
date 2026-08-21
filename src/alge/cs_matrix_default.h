@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_DEFAULT_H__
-#define __CS_MATRIX_DEFAULT_H__
+#ifndef CS_MATRIX_DEFAULT_H
+#define CS_MATRIX_DEFAULT_H
 
 /*============================================================================
  * Default Sparse Matrix structure and Tuning.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_field.h"
-#include "cs_halo.h"
-#include "cs_matrix.h"
-#include "cs_numbering.h"
-#include "cs_halo_perio.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_field.h"
+#include "base/cs_halo.h"
+#include "alge/cs_matrix.h"
+#include "base/cs_numbering.h"
+#include "base/cs_halo_perio.h"
 
 /*============================================================================
  * Macro definitions
@@ -52,7 +48,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -66,7 +62,6 @@ BEGIN_C_DECLS
  *   symmetric     <-- Symmetry indicator:
  *   db_size       <-- block sizes for diagonal
  *   eb_size       <-- block sizes for extra diagonal
- *   rotation_mode <-- halo update option for rotational periodicity
  *   f_id          <-- associated field id, or < 0
  *   dam           <-- Matrix diagonal
  *   xam           <-- Matrix extra-diagonal terms
@@ -75,15 +70,14 @@ BEGIN_C_DECLS
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_vector_native_multiply(bool                symmetric,
-                                 const int           db_size[4],
-                                 const int           eb_size[4],
-                                 cs_halo_rotation_t  rotation_mode,
-                                 int                 f_id,
-                                 const cs_real_t    *dam,
-                                 const cs_real_t    *xam,
-                                 cs_real_t          *vx,
-                                 cs_real_t          *vy);
+cs_matrix_vector_native_multiply(bool              symmetric,
+                                 cs_lnum_t         db_size,
+                                 cs_lnum_t         eb_size,
+                                 int               f_id,
+                                 const cs_real_t  *dam,
+                                 const cs_real_t  *xam,
+                                 cs_real_t        *vx,
+                                 cs_real_t        *vy);
 
 /*----------------------------------------------------------------------------
  * Initialize sparse matrix API.
@@ -111,51 +105,96 @@ cs_matrix_update_mesh(void);
  *
  * parameters:
  *   symmetric              <-- Indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- Block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- Block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- Block sizes for diagonal
+ *   extra_diag_block_size  <-- Block sizes for extra diagonal
  *
  * returns:
  *   pointer to default matrix structure adapted to fill type
  *----------------------------------------------------------------------------*/
 
 cs_matrix_t  *
-cs_matrix_default(bool        symmetric,
-                  const int  *diag_block_size,
-                  const int  *extra_diag_block_size);
+cs_matrix_default(bool       symmetric,
+                  cs_lnum_t  diag_block_size,
+                  cs_lnum_t  extra_diag_block_size);
 
 /*----------------------------------------------------------------------------
- * Return MSR matrix for a given fill type
- *
- * parameters:
- *   symmetric              <-- Indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- Block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- Block sizes for extra diagonal, or NULL
+ * Return MSR matrix
  *
  * returns:
- *   pointer to MSR matrix adapted to fill type
+ *   pointer to MSR matrix
  *----------------------------------------------------------------------------*/
 
 cs_matrix_t  *
-cs_matrix_msr(bool        symmetric,
-              const int  *diag_block_size,
-              const int  *extra_diag_block_size);
+cs_matrix_msr(void);
 
 /*----------------------------------------------------------------------------
- * Return native matrix for a given fill type
- *
- * parameters:
- *   symmetric              <-- Indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- Block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- Block sizes for extra diagonal, or NULL
+ * Return CSR matrix for a given fill type
  *
  * returns:
- *   pointer to native matrix adapted to fill type
+ *   pointer to CSR matrix
  *----------------------------------------------------------------------------*/
 
 cs_matrix_t  *
-cs_matrix_native(bool        symmetric,
-                 const int  *diag_block_size,
-                 const int  *extra_diag_block_size);
+cs_matrix_csr(void);
+
+/*----------------------------------------------------------------------------
+ * Return native matrix
+ *
+ * returns:
+ *   pointer to native matrix
+ *----------------------------------------------------------------------------*/
+
+cs_matrix_t  *
+cs_matrix_native(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return matrix wrapper for external library for a given fill type.
+ *
+ * \param[in]  type_name              Matrix type name
+ * \param[in]  symmetric              Indicates if coefficients are symmetric
+ * \param[in]  diag_block_size        Block sizes for diagonal
+ * \param[in]  extra_diag_block_size  Block sizes for extra diagonal
+ *
+ * \return  Pointer to matrix matching requested type
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_matrix_t  *
+cs_matrix_external(const char  *type_name,
+                   bool         symmetric,
+                   cs_lnum_t    diag_block_size,
+                   cs_lnum_t    extra_diag_block_size);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Copy base matrix to external library matrix type for given fill type.
+ *
+ * Note that the matrix containers share the same assigned structure,
+ * so they must be both destroyed before that structure.
+ *
+ * Coefficients and matching structures are not copied or created.
+ *
+ * This function is intended to allow sharing of a base structure or assembler
+ * with an external library matrix wrapper, so as to allow efficient
+ * coefficient assignment, but with external coefficient handling.
+ *
+ * The matrix shoud be converted to the desired external type after calling
+ * this function, so that it can the be accessed using \ref cs_matrix_external.
+ *
+ * \param[in]  symmetric              Indicates if matrix coefficients are symmetric
+ * \param[in]  diag_block_size        Block sizes for diagonal
+ * \param[in]  extra_diag_block_size  Block sizes for extra diagonal
+ *
+ * \return  pointer to native matrix adapted to fill type
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_matrix_t  *
+cs_matrix_copy_to_external(cs_matrix_t  *src,
+                           bool          symmetric,
+                           cs_lnum_t     diag_block_size,
+                           cs_lnum_t     extra_diag_block_size);
 
 /*----------------------------------------------------------------------------
  * Determine or apply default tuning for a given matrix type
@@ -176,37 +215,30 @@ cs_matrix_default_set_tuned(cs_matrix_t  *m);
  *
  * If this function is not called, defaults are:
  *  - minimum of 10 runs
- *  - minimum of 0.5 seconds of running
  *
  * parameters:
- *   n_min_products <-- minimum number of expected SpM.V products for
- *                      coefficients assign amortization.
- *   t_measure      <-- minimum running time per measure
+ *   n_min_products <-- minimum number of SpM.V products for tuning.
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_set_tuning_runs(int     n_min_products,
-                          double  t_measure);
+cs_matrix_set_tuning_runs(int     n_min_products);
 
 /*----------------------------------------------------------------------------
  * Get number of matrix computation runs for tuning.
  *
- * parameters:
- *   n_min_products --> minimum number of expected SpM.V products for
- *                      coefficients assign amortization.
- *   t_measure      --> minimum running time per measure, or NULL
+ * return:
+ *   minimum number of SpM.V calls for tuning
  *----------------------------------------------------------------------------*/
 
-void
-cs_matrix_get_tuning_runs(int     *n_min_products,
-                          double  *t_measure);
+int
+cs_matrix_get_tuning_runs(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set default matrix type for a given fill type.
  *
  * \param[in] fill type  Fill type for which tuning behavior is set
- * \param[in] mv         Matrix variant to use for this type
+ * \param[in] type       Matrix type to use
  */
 /*----------------------------------------------------------------------------*/
 
@@ -214,37 +246,74 @@ void
 cs_matrix_default_set_type(cs_matrix_fill_type_t  fill_type,
                            cs_matrix_type_t       type);
 
-/*----------------------------------------------------------------------------
- * Return a (0-based) global block row numbering.
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return a (0-based) global block row numbering for a given matrix.
  *
- * The numbering is built if not previously present, and returned otherwise.
+ * The numbering is built or updated if not previously used, or if the
+ * previous call considered a different matrix or halo, and is simply
+ * returned otherwise.
+ * In other words, this works as a matrix global numbering cache.
  *
- * Currently, the function only handles one n_rows/halo combination, and does
- * not check for consistency.
+ * The matrix's halo is used for the update.
  *
- * parameters:
- *   n_rows <-- associated number of local rows
- *   halo   <-- associated halo, or NULL
+ * \param[in]  m  associated matrix
  *
- * returns:
- *   pointer to requested global numbering
- *----------------------------------------------------------------------------*/
+ * \return  pointer to requested global numbering
+ */
+/*----------------------------------------------------------------------------*/
 
 const cs_gnum_t *
-cs_matrix_get_block_row_g_id(cs_lnum_t         n_rows,
-                             const cs_halo_t  *halo);
+cs_matrix_get_block_row_g_id(const cs_matrix_t  *m);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Return a (0-based) global block row numbering for a given matrix.
+ *
+ * The numbering is built or updated if not previously used, or if the
+ * previous call considered a different matrix or halo, and is simply
+ * returned otherwise.
+ * In other words, this works as a matrix global numbering cache.
+ *
+ * \param[in]  m     associated matrix
+ * \param[in]  halo  associated halo
+ *
+ * \return  pointer to requested global numbering
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_gnum_t *
+cs_matrix_get_block_row_g_id(const cs_matrix_t  *m,
+                             const cs_halo_t    *halo);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return matrix associated with a matrix assembler.
+ *
+ * Coefficients are not assigned at this stage.
+ *
+ * \param[in]  f                      pointer to associated field
+ * \param[in]  type                   matrix type
+ *
+ * \return  pointer to associated matrix structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_matrix_t *
+cs_matrix_by_assembler(const cs_field_t  *f,
+                       cs_matrix_type_t   type);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Assign coefficients to a matrix using a matrix assembler.
  *
  * \param[in]  f                      pointer to associated field
  * \param[in]  type                   matrix type
  * \param[in]  symmetric              is matrix symmetric ?
- * \param[in]  diag_block_size        block sizes for diagonal, or NULL
- * \param[in]  extra_diag_block_size  block sizes for extra diagonal, or NULL
- * \param[in]  da                     diagonal values (NULL if zero)
- * \param[in]  xa                     extradiagonal values (NULL if zero)
+ * \param[in]  diag_block_size        block sizes for diagonal, or nullptr
+ * \param[in]  extra_diag_block_size  block sizes for extra diagonal, or nullptr
+ * \param[in]  da                     diagonal values (nullptr if zero)
+ * \param[in]  xa                     extradiagonal values (nullptr if zero)
  *                                    casts as:
  *                                      xa[n_edges]    if symmetric,
  *                                      xa[n_edges][2] if non symmetric
@@ -254,16 +323,26 @@ cs_matrix_get_block_row_g_id(cs_lnum_t         n_rows,
 /*----------------------------------------------------------------------------*/
 
 cs_matrix_t *
-cs_matrix_set_coefficients_coupled(const cs_field_t  *f,
-                                   cs_matrix_type_t   type,
-                                   bool               symmetric,
-                                   const int         *diag_block_size,
-                                   const int         *extra_diag_block_size,
-                                   const cs_real_t   *da,
-                                   const cs_real_t   *xa);
+cs_matrix_set_coefficients_by_assembler(const cs_field_t  *f,
+                                        cs_matrix_type_t   type,
+                                        bool               symmetric,
+                                        cs_lnum_t          diag_block_size,
+                                        cs_lnum_t          extra_diag_block_size,
+                                        const cs_real_t   *da,
+                                        const cs_real_t   *xa);
+
+/*----------------------------------------------------------------------------
+ * Release of destroy matrix depending on whether is is cached or not.
+ *
+ * Matrices built by assembler are destroyed.
+ *
+ * parameters:
+ *   matrix <-> pointer to matrix structure pointer
+ *----------------------------------------------------------------------------*/
+
+void
+cs_matrix_release(cs_matrix_t  **m);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_DEFAULT_H__ */
+#endif /* CS_MATRIX_DEFAULT_H */

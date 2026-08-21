@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_QUALITY_H__
-#define __CS_MESH_QUALITY_H__
+#ifndef CS_MESH_QUALITY_H
+#define CS_MESH_QUALITY_H
 
 /*============================================================================
  * Compute several mesh quality criteria.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-#include "cs_mesh_quantities.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*============================================================================
  * Macro definitions
@@ -56,8 +52,8 @@ BEGIN_C_DECLS
  *
  * parameters:
  *   mesh             --> pointer to a cs_mesh_t structure
- *   i_face_normal    --> internal face normal
- *   b_face_normal    --> border face normal
+ *   i_face_u_normal  <-- internal face unit normal
+ *   b_face_u_normal  <-- boundary face unit normal
  *   i_face_warping   <-- face warping angle for internal faces
  *   b_face_warping   <-- face warping angle for border faces
  *
@@ -65,11 +61,26 @@ BEGIN_C_DECLS
  *----------------------------------------------------------------------------*/
 
 void
-cs_mesh_quality_compute_warping(const cs_mesh_t    *mesh,
-                                const cs_real_t     i_face_normal[],
-                                const cs_real_t     b_face_normal[],
-                                cs_real_t           i_face_warping[],
-                                cs_real_t           b_face_warping[]);
+cs_mesh_quality_compute_warping(const cs_mesh_t      *mesh,
+                                const cs_nreal_3_t    i_face_u_normal[],
+                                const cs_nreal_3_t    b_face_u_normal[],
+                                cs_real_t             i_face_warping[],
+                                cs_real_t             b_face_warping[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Evaluate face warping angle for boundary faces..
+ *
+ * \param[in]   mesh              pointer to a cs_mesh_t structure
+ * \param[in]   b_face_u_normal   boundary face unit normal
+ * \param[out]  b_face_warping    face warping angle for boundary faces
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_quality_compute_b_face_warping(const cs_mesh_t     *mesh,
+                                       const cs_nreal_3_t   b_face_u_normal[],
+                                       cs_real_t            b_face_warping[]);
 
 /*----------------------------------------------------------------------------
  * Compute mesh quality indicators
@@ -85,6 +96,4 @@ cs_mesh_quality(const cs_mesh_t             *mesh,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_QUALITY_H__ */
+#endif /* CS_MESH_QUALITY_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_MAP_H__
-#define __CS_MAP_H__
+#ifndef CS_MAP_H
+#define CS_MAP_H
 
 /*============================================================================
  * Map helper structures
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -25,17 +25,11 @@
   Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Macro definitions
@@ -48,7 +42,7 @@ BEGIN_C_DECLS
 typedef struct _cs_map_name_to_id_t  cs_map_name_to_id_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -154,6 +148,4 @@ cs_map_name_to_id_key(const cs_map_name_to_id_t  *m,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MAP_H__ */
+#endif /* CS_MAP_H */

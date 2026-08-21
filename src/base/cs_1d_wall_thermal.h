@@ -1,14 +1,14 @@
-#ifndef __CS_1D_WALL_THERMAL_H__
-#define __CS_1D_WALL_THERMAL_H__
+#ifndef CS_1D_WALL_THERMAL_H
+#define CS_1D_WALL_THERMAL_H
 
 /*============================================================================
  * Modelling the thermal wall with 1D approach
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_zone.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
 /*=============================================================================
  * Macro definitions
@@ -110,13 +109,15 @@ typedef struct {
 
   int nmxt1d;        /* Maximum number of discretization cells in 1d wall */
 
+  bool use_restart;  /* Use restart file if present ? */
+
   cs_lnum_t *izft1d; /* Zones of t1d, dimensioned with nfabor */
 
   cs_lnum_t *ifpt1d; /* Array allowing to mark out the numbers of
                       * the nfpt1d boundary faces which are coupled with
                       * a 1D wall. */
 
-  cs_real_t *tppt1d; /* Initialisation temperature of the wall (uniform in
+  cs_real_t *tppt1d; /* Initialization temperature of the wall (uniform in
                       * thickness). During the calculation, the array stores
                       * the temperature of the solid at the fluid/solid
                       * interface. */
@@ -137,8 +138,8 @@ extern const cs_1d_wall_thermal_t  *cs_glob_1d_wall_thermal;
  * Public function prototypes
  *============================================================================*/
 
- /*----------------------------------------------------------------------------*/
-/*!
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Initialize the cs_glob_1d_wall_thermal structure.
  */
 /*----------------------------------------------------------------------------*/
@@ -146,8 +147,183 @@ extern const cs_1d_wall_thermal_t  *cs_glob_1d_wall_thermal;
 void
 cs_1d_wall_thermal_create(void);
 
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Add faces of a boundary zone to 1D wall module
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_add_zone
+(
+  const cs_zone_t *zone,
+  const int        n_layers /*<[in] number of layers */
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Define a layers' mesh
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_zone_define_layer_mesh
+(
+  const cs_zone_t *zone,
+  const int        layer_id,
+  const int        n_points,
+  const cs_real_t  thickness,
+  const cs_real_t  refine_factor
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Define layer's physical properties
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_zone_define_layer_properties_const
+(
+  const cs_zone_t *zone,
+  const int        layer_id,
+  const cs_real_t  initial_temperature,
+  const cs_real_t  thermal_conductivity,
+  const cs_real_t  density,
+  const cs_real_t  heat_capacity
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Define a dirichlet boundary condition
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_zone_define_dirichlet_bc_const
+(
+  const cs_zone_t *zone,
+  const cs_real_t  t_ext
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Define nuemann (flux) boundary conditions
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_zone_define_neumann_bc_const
+(
+  const cs_zone_t *zone,
+  const cs_real_t  phi_ext
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Define Robin boundary condition
+ *
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_zone_define_robin_bc_const
+(
+  const cs_zone_t *zone,
+  const cs_real_t  t_ext,
+  const cs_real_t  h_ext
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Compute total number of coupled faces.
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_compute_n_faces_from_definitions(void);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Initialization step based on zones
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_initialize(void);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Update properties, time step and boundary conditions before solve step
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_prepare_solve
+(
+  const bool use_constant_time_step /*! [in] Use constant time step or not */
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Set postprocessing status
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_post_set_status
+(
+  bool new_status
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Create and return a nodal fvm export of the 1D mesh
+ *
+ * \return fvm_nodal_t pointer. Lifecycle is handled by caller!
+ */
+/*--------------------------------------------------------------------------*/
+
+fvm_nodal_t *
+cs_1d_wall_thermal_export_nodal(void);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Create post-processing mesh
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_create_post_mesh(void);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Write temperature field (postprocessing)
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_post_temperature_field
+(
+ fvm_writer_t       *writer,
+ const fvm_nodal_t  *nm,
+ int                 nt_cur,
+ double              t_cur
+);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Check if postprocessing is activated
+ *
+ * \return true if postprocessing is used, false otherwise.
+ */
+/*--------------------------------------------------------------------------*/
+
+bool
+cs_1d_wall_thermal_post_activated(void);
+
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Allocate the array of structures local_models.
  */
 /*----------------------------------------------------------------------------*/
@@ -156,17 +332,7 @@ void
 cs_1d_wall_thermal_local_models_create(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Allocate the discretization points coordinates array and
-          the temperature at each point of discretization.
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_1d_wall_thermal_local_models_init(void);
-
-/*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create the 1D mesh for each face and initialize the temperature.
  */
 /*----------------------------------------------------------------------------*/
@@ -175,7 +341,7 @@ void
 cs_1d_wall_thermal_mesh_create(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Solve the 1D equation for a given face
  *
  * parameters:
@@ -191,7 +357,7 @@ cs_1d_wall_thermal_solve(cs_lnum_t ii,
                          cs_real_t hf);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Read the restart file of the 1D-wall thermal module.
  */
 /*----------------------------------------------------------------------------*/
@@ -200,7 +366,7 @@ void
 cs_1d_wall_thermal_read(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Write the restart file of the 1D-wall thermal module.
  */
 /*----------------------------------------------------------------------------*/
@@ -209,7 +375,7 @@ void
 cs_1d_wall_thermal_write(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Free the array of structures local_models.
  */
 /*----------------------------------------------------------------------------*/
@@ -218,7 +384,7 @@ void
 cs_1d_wall_thermal_free(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Destroy the global 1d wall thermal structure.
  */
 /*----------------------------------------------------------------------------*/
@@ -236,7 +402,42 @@ cs_1d_wall_thermal_t *
 cs_get_glob_1d_wall_thermal(void);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Print information about the 1d wall thermal computation
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_1d_wall_thermal_log(void);
 
-#endif /* __CS_1D_WALL_THERMAL_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Data checking for the 1D thermal wall module.
+ *
+ * \param[in]   iappel   Call number:
+ *                       - 1: first call during the initialization (called once)
+ *                       Checking the number of cells nfpt1d.
+ *                       - 2: second call during the initialization (called once)
+ *                       Checking ifpt1d, nppt1d, eppt1d and rgpt1d arrays.
+ *                       - 3: called at each time step
+ *                       Checking iclt1d, xlmbt1, rcpt1d and dtpt1d arrays.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_1d_wall_thermal_check(int  iappel);
+
+/*--------------------------------------------------------------------------*/
+/*
+ * \brief Check if 1d wall thermal module is used
+ *
+ * \return true if active, false otherwise
+ */
+/*--------------------------------------------------------------------------*/
+
+bool
+cs_1d_wall_thermal_is_used(void);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_1D_WALL_THERMAL_H */

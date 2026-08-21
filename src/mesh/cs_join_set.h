@@ -1,14 +1,14 @@
-#ifndef __CS_JOIN_SET_H__
-#define __CS_JOIN_SET_H__
+#ifndef CS_JOIN_SET_H
+#define CS_JOIN_SET_H
 
 /*============================================================================
  * Subroutines useful to manage list structures
  *===========================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *---------------------------------------------------------------------------*/
 
 #include  <stdio.h>
@@ -37,11 +37,7 @@
  * Local headers
  *---------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*---------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -430,6 +426,4 @@ cs_join_gset_dump(FILE                  *f,
 
 /*---------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_JOIN_SET_H__ */
+#endif /* CS_JOIN_SET_H */

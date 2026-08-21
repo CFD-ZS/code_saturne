@@ -1,5 +1,5 @@
-#ifndef __CS_HHO_BUILDER_H__
-#define __CS_HHO_BUILDER_H__
+#ifndef CS_HHO_BUILDER_H
+#define CS_HHO_BUILDER_H
 
 /*============================================================================
  * Low-level functions and structures used to build the algebraic system with
@@ -8,9 +8,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,15 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_basis_func.h"
-#include "cs_cdo_connect.h"
-#include "cs_sdm.h"
-#include "cs_xdef.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "cdo/cs_basis_func.h"
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_property.h"
+#include "cdo/cs_sdm.h"
+#include "cdo/cs_xdef.h"
 
 /*============================================================================
  * Macro definitions
@@ -50,7 +47,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /* Cellwise builder for HHO discretization */
-typedef struct {
+struct cs_hho_builder_t {
 
   /* Current and maximal number of face basis allocated. This number is equal
      to the max. number of faces for a cell */
@@ -67,8 +64,9 @@ typedef struct {
   cs_sdm_t   *tmp;           /* Temporary block matrix (fs x ts) */
   cs_sdm_t   *bf_t;          /* Transposed  of Bf (used in stabilization) */
   cs_sdm_t   *jstab;         /* Stabilization part related to a face */
+  cs_sdm_t   *hdg;           /* Another temporary matrix */
 
-} cs_hho_builder_t;
+};
 
 /*============================================================================
  * Public function prototypes
@@ -153,15 +151,17 @@ cs_hho_builder_cellbasis_setup(const cs_cell_mesh_t    *cm,
  *         Hence, grad_op a matrix grd_size * (n_fc*f_size + c_size)
  *
  * \param[in]       cm         pointer to a cs_cell_mesh_t structure
- * \param[in]       cb         pointer to a cell builder_t structure
+ * \param[in]       diff_pty   pointer to a cs_property_data_t structure
+ * \param[in, out]  cb         pointer to a cell builder_t structure
  * \param[in, out]  hhob       pointer to a cs_hho_builder_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_hho_builder_compute_grad_reco(const cs_cell_mesh_t    *cm,
-                                 cs_cell_builder_t       *cb,
-                                 cs_hho_builder_t        *hhob);
+cs_hho_builder_compute_grad_reco(const cs_cell_mesh_t      *cm,
+                                 const cs_property_data_t  *diff_pty,
+                                 cs_cell_builder_t         *cb,
+                                 cs_hho_builder_t          *hhob);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -169,15 +169,17 @@ cs_hho_builder_compute_grad_reco(const cs_cell_mesh_t    *cm,
  *         has to be built just before this call (cb->aux stores the rhs)
  *
  * \param[in]       cm         pointer to a cs_cell_mesh_t structure
- * \param[in]       cb         pointer to a cell builder_t structure
+ * \param[in]       diff_pty   pointer to a cs_property_data_t structure
+ * \param[in, out]  cb         pointer to a cell builder_t structure
  * \param[in, out]  hhob       pointer to a cs_hho_builder_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_hho_builder_diffusion(const cs_cell_mesh_t    *cm,
-                         cs_cell_builder_t       *cb,
-                         cs_hho_builder_t        *hhob);
+cs_hho_builder_diffusion(const cs_cell_mesh_t      *cm,
+                         const cs_property_data_t  *diff_pty,
+                         cs_cell_builder_t         *cb,
+                         cs_hho_builder_t          *hhob);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -277,8 +279,4 @@ cs_hho_builder_compute_dirichlet_v(const cs_xdef_t         *def,
                                    cs_hho_builder_t        *hhob,
                                    cs_real_t                res[]);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_HHO_BUILDER_H__ */
+#endif /* CS_HHO_BUILDER_H */

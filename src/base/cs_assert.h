@@ -1,14 +1,14 @@
-#ifndef __CS_ASSERT_H__
-#define __CS_ASSERT_H__
+#ifndef CS_ASSERT_H
+#define CS_ASSERT_H
 
 /*============================================================================
  * File and directory operations, with parallel file I/O
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,15 +32,13 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "bft_error.h"
+#include "base/cs_defs.h"
+#include "bft/bft_error.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*!
   \file cs_assert.h
@@ -71,6 +69,4 @@ if (!(expr)) bft_error(__FILE__, __LINE__, 0,                  \
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FILE_H__ */
+#endif /* CS_ASSERT_H */

@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,10 @@
 # Relocatable installation
 
 if HAVE_RELOCATABLE
-ORIGINRUNPATH = -R '\$$ORIGIN/../../lib'
+  ORIGINRUNPATH = ${LDRPATH}'\$$ORIGIN/../../lib'
+  PLUGINRUNPATH_R = ${LDRPATH}'\$$ORIGIN/../../lib/'$(PACKAGE)
+else
+  PLUGINRUNPATH_N = ${LDRPATH}$(pkglibdir)
 endif
 
 if HAVE_PLUGINS
@@ -37,7 +40,9 @@ endif
 if HAVE_CCM
 if HAVE_PLUGINS
 else
-  LDADD_CCM = $(CCM_LDFLAGS) $(CCMRUNPATH) $(CCM_LIBS)
+LDADD_CCM = \
+$(top_builddir)/preprocessor/pre-post/ecs_pre_ccm.o \
+$(CCM_LDFLAGS) $(CCMRUNPATH) $(CCM_LIBS)
 endif
 endif
 
@@ -55,7 +60,7 @@ AM_LDFLAGS = $(ORIGINRUNPATH) $(PLUGINRUNPATH)
 
 pkglibexec_PROGRAMS = cs_preprocess
 
-if HAVE_LINK_CXX
+if HAVE_PP_LINK_CXX
 # Dummy C++ source to cause C++ linking.
 nodist_EXTRA_cs_preprocess_SOURCES = dummy.cxx
 cs_preprocess_LINK = $(CXXLINK)
@@ -76,9 +81,9 @@ noinst_HEADERS = \
 ecs_cmd.h
 
 cs_preprocess_LDADD = \
-$(top_builddir)/preprocessor/pre-post/libprepostecs.la \
-$(top_builddir)/preprocessor/base/libbaseecs.la \
-$(top_builddir)/preprocessor/util/libutilecs.la $(LTLIBINTL) \
+$(top_builddir)/preprocessor/pre-post/libprepostecs.a \
+$(top_builddir)/preprocessor/base/libbaseecs.a \
+$(top_builddir)/preprocessor/util/libutilecs.a \
 $(LDADD_CCM) \
 $(MED_LDFLAGS) $(MEDRUNPATH) $(MED_LIBS) \
 $(CGNS_LDFLAGS) $(CGNSRUNPATH) $(CGNS_LIBS) \

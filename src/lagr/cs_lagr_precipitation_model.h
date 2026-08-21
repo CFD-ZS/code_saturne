@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_PRECIPITATION_H__
-#define __CS_LAGR_PRECIPITATION_H__
+#ifndef CS_LAGR_PRECIPITATION_H
+#define CS_LAGR_PRECIPITATION_H
 
 /*============================================================================
  * Functions and types for precipitation model
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,21 +27,28 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Mass source term due to precipitation
+ *
+ * \param[in]   dtref      pointer to reference time step
+ * \param[in]   crom       pointer to density value
+ * \param[in]   cvar_scal  pointer to scal  value
+ * \param[out]  crvexp     explicit part of the source term
+ */
+/*----------------------------------------------------------------------------*/
+
 void
-CS_PROCF(precst, PRECST)(cs_real_t *dtref,
-                         cs_real_t *crom,
-                         cs_real_t *cvar_scal,
-                         cs_real_t  crvexp[]);
+cs_lagr_precipitation_mass_st(cs_real_t        dtref,
+                              const cs_real_t  crom[],
+                              const cs_real_t  cvar_scal[],
+                              cs_real_t        crvexp[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -58,6 +65,4 @@ cs_lagr_precipitation_injection(cs_real_t   *vela,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR__H_PRECIPITATION_ */
+#endif /* CS_LAGR_PRECIPITATION_H */

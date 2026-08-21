@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_FRAGMENTATION_H__
-#define __CS_LAGR_FRAGMENTATION_H__
+#ifndef CS_LAGR_FRAGMENTATION_H
+#define CS_LAGR_FRAGMENTATION_H
 
 /*============================================================================
  * Fragmentation modeling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,19 +27,15 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*============================================================================
  * Public function prototypes
@@ -69,7 +65,6 @@ BEGIN_C_DECLS
  * Two contiguous groups: particles present before agglomeration
  *                        newly created particles (due to agglomeration)
  *
- * \param[in]  cell_id                current cell id
  * \param[in]  dt                     time step
  * \param[in]  minimum_particle_diam  minumum diameter (monomere diameter)
  * \param[in]  main_start             index of the first particle in cell
@@ -96,6 +91,4 @@ cs_lagr_fragmentation(cs_real_t  dt,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_FRAGMENTATION_H__*/
+#endif /* CS_LAGR_FRAGMENTATION_H*/

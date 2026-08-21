@@ -1,13 +1,13 @@
-This file is the credits list for the Code_Saturne CFD tool. The affiliation
+This file is the credits list for the code_saturne CFD tool. The affiliation
 given for each contributor refers to the time when that contributor was active
 in the project, and does not necessarily correspond to his or her
 present affiliation.
 
 
-Code_Saturne is copyright (C) 1998-2020 EDF S.A., France
+code_saturne is copyright (C) 1998-2026 EDF S.A., France
 
 
-Major contributions to Code_Saturne have been provided by
+Major contributions to code_saturne have been provided by
 
 Frédéric Archambeau      (EDF, Chatou, France)
 Bruno Audebert           (EDF, Chatou, France)
@@ -21,14 +21,17 @@ Alexandre Douce          (EDF, Chatou, France)
 Alain Escaich            (EDF, Chatou, France)
 Martin Ferrand           (EDF, Chatou, France)
 Jacques Fontaine         (EDF, Chatou, France)
+Thomas Fonty             (EDF, Chatou, France)
 Yvan Fournier            (EDF, Chatou, France)
 Valérie Guimet           (CS-SI, Le Plessis Robinson, France)
 Mathieu Guingo           (EDF, Chatou, France)
 Chaï Koren               (EDF, Chatou, France)
 Jérôme Lavieville        (EDF, Chatou, France)
 Erwan Le Coupanec        (EDF, Chatou, France)
+Li Ma                    (EDF, Chatou, France)
 Namane Mechitoua         (EDF, Chatou, France)
 David Monfort            (EDF, Chatou, France)
+Franchine Ni             (EDF, Chatou, France)
 Mehdi Ouraou             (INCKA, Boulogne-Billancourt, France)
 Thomas Pasutto           (EDF, Chatou, France)
 Nicole Picard            (EDF, Chatou, France)
@@ -37,67 +40,81 @@ Pierre Plion             (EDF, Chatou, France)
 Dorothée Senechal        (EDF, Chatou, France)
 Jean-Luc Rousset         (EDF, Chatou, France)
 Marc Sakiz               (EDF, Chatou, France)
+Vincent Stobiac          (EDF, Chatou, France)
 Carole Vit               (INCKA, Boulogne-Billancourt, France)
 Jean-François Wald       (EDF, Chatou, France)
 
 
-Other contributors to Code_Saturne include
+Other contributors to code_saturne include
 
+Hector Amino             (EDF, Chatou, France)
+Baptiste Amiot           (CEREA, Chatou, France)
+Panos Asproulis          (RENUDA, London, UK)
+Guilhem Balvet           (EDF, Chatou, France)
+Pascal Borel             (EDF, Chatou, France)
+Romain Camy              (EDF, Lyon, France)
 Pierre Cantin            (EDF, Chatou, France)
 Bertrand Carissimo       (EDF, Chatou, France)
 Céline Caruyer           (EDF, Chatou, France)
+Marcus Charwath          (EDF, Chatou, France)
 Clément Colas            (EDF, Chatou, France)
-Christophe Henry         (INRIA, Nice, France)
 Arnaud Cordier           (AREVA NP, Lyon, France)
 Frederic Cordier         (Ecole Centrale Paris, France)
+Jean-Baptiste Dargaud    (CS-SI, Le Plessis Robinson, France)
 Alexandre Davroux        (EDF, Chatou, France)
 Benoît de Laage de Meux  (EDF, Chatou, France)
-Clarisse Delalondre      (EDF, Chatou, France)
 Frédéric Dehoux          (EDF, Chatou, France)
-Josselin Demont          (EDF, Chatou, France)
+Clarisse Delalondre      (EDF, Chatou, France)
 Bruno Delhom             (INCKA, Boulogne-Billancourt, France)
+Josselin Demont          (EDF, Chatou, France)
+Mohammed Derbane         (Aneo, Boulogne Billancourt)
+Daouda Diakité           (Aneo, Boulogne Billancourt)
+Damien Dubuc             (Aneo, Boulogne Billancourt)
+Cédric Flageul           (CEREA, Marne la Vallée, France)
+Qingqing Feng            (EDF, Chatou, France)
+Samuel Gaucher           (EDF, Chatou, France)
 Brigitte Gest            (EDF, Chatou, France)
+Christophe Henry         (INRIA, Nice, France)
 Richard Howard           (EDF, Chatou, France)
 Fabien Huvelin           (EDF, Chatou, France)
 François Jusserand       (EDF, Chatou, France)
 Gaspard Kemlin           (EDF, Saclay, France)
 Sylvestre Ledru          (INRIA, Rocquencourt, France)
+Florian Lemaitre         (Aneo, Boulogne Billancourt)
 Emmanuel Lemoine         (INCKA, Boulogne-Billancourt, France)
 Louis Le Tarnec          (EDF, Chatou, France)
 Vincent Loizeau          (EDF, Chatou, France)
 Jérôme Lucas             (INCKA, Boulogne-Billancourt, France)
 Laurent Makke            (EDF, Chatou, France)
+Nicolas Merigoux         (EDF, Chatou, France)
 Riccardo Milani          (EDF, Chatou, France)
 Maya Milliez             (EDF, Chatou, France)
-Thibaut Moy              (BERTIN TECHNOLOGIES, Montigny-le-Bretonneux, France)
+Thibaut Moy              (Bertin Technologies, Montigny-le-Bretonneux, France)
+Thomas Norddine          (EDF, Chatou, France)
+Jamal Oubanbal           (CS GROUP, Le Plessis-Robinson, France)
+Romuald Makosso Nombo    (CT Ingénierie, Guyancourt, France)
+Jules Pénuchot           (Aneo, Boulogne Billancourt)
 Vincent Robin            (ENSMA, Poitiers, France)
 Bertrand Sapa            (EDF, Chatou, France)
 Ugo Schuck               (EDF, Chatou, France)
-Vincent Stobiac          (EDF, Chatou, France)
+Pierre Steinfeld         (Bertin Technologies, Montigny-le-Bretonneux, France)
 Michaël Tartar           (INCKA, Boulogne-Billancourt, France)
 Augustin Tibere-Inglesse (EDF, Chatou, France)
 Juan Uribe               (University of Manchester, United Kingdom)
 Pascal Vezolle           (IBM, Montpellier, France)
 
 
-Code_Saturne may contain code by Wes Petersen
+code_saturne may contain code by Wes Petersen
 (ETHZ, Zurich, Switzerland) for random number generation
-(cs_random.c, adapted from Netlib's zufall functions)
-
-Part of the work of the Mathematical Expression Interpreter library
-is based in part on previous work by Tom Niemann (http://epaperpress.com/)
-with the following authorization: "Source code, when part of a software
-project, may be used freely without reference to the author.";
-and the hashtable implementation is based on
-http://www.liafa.jussieu.fr/~carton/Enseignement/C/Licence/LicenceInfo/Td09/hachage.c
-from olivier.carton@liafa.jussieu.fr
+(cs_random.cpp, adapted from Netlib's zufall functions).
 
 
 The following people should also be thanked for cooperating
-with the Code_Saturne development team by providing fresh
+with the code_saturne development team by providing fresh
 ideas on theoretical or programming topics or major feedback on
 the code.
 
+Ophélie Angelini         (EDF, Chatou, France)
 Samuel Antao             (IBM, Daresbury, UK)
 Loïc Balestre            (Xanth Informatique, Issy les Moulineaux, France)
 Sophie Bournaud          (EDF, Chatou, France)
@@ -105,6 +122,7 @@ Daniel Castanon          (University of Montpellier, France)
 Sandro Dal Secco         (EDF, Chatou, France)
 Étienne Decossin         (EDF, Chatou, France)
 Charles Demay            (EDF, Chatou, France)
+Éric Dupont              (EDF, Chatou, France)
 Alexandre Ern            (Ecole des Ponts, France)
 Luciano Garelli          (CIMEC, Santa Fe, Argentina)
 Marie-Charlotte Gauffre  (EDF, Chatou, France)
@@ -114,6 +132,7 @@ Jean-Marc Hérard         (EDF, Chatou, France)
 Frank Hülsemann          (EDF, Saclay, France)
 Nicolas Jamet            (INCKA, Boulogne-Billancourt, France)
 Nicolas Jarrin           (University of Manchester, United Kingdom)
+Carola Kruse             (CERFACS, Toulouse, France)
 Raphaël Lamouroux        (EDF, Chatou, France)
 Dominique Laurence       (EDF, Chatou, France)
 Matthieu Leclair         (EDF, Chatou, France)
@@ -122,6 +141,7 @@ Ludovic Maas             (INCKA, Boulogne-Billancourt, France)
 Jean-Daniel Mattei       (EDF, Chatou, France)
 Jean-Pierre Minier       (EDF, Chatou, France)
 Charles Moulinec         (STFC, United Kingdom)
+Luc Musson Genon         (EDF, Chatou, France)
 Christophe Péniguel      (EDF, Chatou, France)
 Alejandro Ribes          (EDF, Saclay, France)
 Jean-Benoît Ritz         (EDF, Chatou, France)
@@ -134,7 +154,7 @@ Christelle Vurpillot     (EDF, Chatou, France)
 
 To the best of our knowledge, this list reflects the exact level of
 contribution of each among the many people who have approached
-Code_Saturne. It is made as objective and accurate as possible.
+code_saturne. It is made as objective and accurate as possible.
 However, if you feel you have been misplaced in the list, or completely
 forgotten, please contact saturne-support@edf.fr so we can update it.
 
@@ -142,14 +162,14 @@ forgotten, please contact saturne-support@edf.fr so we can update it.
 Preprocessor
 ============
 
-Major contributions to the Code_Saturne Preprocessor have been provided by
+Major contributions to the code_saturne Preprocessor have been provided by
 
 Frédéric Archambeau      (EDF, Chatou, France)
 Yvan Fournier            (EDF, Chatou, France)
 David Monfort            (EDF, Chatou, France)
 Didier Poizat            (CS-SI, Le Plessis Robinson, France)
 
-Other contributors to the Code_Saturne Preprocessor include
+Other contributors to the code_saturne Preprocessor include
 
 Éric Quemerais           (INCKA, Boulogne-Billancourt, France)
 
@@ -157,21 +177,22 @@ Other contributors to the Code_Saturne Preprocessor include
 Graphical user interface
 ========================
 
-Major contributions to the Code_Saturne GUI have been provided by
+Major contributions to the code_saturne GUI have been provided by
 
 Cyril Baudry             (EDF, Chatou, France)
 Sophie Bosse             (EDF, Chatou, France)
 Alexandre Douce          (EDF, Chatou, France)
+Yvan Fournier            (EDF, Chatou, France)
 Olivier Gaça             (INCKA, Boulogne-Billancourt, France)
 Chaï Koren               (EDF, Chatou, France)
+Franchine Ni             (EDF, Chatou, France)
 Nicole Picard            (EDF, Chatou, France)
 Éric Quémerais           (INCKA, Boulogne-Billancourt, France)
 Jean-Luc Rousset         (EDF, Chatou, France)
 Michael Tartar           (INCKA, Boulogne-Billancourt, France)
 
-Other contributors to the Code_Saturne GUI include
+Other contributors to the code_saturne GUI include
 
-Yvan Fournier            (EDF, Chatou, France)
 Erwan Le Coupanec        (EDF, Chatou, France)
 Carole Vit               (INCKA, Boulogne-Billancourt, France)
 

@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,71 +22,32 @@
 
 #-------------------------------------------------------------------------------
 
+# Files not built through classical Automake rules need to be explicitely
+# added to distribution.
+
+EXTRA_DIST = cs_solver.cxx
+
+# Build flat archives
+
 # PLE dependency
 
 if HAVE_INTERNAL_PLE
   CPPFLAGS_PLE = -I"$(top_srcdir)/libple/src" -I"$(top_builddir)/libple"
-  LIBPLE_LA = $(top_builddir)/libple/src/libple.la
 else
   CPPFLAGS_PLE = $(PLE_CPPFLAGS)
-  LDFLAGS_PLE = $(PLE_LDFLAGS)
-  LIBS_PLE = $(PLE_LIBS)
 endif
 
 # Relocatable installation
 
 if HAVE_RELOCATABLE
-  ORIGINRUNPATH = -R '\$$ORIGIN/../../lib'
-  PLUGINRUNPATH_R = -R'\$$ORIGIN/../../lib/'$(PACKAGE)
+  ORIGINRUNPATH = ${LDRPATH}'\$$ORIGIN/../../lib'
+  PLUGINRUNPATH_R = ${LDRPATH}'\$$ORIGIN/../../lib/'$(PACKAGE)
 else
-  PLUGINRUNPATH_N = -R$(pkglibdir)
+  PLUGINRUNPATH_N = ${LDRPATH}$(pkglibdir)
 endif
 
 if HAVE_PLUGINS
   PLUGINRUNPATH = $(PLUGINRUNPATH_R)$(PLUGINRUNPATH_N)
-endif
-
-# BLAS
-
-if HAVE_MKL
-  CPPFLAGS_BLAS =  $(BLAS_CPPFLAGS)
-  LDADD_BLAS = $(BLAS_LDFLAGS) $(BLASRUNPATH) $(BLAS_LIBS)
-endif
-
-# Catalyst
-
-if HAVE_CATALYST
-if HAVE_PLUGIN_CATALYST
-else
-  LDADD_CATALYST = $(CATALYST_LDFLAGS) $(CATALYSTRUNPATH) $(CATALYST_LIBS)
-endif
-endif
-
-# MEDCoupling
-
-if HAVE_MEDCOUPLING
-if HAVE_PLUGIN_MEDCOUPLING
-else
-  LDADD_MEDCOUPLING = $(MEDCOUPLING_LDFLAGS) $(MEDCOUPLINGRUNPATH) $(MEDCOUPLING_LIBS)
-endif
-endif
-
-# Melissa
-
-if HAVE_MELISSA
-if HAVE_PLUGIN_MELISSA
-else
-  LDADD_MELISSA = $(MELISSA_LDFLAGS) $(MELISSARUNPATH) $(MELISSA_LIBS)
-endif
-endif
-
-# CoolProp
-
-if HAVE_COOLPROP
-if HAVE_PLUGINS
-else
-  LDADD_COOLPROP = $(COOLPROP_LDFLAGS) $(COOLPROPRUNPATH) $(COOLPROP_LIBS)
-endif
 endif
 
 # Main part
@@ -94,99 +55,95 @@ endif
 if HAVE_BACKEND
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/elec \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/ctwr \
--I$(top_srcdir)/src/darc \
--I$(top_srcdir)/src/lagr \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/gui \
--I$(top_srcdir)/src/turb \
-$(CPPFLAGS_PLE) \
-$(MPI_CPPFLAGS) $(CPPFLAGS_BLAS)
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
+$(MPI_CPPFLAGS) $(CPPFLAGS_BLAS) \
+$(CPPFLAGS_MUMPS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
+AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT) $(CFLAGS_SHARED)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 # Global LDFLAGS must be used so as to handle the possibility of a CXX link.
 # Per-executable flags will override this global definition.
 AM_LDFLAGS = $(ORIGINRUNPATH) $(PLUGINRUNPATH)
 
-# Library source files
+# We use a local install rule for libraries here
 
-lib_LTLIBRARIES = libsaturne.la libcs_solver.la
+lib_LIBRARIES =
+noinst_LIBRARIES =
 
-libsaturne_la_SOURCES =
-libsaturne_la_LIBADD = \
-$(top_builddir)/src/fvm/libfvm_filters.la \
-$(top_builddir)/src/base/libcsbase.la \
-$(top_builddir)/src/base/libcscore.la \
-$(top_builddir)/src/base/libcsrenumber.la \
-$(top_builddir)/src/pprt/libcspprt.la \
-$(top_builddir)/src/alge/libcsalge.la \
-$(top_builddir)/src/mesh/libcsmesh.la \
-$(top_builddir)/src/mesh/libcspartition.la \
-$(top_builddir)/src/turb/libcsturb.la \
-$(top_builddir)/src/atmo/libcsatmo.la \
-$(top_builddir)/src/cdo/libcscdo.la \
-$(top_builddir)/src/cfbl/libcscfbl.la \
-$(top_builddir)/src/cogz/libcscogz.la \
-$(top_builddir)/src/comb/libcscomb.la \
-$(top_builddir)/src/ctwr/libcsctwr.la \
-$(top_builddir)/src/darc/libcsdarc.la \
-$(top_builddir)/src/elec/libcselec.la \
-$(top_builddir)/src/gui/libcsgui.la \
-$(top_builddir)/src/lagr/libcslagr.la \
-$(top_builddir)/src/rayt/libcsrayt.la \
-$(top_builddir)/src/user/libcsuser.la \
-$(top_builddir)/src/meg/libcsmeg.la \
-$(top_builddir)/src/libcsmodules.la \
-$(top_builddir)/src/mei/libmei.la \
-$(top_builddir)/src/bft/libbft.la \
-$(LIBPLE_LA) \
-$(LDFLAGS_PLE) $(LIBS_PLE) \
-$(CCM_LDFLAGS) $(CCMRUNPATH) $(CCM_LIBS) \
-$(CGNS_LDFLAGS) $(CGNSRUNPATH) $(CGNS_LIBS) \
-$(MED_LDFLAGS) $(MED_LIBS) $(MEDRUNPATH) \
-$(HDF5_LDFLAGS) $(HDF5_LIBS) $(HDF5RUNPATH) \
-$(METIS_LDFLAGS) $(METIS_LIBS) $(METISRUNPATH) \
-$(SCOTCH_LDFLAGS) $(SCOTCH_LIBS) $(SCOTCHRUNPATH) \
-$(EOS_LDFLAGS) $(EOS_LIBS) $(EOSRUNPATH) \
-$(FREESTEAM_LDFLAGS) $(FREESTEAM_LIBS) $(FREESTEAMRUNPATH) \
-$(COOLPROP_LDFLAGS) $(COOLPROP_LIBS) $(COOLPROPRUNPATH) \
-$(LDADD_CATALYST) $(LDADD_MEDCOUPLING) $(LDADD_MELISSA) \
-$(LDADD_COOLPROP) \
-$(MPI_LDFLAGS) $(MPI_LIBS) \
-$(LDADD_BLAS) \
-$(CUDA_LDFLAGS) $(CUDA_LIBS) \
-$(LTLIBINTL) \
-$(FCLIBS)
-libsaturne_la_LDFLAGS = -no-undefined -release 6.1
+local_libraries_add = libsaturne.${LIB_EXT} libcs_solver.${LIB_EXT}
+local_libraries_v_add =
 
-libcs_solver_la_SOURCES = cs_solver.c
-libcs_solver_la_LIBADD = libsaturne.la \
-$(LIBPLE_LA) \
-$(LDFLAGS_PLE) $(LIBS_PLE) \
-$(CCM_LDFLAGS) $(CCMRUNPATH) $(CCM_LIBS) \
-$(CGNS_LDFLAGS) $(CGNSRUNPATH) $(CGNS_LIBS) \
-$(MED_LDFLAGS) $(MED_LIBS) $(MEDRUNPATH) \
-$(HDF5_LDFLAGS) $(HDF5_LIBS) $(HDF5RUNPATH) \
-$(METIS_LDFLAGS) $(METIS_LIBS) $(METISRUNPATH) \
-$(SCOTCH_LDFLAGS) $(SCOTCH_LIBS) $(SCOTCHRUNPATH) \
-$(EOS_LDFLAGS) $(EOS_LIBS) $(EOSRUNPATH) \
-$(FREESTEAM_LDFLAGS) $(FREESTEAM_LIBS) $(FREESTEAMRUNPATH) \
-$(COOLPROP_LDFLAGS) $(COOLPROP_LIBS) $(COOLPROPRUNPATH) \
-$(LDADD_CATALYST) $(LDADD_MEDCOUPLING) $(LDADD_MELISSA) \
-$(LDADD_COOLPROP) \
-$(MPI_LDFLAGS) $(MPI_LIBS) \
-$(LDADD_BLAS) \
-$(CUDA_LDFLAGS) $(CUDA_LIBS) \
-$(LTLIBINTL) \
-$(FCLIBS)
-libcs_solver_la_LDFLAGS = -no-undefined -release 6.1
+if HAVE_FORTRAN
+libsaturne_a_libs = $(top_builddir)/external/atmo/libextatmo.a
+else
+libsaturne_a_libs =
+endif
+libsaturne_a_libs += \
+$(top_builddir)/src/model/libcsmodel.a \
+$(top_builddir)/src/fvm/libfvm_filters.a \
+$(top_builddir)/src/base/libcsbase.a \
+$(top_builddir)/src/base/libcscore.a \
+$(top_builddir)/src/base/libcsrenumber.a \
+$(top_builddir)/src/fvm/libfvm.a \
+$(top_builddir)/src/pprt/libcspprt.a \
+$(top_builddir)/src/cdo/libcscdo.a \
+$(top_builddir)/src/alge/libcsalge.a \
+$(top_builddir)/src/mesh/libcsmesh.a \
+$(top_builddir)/src/mesh/libcspartition.a \
+$(top_builddir)/src/turb/libcsturb.a \
+$(top_builddir)/src/atmo/libcsatmo.a \
+$(top_builddir)/src/cfbl/libcscfbl.a \
+$(top_builddir)/src/cogz/libcscogz.a \
+$(top_builddir)/src/comb/libcscomb.a \
+$(top_builddir)/src/ctwr/libcsctwr.a \
+$(top_builddir)/src/elec/libcselec.a \
+$(top_builddir)/src/gui/libcsgui.a \
+$(top_builddir)/src/gwf/libcsgwf.a \
+$(top_builddir)/src/lagr/libcslagr.a \
+$(top_builddir)/src/rayt/libcsrayt.a \
+$(top_builddir)/src/user/libcsuser.a \
+$(top_builddir)/src/meg/libcsmeg.a \
+$(top_builddir)/src/bft/libbft.a
+
+cs_solver = $(top_srcdir)/src/apps/cs_solver.cxx
+cs_solver.$(OBJEXT): $(cs_solver)
+	$(CXX) -c $(DEFS) $(DEFAULT_INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) ${cs_solver}
+
+if ENABLE_SHARED
+
+libsaturne.${SHARED_LIB_EXT}: ${libsaturne_a_libs}
+	rm -f $@ ; \
+	ldadd_saturne=`PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	CS_TOP_BUILDDIR=$(top_builddir) \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
+	 --lib-flags-only` ; \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o $@ --echo --linker "${CS_LD}" --version ${cs_version_lib} --whole-archive-start ${libsaturne_a_libs} --whole-archive-end ${LDFLAGS_SHARED} ${CXXFLAGS_SHARED} ${LDFLAGS} ${AM_LDFLAGS} $${ldadd_saturne}
+
+libcs_solver.${SHARED_LIB_EXT}: libsaturne.${SHARED_LIB_EXT} cs_solver.$(OBJEXT)
+	rm -f $@ ; \
+	ldadd_saturne=`PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	CS_TOP_BUILDDIR=$(top_builddir) \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
+	 --lib-flags-only` ; \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o $@ --echo --linker "${CS_LD}" --version ${cs_version_lib} ${LDFLAGS_SHARED} ${CXXFLAGS_SHARED} cs_solver.$(OBJEXT) ${LDFLAGS} -L. -lsaturne-${cs_version_lib} ${AM_LDFLAGS} $${ldadd_saturne}
+
+local_libraries_v_add += \
+libsaturne-${cs_version_lib}.${SHARED_LIB_EXT} \
+libcs_solver-${cs_version_lib}.${SHARED_LIB_EXT}
+
+else
+
+libsaturne.a: ${libsaturne_a_libs}
+	rm -f $@ ; \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o $@ -v --archive ${libsaturne_a_libs}
+
+libcs_solver.a: libsaturne.a cs_solver.$(OBJEXT)
+	rm -f $@ ; \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o $@ -v --archive cs_solver.$(OBJEXT)
+
+endif
 
 endif
 
@@ -194,65 +151,117 @@ endif
 #pkglibexecdir = $(libexecdir)/$(PACKAGE)
 pkglibexec_PROGRAMS =
 
-# Code_Saturne IO utility program
+# code_saturne IO utility program
 
 if HAVE_FRONTEND
 pkglibexec_PROGRAMS += cs_io_dump
 endif
 
-# Code_Saturne syntax checker
-
-if HAVE_FRONTEND
-pkglibexec_PROGRAMS += cs_check_syntax
-endif
-
 if HAVE_BACKEND
-cs_solver$(EXEEXT): libcs_solver.la
-	PYTHONPATH=$(top_builddir)/bin:$(top_srcdir)/bin \
+cs_solver$(EXEEXT): libcs_solver.${LIB_EXT}
+	PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	CS_TOP_BUILDDIR=$(top_builddir) \
 	$(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
-        $(top_srcdir)/src/apps/cs_solver.c
+	libcs_solver.${LIB_EXT}
 endif
 
-# Code_Saturne IO utility (minimal dependencies)
+# code_saturne IO utility (minimal dependencies)
 
 if HAVE_FRONTEND
-cs_io_dump_CPPFLAGS = -DLOCALEDIR=\"'$(localedir)'\" -I$(top_srcdir)/src/base
-cs_io_dump_SOURCES = cs_io_dump.c
-cs_io_dump_LDADD = $(LTLIBINTL)
-endif
-
-# Code_Saturne syntax checker
-
-if HAVE_FRONTEND
-
-cs_check_syntax_CPPFLAGS = \
--DLOCALEDIR=\"'$(localedir)'\" \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/mei
-cs_check_syntax_SOURCES = cs_check_syntax.c
-cs_check_syntax_LDADD = \
-$(top_builddir)/src/mei/libmei.la \
-$(top_builddir)/src/bft/libbft.la \
--lm
-cs_check_syntax_LDFLAGS = \
-$(ORIGINRUNPATH)
-
+cs_io_dump_CPPFLAGS = -DLOCALEDIR=\"'$(localedir)'\" -I$(top_srcdir)/src -I$(top_builddir)/src
+cs_io_dump_SOURCES = cs_io_dump.cxx
+cs_io_dump_LDADD =
 endif
 
 # cs_solver executable is built using the same Python script as when
 # using user functions (rather than with libtool), so it must be
 # handled separately
 
-all-local: cs_solver$(EXEEXT)
+all-local: ${local_libraries_add} cs_solver$(EXEEXT)
 
-install-exec-hook: libcs_solver.la
-	PYTHONPATH=$(top_builddir)/bin:$(top_srcdir)/bin \
+# Remark:
+# When installing shared libraries, remove library then copy it, rather than
+# simply overwriting it, so that if a running instance is using that library,
+# it will still access the old copy (not really removed until closed based
+# on POSIX file semantics), instead of a mofified copy that can lead to
+# SIGBUS errors due to an incomplete (in progress) copy or possibly other
+# address changes.
+
+if ENABLE_SHARED
+
+install-exec-hook: ${local_libraries_add}
+	@list=; for p in ${local_libraries_v_add} ${local_libraries_add}; do \
+	  if test -f $$p; then \
+	    list="$$list $$p"; \
+	  else :; fi; \
+	done; \
+	test -z "$$list" -a -n "$(libdir)" || { \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
+	  for p in $$list; do \
+	    echo " rm -f '$(DESTDIR)$(libdir)/$$p'"; \
+	    rm -f "$(DESTDIR)$(libdir)/$$p"; \
+	    if test -h $$p; then \
+	      echo " cp -fp $$p '$(DESTDIR)$(pkglibdir)'"; \
+	      cp -fpP $$p "$(DESTDIR)$(libdir)"; \
+	    fi; \
+	  done; \
+	  ldadd_saturne=`PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	  CS_TOP_BUILDDIR=$(top_builddir) \
+	  $(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
+	  --lib-flags-only --mode=install --dest "$(DESTDIR)"` ; \
+	  $(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o "$(DESTDIR)$(libdir)/libsaturne.${SHARED_LIB_EXT}" --echo --linker "${CS_LD}" --version ${cs_version_lib} --whole-archive-start ${libsaturne_a_libs} --whole-archive-end ${LDFLAGS_SHARED} ${CXXFLAGS_SHARED} ${LDFLAGS} ${AM_LDFLAGS} $${ldadd_saturne}; \
+	  $(PYTHON) -B $(top_srcdir)/build-aux/cs_link_library.py -o "$(DESTDIR)$(libdir)/libcs_solver.${SHARED_LIB_EXT}" --echo --linker "${CS_LD}" --version ${cs_version_lib} ${LDFLAGS_SHARED} ${CXXFLAGS_SHARED} cs_solver.$(OBJEXT) ${LDFLAGS} -L"$(DESTDIR)$(libdir)" -lsaturne-${cs_version_lib} ${AM_LDFLAGS} $${ldadd_saturne}; \
+	}; \
+	PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	CS_TOP_BUILDDIR=$(top_builddir) \
 	$(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
 	 --mode=install --dest "$(DESTDIR)"
 
+else
+
+install-exec-hook: ${local_libraries_add}
+	@list=; for p in ${local_libraries_v_add} ${local_libraries_add}; do \
+	  if test -f $$p; then \
+	    list="$$list $$p"; \
+	  else :; fi; \
+	done; \
+	test -z "$$list" -a -n "$(libdir)" || { \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
+	  for p in $$list; do \
+	    echo " rm -f '$(DESTDIR)$(libdir)/$$p'"; \
+	    rm -f "$(DESTDIR)$(libdir)/$$p"; \
+	    echo " cp -fp $$p '$(DESTDIR)$(pkglibdir)'"; \
+	    cp -fpP $$p "$(DESTDIR)$(libdir)"; \
+	  done; \
+	}; \
+	PYTHONPATH=$(top_srcdir)/python/code_saturne/base \
+	CS_TOP_BUILDDIR=$(top_builddir) \
+	$(PYTHON) -B $(top_srcdir)/build-aux/cs_compile_build.py \
+	 --mode=install --dest "$(DESTDIR)"
+
+endif
+
 clean-local:
 	-rm -f cs_solver$(EXEEXT)
+	@list=; for p in ${local_libraries_add} ${local_libraries_v_add}; do \
+	  if test -f $$p; then \
+	    echo "rm -f $$p"; \
+	    rm -f $$p; \
+	  else :; fi; \
+	done
+	-rm -rf .deps
 
 uninstall-local:
 	rm $(pkglibexecdir)/cs_solver$(EXEEXT)
+	@list=; for p in ${local_libraries_add} ${local_libraries_v_add}; do \
+	  if test -f $$p; then \
+	    list="$$list $$p"; \
+	  else :; fi; \
+	done; \
+	for p in $$list; do \
+	  echo " rm -f '$(DESTDIR)$(libdir)/$$p'"; \
+	  rm -f "$(DESTDIR)$(libdir)/$$p"; \
+	done; \
+	rmdir "$(DESTDIR)$(libdir)" || exit 0

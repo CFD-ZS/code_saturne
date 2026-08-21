@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -53,14 +53,18 @@ AC_ARG_WITH(petsc-lib,
              fi])
 
 if test "x$with_petsc" != "xno" ; then
+  cs_petsc_make=`which gmake`
+  if test $? = 1 ; then
+    cs_petsc_make=make
+  fi
   if test -f ${PETSC_DIR}/conf/variables ; then
-    PETSC_CPPFLAGS=$(make -s -f "$cs_abs_srcdir/build-aux/petsc-variables.makefile" PETSC_DIR="${PETSC_DIR}" getincludedirs)
+    PETSC_CPPFLAGS=$(${cs_petsc_make} -s -f "$cs_abs_srcdir/build-aux/petsc-variables.makefile" PETSC_DIR="${PETSC_DIR}" getincludedirs)
     PETSC_LDFLAGS=""
-    PETSC_LIBS=$(make -s -f "$cs_abs_srcdir/build-aux/petsc-variables.makefile"  PETSC_DIR="${PETSC_DIR}" getlinklibs)
+    PETSC_LIBS=$(${cs_petsc_make} -s -f "$cs_abs_srcdir/build-aux/petsc-variables.makefile"  PETSC_DIR="${PETSC_DIR}" getlinklibs)
   elif test -f ${PETSC_DIR}/conf/petscvariables ; then
-    PETSC_CPPFLAGS=$(make -s -f "$cs_abs_srcdir/build-aux/petsc-petscvariables.makefile" PETSC_DIR="${PETSC_DIR}" getincludedirs)
+    PETSC_CPPFLAGS=$(${cs_petsc_make} -s -f "$cs_abs_srcdir/build-aux/petsc-petscvariables.makefile" PETSC_DIR="${PETSC_DIR}" getincludedirs)
     PETSC_LDFLAGS=""
-    PETSC_LIBS=$(make -s -f "$cs_abs_srcdir/build-aux/petsc-petscvariables.makefile" PETSC_DIR="${PETSC_DIR}" getlinklibs)
+    PETSC_LIBS=$(${cs_petsc_make} -s -f "$cs_abs_srcdir/build-aux/petsc-petscvariables.makefile" PETSC_DIR="${PETSC_DIR}" getlinklibs)
   else
       AC_MSG_FAILURE([${PETSC_DIR}/conf/variables or ${PETSC_DIR}/conf/petscvariables not found.
 Check --with-petsc or --with-petsc-lib option or PETSc directory structure
@@ -69,13 +73,17 @@ Check --with-petsc or --with-petsc-lib option or PETSc directory structure
 should be present).])
   fi
 
+  unset petsc_make
+
   saved_CPPFLAGS="$CPPFLAGS"
   saved_LDFLAGS="$LDFLAGS"
   saved_LIBS="$LIBS"
 
-  CPPFLAGS="${CPPFLAGS} ${PETSC_CPPFLAGS}"
-  LDFLAGS="${LDFLAGS}"
-  LIBS="${LIBS} ${PETSC_LIBS}"
+  CPPFLAGS="${CPPFLAGS} ${PETSC_CPPFLAGS} ${MPI_CPPFLAGS}"
+  LDFLAGS="${LDFLAGS} ${MPI_LDFLAGS}"
+  LIBS="${LIBS} ${PETSC_LIBS} ${MPI_LIBS}"
+
+  AC_MSG_CHECKING([for PETSc library])
 
   AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[#include <petscsys.h>]],
@@ -88,6 +96,8 @@ should be present).])
                      cs_have_petsc=no
                    ],
                   )
+
+  AC_MSG_RESULT($cs_have_petsc)
 
   if test "x$cs_have_petsc" = "xno"; then
     PETSC_CPPFLAGS=""

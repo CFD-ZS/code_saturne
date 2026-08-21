@@ -1,14 +1,14 @@
-#ifndef __CS_FIELD_DEFAULT_H__
-#define __CS_FIELD_DEFAULT_H__
+#ifndef CS_FIELD_DEFAULT_H
+#define CS_FIELD_DEFAULT_H
 
 /*============================================================================
  * Field utility functions.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "cdo/cs_equation_param.h"
 
 /*=============================================================================
  * Macro definitions
@@ -54,7 +51,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief  Add a field shared between CDO and legacy schemes. This field is
  *         related to a general solved variable, with default options.
  *
@@ -76,7 +73,7 @@ cs_variable_cdo_field_create(const char  *name,
                              int          has_previous);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Add field defining a general solved variable, with default options.
  *
  * \param[in]  name         field name
@@ -95,7 +92,78 @@ cs_variable_field_create(const char  *name,
                          int          dim);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Access a field's equation parameters.
+ *
+ * If the equation parameters were never initialized, they will be initialized
+ * based on the current defaults.
+ *
+ * If the field does not have associated equation paremeters (i.e. is not
+ * a variable field or is a CDO field (which is referenced by but does not
+ * directly reference equations), nullptr is returned.
+ *
+ * \param[in, out]  f  pointer to associated field
+ *
+ * \return  pointer to field's equation parameters, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+cs_equation_param_t *
+cs_field_get_equation_param(cs_field_t  *f);
 
-#endif /* __CS_FIELD_DEFAULT_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Access a field's equation parameters for read only.
+ *
+ * If the equation parameters were never initialized, the current default
+ * parameters will be returned instead.
+ *
+ * If the field does not have associated equation parameters (i.e. is not
+ * a variable field or is a CDO field (which is referenced by but does not
+ * directly reference equations), nullptr is returned.
+ *
+ * \param[in]  f  pointer to associated field
+ *
+ * \return  const-qualified pointer to field's equation parameters, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_equation_param_t *
+cs_field_get_equation_param_const(const cs_field_t  *f);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief For a given field, returns field defined as its variance, if present.
+ *
+ * \param[in]  f  field
+ *
+ * \return  pointer to matching variance (variable) field, or nullptr.
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_field_t *
+cs_field_get_variance(const cs_field_t  *f);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Initialize all field BC coefficients.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_field_map_and_init_bcs(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return the number of defined scalar fields.
+ *
+ * \return number of legacy FV scalar variavble fields.
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_field_n_scalar_fields(void);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_FIELD_DEFAULT_H */

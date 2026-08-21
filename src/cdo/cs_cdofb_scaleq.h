@@ -1,5 +1,5 @@
-#ifndef __CS_CDOFB_SCALEQ_H__
-#define __CS_CDOFB_SCALEQ_H__
+#ifndef CS_CDOFB_SCALEQ_H
+#define CS_CDOFB_SCALEQ_H
 
 /*============================================================================
  * Build an algebraic CDO face-based system for unsteady convection/diffusion
@@ -7,9 +7,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,33 +28,30 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_cdo_connect.h"
-#include "cs_cdo_local.h"
-#include "cs_cdo_quantities.h"
-#include "cs_cdofb_priv.h"
-#include "cs_equation_common.h"
-#include "cs_equation_param.h"
-#include "cs_field.h"
-#include "cs_matrix.h"
-#include "cs_mesh.h"
-#include "cs_restart.h"
-#include "cs_source_term.h"
-#include "cs_time_step.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "alge/cs_matrix.h"
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_restart.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_cdo_connect.h"
+#include "cdo/cs_cdo_local.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_cdo_toolbox.h"
+#include "cdo/cs_cdofb_priv.h"
+#include "cdo/cs_equation_builder.h"
+#include "cdo/cs_equation_param.h"
+#include "cdo/cs_source_term.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -92,26 +89,13 @@ cs_cdofb_scaleq_is_initialized(void);
  * \param[in]  quant       additional mesh quantities struct.
  * \param[in]  connect     pointer to a cs_cdo_connect_t struct.
  * \param[in]  time_step   pointer to a time step structure
- * \param[in]  ms          pointer to a cs_matrix_structure_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_init_common(const cs_cdo_quantities_t     *quant,
-                            const cs_cdo_connect_t        *connect,
-                            const cs_time_step_t          *time_step,
-                            const cs_matrix_structure_t   *ms);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Get the pointer to the related cs_matrix_structure_t
- *
- * \return a  pointer to a cs_matrix_structure_t structure
- */
-/*----------------------------------------------------------------------------*/
-
-const cs_matrix_structure_t *
-cs_cdofb_scaleq_matrix_structure(void);
+cs_cdofb_scaleq_init_sharing(const cs_cdo_quantities_t     *quant,
+                             const cs_cdo_connect_t        *connect,
+                             const cs_time_step_t          *time_step);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -134,27 +118,27 @@ cs_cdofb_scaleq_get(cs_cell_sys_t       **csys,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_finalize_common(void);
+cs_cdofb_scaleq_finalize_sharing(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Initialize a cs_cdofb_scaleq_t structure storing data useful
- *         for building and managing such a scheme
+ * \brief Initialize a cs_cdofb_scaleq_t structure storing data useful for
+ *        building and managing such a scheme
  *
- * \param[in]      eqp        pointer to a \ref cs_equation_param_t structure
- * \param[in]      var_id     id of the variable field
- * \param[in]      bflux_id   id of the boundary flux field
- * \param[in, out] eqb        pointer to a \ref cs_equation_builder_t structure
+ * \param[in, out] eqp       set of parameters related an equation
+ * \param[in]      var_id    id of the variable field
+ * \param[in]      bflux_id  id of the boundary flux field
+ * \param[in, out] eqb       pointer to a \ref cs_equation_builder_t structure
  *
  * \return a pointer to a new allocated cs_cdofb_scaleq_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void *
-cs_cdofb_scaleq_init_context(const cs_equation_param_t   *eqp,
-                             int                          var_id,
-                             int                          bflux_id,
-                             cs_equation_builder_t       *eqb);
+cs_cdofb_scaleq_init_context(cs_equation_param_t    *eqp,
+                             int                     var_id,
+                             int                     bflux_id,
+                             cs_equation_builder_t  *eqb);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -162,7 +146,7 @@ cs_cdofb_scaleq_init_context(const cs_equation_param_t   *eqp,
  *
  * \param[in, out]  data   pointer to a cs_cdofb_scaleq_t structure
  *
- * \return a NULL pointer
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
@@ -222,16 +206,18 @@ cs_cdofb_scaleq_interpolate(const cs_mesh_t            *mesh,
  *         convection/diffusion/reaction equation with a CDO-Fb scheme
  *         One works cellwise and then process to the assembly
  *
+ * \param[in]      cur2prev   true="current to previous" operation is performed
  * \param[in]      mesh       pointer to a cs_mesh_t structure
  * \param[in]      field_id   id of the variable field related to this equation
  * \param[in]      eqp        pointer to a cs_equation_param_t structure
  * \param[in, out] eqb        pointer to a cs_equation_builder_t structure
- * \param[in, out] context    pointer to cs_cdofcb_scaleq_t structure
+ * \param[in, out] context    pointer to cs_cdofb_scaleq_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_solve_steady_state(const cs_mesh_t            *mesh,
+cs_cdofb_scaleq_solve_steady_state(bool                        cur2prev,
+                                   const cs_mesh_t            *mesh,
                                    const int                   field_id,
                                    const cs_equation_param_t  *eqp,
                                    cs_equation_builder_t      *eqb,
@@ -244,6 +230,7 @@ cs_cdofb_scaleq_solve_steady_state(const cs_mesh_t            *mesh,
  *         implicit Euler scheme.
  *         One works cellwise and then process to the assembly
  *
+ * \param[in]      cur2prev   true="current to previous" operation is performed
  * \param[in]      mesh       pointer to a cs_mesh_t structure
  * \param[in]      field_id   id of the variable field related to this equation
  * \param[in]      eqp        pointer to a cs_equation_param_t structure
@@ -253,7 +240,8 @@ cs_cdofb_scaleq_solve_steady_state(const cs_mesh_t            *mesh,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_solve_implicit(const cs_mesh_t            *mesh,
+cs_cdofb_scaleq_solve_implicit(bool                        cur2prev,
+                               const cs_mesh_t            *mesh,
                                const int                   field_id,
                                const cs_equation_param_t  *eqp,
                                cs_equation_builder_t      *eqb,
@@ -266,6 +254,7 @@ cs_cdofb_scaleq_solve_implicit(const cs_mesh_t            *mesh,
  *         implicit/explicit theta scheme.
  *         One works cellwise and then process to the assembly
  *
+ * \param[in]      cur2prev   true="current to previous" operation is performed
  * \param[in]      mesh       pointer to a cs_mesh_t structure
  * \param[in]      field_id   id of the variable field related to this equation
  * \param[in]      eqp        pointer to a cs_equation_param_t structure
@@ -275,7 +264,8 @@ cs_cdofb_scaleq_solve_implicit(const cs_mesh_t            *mesh,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_solve_theta(const cs_mesh_t            *mesh,
+cs_cdofb_scaleq_solve_theta(bool                        cur2prev,
+                            const cs_mesh_t            *mesh,
                             const int                   field_id,
                             const cs_equation_param_t  *eqp,
                             cs_equation_builder_t      *eqb,
@@ -291,55 +281,100 @@ cs_cdofb_scaleq_solve_theta(const cs_mesh_t            *mesh,
  * \param[in, out] eqb       pointer to a \ref cs_equation_builder_t structure
  * \param[in, out] context   pointer to a scheme builder structure
  *
- * \return a pointer to a \ref cs_equation_balance_t structure
+ * \return a pointer to a \ref cs_cdo_balance_t structure
  */
 /*----------------------------------------------------------------------------*/
 
-cs_equation_balance_t *
+cs_cdo_balance_t *
 cs_cdofb_scaleq_balance(const cs_equation_param_t     *eqp,
                         cs_equation_builder_t         *eqb,
                         void                          *context);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Compute the diffusive flux across each boundary face.
- *         Case of scalar-valued CDO-Fb schemes
+ * \brief Cellwise computation of the diffusive flux accross primal faces.
+ *        Interior faces first and then boundary faces.
+ *        Values at faces are recovered thanks to the equation builder
+ *        Case of scalar-valued CDO-Fb schemes
  *
- * \param[in]       t_eval    time at which one performs the evaluation
- * \param[in]       eqp       pointer to a cs_equation_param_t structure
- * \param[in]       pot_f     array of values at faces
- * \param[in]       pot_c     array of values at cells
- * \param[in, out]  eqb       pointer to a cs_equation_builder_t structure
- * \param[in, out]  bflux     pointer to the values of the diffusive flux
+ * \param[in]      f_values    values for the potential at faces
+ * \param[in]      c_values    values for the potential at cells
+ * \param[in]      eqp         pointer to a cs_equation_param_t structure
+ * \param[in]      diff_pty    pointer to the diffusion property to use
+ * \param[in]      t_eval      time at which one performs the evaluation
+ * \param[in, out] eqb         pointer to a cs_equation_builder_t structure
+ * \param[in, out] context     pointer to cs_cdovb_scaleq_t structure
+ * \param[in, out] diff_flux   value of the diffusive flux at primal faces
+  */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_cdofb_scaleq_diff_flux_faces(const cs_real_t             *f_values,
+                                const cs_real_t             *c_values,
+                                const cs_equation_param_t   *eqp,
+                                const cs_property_t         *diff_pty,
+                                cs_real_t                    t_eval,
+                                cs_equation_builder_t       *eqb,
+                                void                        *context,
+                                cs_real_t                   *diff_flux);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute an approximation of the diffusive flux across each boundary
+ *        face.
+ *        Case of scalar-valued CDO-Fb schemes
+ *
+ * \param[in]      pot_f     array of values at faces
+ * \param[in]      pot_c     array of values at cells
+ * \param[in]      eqp       pointer to a cs_equation_param_t structure
+ * \param[in]      diff_pty  pointer to the diffusion property to use
+ * \param[in]      t_eval    time at which one performs the evaluation
+ * \param[in, out] eqb       pointer to a cs_equation_builder_t structure
+ * \param[in, out] context   pointer to a scheme builder structure
+ * \param[in, out] bflux     pointer to the values of the diffusive flux
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_boundary_diff_flux(const cs_real_t              t_eval,
-                                   const cs_equation_param_t   *eqp,
-                                   const cs_real_t             *pot_f,
-                                   const cs_real_t             *pot_c,
-                                   cs_equation_builder_t       *eqb,
-                                   cs_real_t                   *bflux);
+cs_cdofb_scaleq_boundary_diff_flux(const cs_real_t           *pot_f,
+                                   const cs_real_t           *pot_c,
+                                   const cs_equation_param_t *eqp,
+                                   const cs_property_t       *diff_pty,
+                                   const cs_real_t            t_eval,
+                                   cs_equation_builder_t     *eqb,
+                                   void                      *context,
+                                   cs_real_t                 *bflux);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Operate a current to previous operation for the field associated to
+ *         this equation and potentially for related fields/arrays.
+ *
+ * \param[in]       eqp        pointer to a cs_equation_param_t structure
+ * \param[in, out]  eqb        pointer to a cs_equation_builder_t structure
+ * \param[in, out]  context    pointer to cs_cdofb_scaleq_t structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_cdofb_scaleq_current_to_previous(const cs_equation_param_t  *eqp,
+                                    cs_equation_builder_t      *eqb,
+                                    void                       *context);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief  Predefined extra-operations related to this equation
  *
- * \param[in]       eqname     name of the equation
- * \param[in]       field      pointer to a field structure
  * \param[in]       eqp        pointer to a cs_equation_param_t structure
  * \param[in, out]  eqb        pointer to a cs_equation_builder_t structure
- * \param[in, out]  data       pointer to cs_cdofb_scaleq_t structure
+ * \param[in, out]  context    pointer to cs_cdofb_scaleq_t structure
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_cdofb_scaleq_extra_op(const char                 *eqname,
-                         const cs_field_t           *field,
-                         const cs_equation_param_t  *eqp,
-                         cs_equation_builder_t      *eqb,
-                         void                       *data);
+cs_cdofb_scaleq_extra_post(const cs_equation_param_t  *eqp,
+                           cs_equation_builder_t      *eqb,
+                           void                       *context);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -350,13 +385,15 @@ cs_cdofb_scaleq_extra_op(const char                 *eqname,
  *         have to free the return pointer.
  *
  * \param[in, out]  context    pointer to a data structure cast on-the-fly
+ * \param[in]       previous   retrieve the previous state (true/false)
  *
- * \return  a pointer to an array of \ref cs_real_t
+ * \return  a pointer to an array of cs_real_t (size n_cells)
  */
 /*----------------------------------------------------------------------------*/
 
 cs_real_t *
-cs_cdofb_scaleq_get_cell_values(void      *context);
+cs_cdofb_scaleq_get_cell_values(void      *context,
+                                bool       previous);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -365,13 +402,30 @@ cs_cdofb_scaleq_get_cell_values(void      *context);
  *         have to free the return pointer.
  *
  * \param[in, out]  context    pointer to a data structure cast on-the-fly
+ * \param[in]       previous   retrieve the previous state (true/false)
  *
  * \return  a pointer to an array of cs_real_t (size n_faces)
  */
 /*----------------------------------------------------------------------------*/
 
 cs_real_t *
-cs_cdofb_scaleq_get_face_values(void    *context);
+cs_cdofb_scaleq_get_face_values(void    *context,
+                                bool     previous);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Retrieve the array storing the source term values at mesh cells.
+ *        The lifecycle of this array is managed by the code. So one does not
+ *        have to free the return pointer.
+ *
+ * \param[in, out] context    pointer to a data structure cast on-the-fly
+ *
+ * \return a pointer to an array of cs_real_t (size n_cells)
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_real_t *
+cs_cdofb_scaleq_get_source_term_values(void    *context);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -405,8 +459,4 @@ cs_cdofb_scaleq_write_restart(cs_restart_t    *restart,
                               const char      *eqname,
                               void            *scheme_context);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDOFB_SCALEQ_H__ */
+#endif /* CS_CDOFB_SCALEQ_H */

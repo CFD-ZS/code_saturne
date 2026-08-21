@@ -1,14 +1,18 @@
-#ifndef __CS_SLES_IT_PRIV_H__
-#define __CS_SLES_IT_PRIV_H__
+#ifndef CS_SLES_IT_PRIV_H
+#define CS_SLES_IT_PRIV_H
 
 /*============================================================================
- * Sparse Linear Equation Solvers: Iterative solvers
+ * Sparse Linear Equation Solvers: private elements.
+ *
+ * These elements are shared between iterative solvers and smoother
+ * both for host and device implementations, but are not accessible to
+ * calling code.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,16 +31,12 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <math.h>
 
@@ -44,38 +44,40 @@
 #include <mpi.h>
 #endif
 
+#if defined(HAVE_NCCL)
+#include <nccl.h>
+#endif
+
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "bft_mem.h"
-#include "bft_error.h"
-#include "bft_printf.h"
+#include "bft/bft_error.h"
+#include "bft/bft_printf.h"
 
-#include "cs_base.h"
-#include "cs_blas.h"
-#include "cs_file.h"
-#include "cs_log.h"
-#include "cs_halo.h"
-#include "cs_mesh.h"
-#include "cs_matrix.h"
-#include "cs_matrix_default.h"
-#include "cs_matrix_util.h"
-#include "cs_post.h"
-#include "cs_timer.h"
-#include "cs_time_plot.h"
+#include "base/cs_base.h"
+#include "alge/cs_blas.h"
+#include "base/cs_file.h"
+#include "base/cs_log.h"
+#include "base/cs_halo.h"
+#include "base/cs_mem.h"
+#include "mesh/cs_mesh.h"
+#include "alge/cs_matrix.h"
+#include "alge/cs_matrix_default.h"
+#include "alge/cs_matrix_util.h"
+#include "base/cs_post.h"
+#include "base/cs_timer.h"
+#include "base/cs_time_plot.h"
 
 /*----------------------------------------------------------------------------
  *  Header for the current file
  *----------------------------------------------------------------------------*/
 
-#include "cs_sles.h"
-#include "cs_sles_it.h"
-#include "cs_sles_pc.h"
+#include "alge/cs_sles.h"
+#include "alge/cs_sles_it.h"
+#include "alge/cs_sles_pc.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*! \cond DOXYGEN_SHOULD_SKIP_THIS */
 
@@ -87,7 +89,7 @@ BEGIN_C_DECLS
 #define HUGE_VAL  1.E+12
 #endif
 
-#define DB_SIZE_MAX 8
+#define DB_SIZE_MAX 9
 
 /*=============================================================================
  * Local Structure Definitions
@@ -99,10 +101,11 @@ BEGIN_C_DECLS
  * parameters:
  *   c             <-- pointer to solver context info
  *   a             <-- linear equation matrix
- *   rotation_mode <-- halo update option for rotational periodicity
  *   convergence   <-- convergence information structure
  *   rhs           <-- right hand side
- *   vx            --> system solution
+ *   vx_ini        <-- initial system solution
+ *                     (vx if nonzero, nullptr if zero)
+ *   vx            <-> system solution
  *   aux_size      <-- number of elements in aux_vectors (in bytes)
  *   aux_vectors   --- optional working area (allocation otherwise)
  *
@@ -113,11 +116,11 @@ BEGIN_C_DECLS
 typedef cs_sles_convergence_state_t
 (cs_sles_it_solve_t) (cs_sles_it_t              *c,
                       const cs_matrix_t         *a,
-                      int                        diag_block_size,
-                      cs_halo_rotation_t         rotation_mode,
+                      cs_lnum_t                  diag_block_size,
                       cs_sles_it_convergence_t  *convergence,
                       const cs_real_t           *rhs,
-                      cs_real_t                 *restrict vx,
+                      cs_real_t                 *vx_ini,
+                      cs_real_t                 *vx,
                       size_t                     aux_size,
                       void                      *aux_vectors);
 
@@ -126,7 +129,7 @@ typedef cs_sles_convergence_state_t
 
 typedef struct _cs_sles_it_setup_t {
 
-  double               initial_residue;  /* last initial residue value */
+  double               initial_residual; /* last initial residual value */
 
   cs_lnum_t            n_rows;           /* number of associated rows */
 
@@ -157,11 +160,17 @@ struct _cs_sles_it_t {
 
   cs_sles_it_type_t    type;               /* Solver type */
 
+  bool                 on_device;          /* SpMV on device ? */
+
   bool                 update_stats;       /* do stats need to be updated ? */
   bool                 ignore_convergence; /* ignore convergence for some
                                               solvers used as preconditioners */
 
   int                  n_max_iter;         /* maximum number of iterations */
+  int                  restart_interval;   /* maximum number of iterations
+                                              before restarting the algorithm
+                                              (only applicable for GMRES or GCR
+                                              algorithm up to now) */
 
   cs_sles_it_solve_t  *solve;              /* pointer to solve function */
 
@@ -203,7 +212,9 @@ struct _cs_sles_it_t {
   int      caller_n_ranks;
 # endif
 
-  /* Solver setup */
+#if defined(HAVE_NCCL)
+  ncclComm_t nccl_comm;
+#endif
 
   const struct _cs_sles_it_t  *shared;     /* pointer to context sharing some
                                               setup and preconditioner data,
@@ -217,7 +228,11 @@ struct _cs_sles_it_t {
 
   cs_sles_convergence_state_t  fallback_cvg;  /* threshold for fallback
                                                  convergence */
-  cs_sles_it_t                *fallback;   /* fallback solver */
+  int                          fallback_n_max_iter; /* number of maximum iteration
+                                                       for fallback solver */
+
+  cs_sles_it_t                *fallback;      /* fallback solver */
+
 
 };
 
@@ -234,294 +249,14 @@ struct _cs_sles_it_convergence_t {
   unsigned             n_iterations_max;   /* Maximum number of iterations */
 
   double               precision;          /* Precision limit */
-  double               r_norm;             /* Residue normalization */
-  double               residue;            /* Current residue */
+  double               r_norm;             /* Residual normalization */
+  double               residual;           /* Current residual */
 
 };
 
 /*============================================================================
  * Inline static function definitions
  *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Compute dot product, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- first vector in s = x.y
- *   y      <-- second vector in s = x.y
- *
- * returns:
- *   result of s = x.y
- *----------------------------------------------------------------------------*/
-
-inline static double
-_dot_product(const cs_sles_it_t  *c,
-             const cs_real_t     *x,
-             const cs_real_t     *y)
-{
-  double s = cs_dot(c->setup_data->n_rows, x, y);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum;
-    MPI_Allreduce(&s, &_sum, 1, MPI_DOUBLE, MPI_SUM, c->comm);
-    s = _sum;
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  return s;
-}
-
-/*----------------------------------------------------------------------------
- * Compute dot product x.x, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- vector in s = x.x
- *
- * returns:
- *   result of s = x.x
- *----------------------------------------------------------------------------*/
-
-inline static double
-_dot_product_xx(const cs_sles_it_t  *c,
-                const cs_real_t     *x)
-{
-  double s;
-
-  s = cs_dot_xx(c->setup_data->n_rows, x);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum;
-    MPI_Allreduce(&s, &_sum, 1, MPI_DOUBLE, MPI_SUM, c->comm);
-    s = _sum;
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  return s;
-}
-
-/*----------------------------------------------------------------------------
- * Compute 2 dot products x.x and x.y, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- vector in s1 = x.x and s2 = x.y
- *   y      <-- vector in s2 = x.y
- *   s1     --> result of s1 = x.x
- *   s2     --> result of s2 = x.y
- *----------------------------------------------------------------------------*/
-
-inline static void
-_dot_products_xx_xy(const cs_sles_it_t  *c,
-                    const cs_real_t     *x,
-                    const cs_real_t     *y,
-                    double              *s1,
-                    double              *s2)
-{
-  double s[2];
-
-  cs_dot_xx_xy(c->setup_data->n_rows, x, y, s, s+1);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum[2];
-    MPI_Allreduce(s, _sum, 2, MPI_DOUBLE, MPI_SUM, c->comm);
-    s[0] = _sum[0];
-    s[1] = _sum[1];
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  *s1 = s[0];
-  *s2 = s[1];
-}
-
-/*----------------------------------------------------------------------------
- * Compute 2 dot products x.x and x.y, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- vector in s1 = x.y
- *   y      <-- vector in s1 = x.y and s2 = y.z
- *   z      <-- vector in s2 = y.z
- *   s1     --> result of s1 = x.y
- *   s2     --> result of s2 = y.z
- *----------------------------------------------------------------------------*/
-
-inline static void
-_dot_products_xy_yz(const cs_sles_it_t  *c,
-                    const cs_real_t     *x,
-                    const cs_real_t     *y,
-                    const cs_real_t     *z,
-                    double              *s1,
-                    double              *s2)
-{
-  double s[2];
-
-  cs_dot_xy_yz(c->setup_data->n_rows, x, y, z, s, s+1);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum[2];
-    MPI_Allreduce(s, _sum, 2, MPI_DOUBLE, MPI_SUM, c->comm);
-    s[0] = _sum[0];
-    s[1] = _sum[1];
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  *s1 = s[0];
-  *s2 = s[1];
-}
-
-/*----------------------------------------------------------------------------
- * Compute 3 dot products, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- first vector
- *   y      <-- second vector
- *   z      <-- third vector
- *   s1     --> result of s1 = x.x
- *   s2     --> result of s2 = x.y
- *   s3     --> result of s3 = y.z
- *----------------------------------------------------------------------------*/
-
-inline static void
-_dot_products_xx_xy_yz(const cs_sles_it_t  *c,
-                       const cs_real_t     *x,
-                       const cs_real_t     *y,
-                       const cs_real_t     *z,
-                       double              *s1,
-                       double              *s2,
-                       double              *s3)
-{
-  double s[3];
-
-  cs_dot_xx_xy_yz(c->setup_data->n_rows, x, y, z, s, s+1, s+2);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum[3];
-
-    MPI_Allreduce(s, _sum, 3, MPI_DOUBLE, MPI_SUM, c->comm);
-    s[0] = _sum[0];
-    s[1] = _sum[1];
-    s[2] = _sum[2];
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  *s1 = s[0];
-  *s2 = s[1];
-  *s3 = s[2];
-}
-
-/*----------------------------------------------------------------------------
- * Compute 5 dot products, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   x      <-- first vector
- *   y      <-- second vector
- *   z      <-- third vector
- *   xx     --> result of x.x
- *   yy     --> result of y.y
- *   xy     --> result of x.y
- *   xz     --> result of x.z
- *   yz     --> result of y.z
- *----------------------------------------------------------------------------*/
-
-inline static void
-_dot_products_xx_yy_xy_xz_yz(const cs_sles_it_t  *c,
-                             const cs_real_t     *x,
-                             const cs_real_t     *y,
-                             const cs_real_t     *z,
-                             double              *xx,
-                             double              *yy,
-                             double              *xy,
-                             double              *xz,
-                             double              *yz)
-{
-  double s[5];
-
-  cs_dot_xx_yy_xy_xz_yz(c->setup_data->n_rows, x, y, z, s, s+1, s+2, s+3, s+4);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum[5];
-    MPI_Allreduce(s, _sum, 5, MPI_DOUBLE, MPI_SUM, c->comm);
-    memcpy(s, _sum, 5*sizeof(double));
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  *xx = s[0];
-  *yy = s[1];
-  *xy = s[2];
-  *xz = s[3];
-  *yz = s[4];
-}
-
-/*----------------------------------------------------------------------------
- * Compute 4 dot products, summing result over all ranks.
- *
- * parameters:
- *   c      <-- pointer to solver context info
- *   v      <-- first vector
- *   r      <-- second vector
- *   w      <-- third vector
- *   q      <-- fourth vector
- *   s1     --> result of s1 = v.r
- *   s2     --> result of s2 = v.w
- *   s3     --> result of s3 = v.q
- *   s4     --> result of s4 = r.r
- *----------------------------------------------------------------------------*/
-
-inline static void
-_dot_products_vr_vw_vq_rr(const cs_sles_it_t  *c,
-                          const cs_real_t     *v,
-                          const cs_real_t     *r,
-                          const cs_real_t     *w,
-                          const cs_real_t     *q,
-                          double              *s1,
-                          double              *s2,
-                          double              *s3,
-                          double              *s4)
-{
-  double s[4];
-
-  /* Use two separate call as cs_blas.c does not yet hav matching call */
-
-  cs_dot_xy_yz(c->setup_data->n_rows, w, v, q, s+1, s+2);
-  cs_dot_xx_xy(c->setup_data->n_rows, r, v, s+3, s);
-
-#if defined(HAVE_MPI)
-
-  if (c->comm != MPI_COMM_NULL) {
-    double _sum[4];
-    MPI_Allreduce(s, _sum, 4, MPI_DOUBLE, MPI_SUM, c->comm);
-    memcpy(s, _sum, 4*sizeof(double));
-  }
-
-#endif /* defined(HAVE_MPI) */
-
-  *s1 = s[0];
-  *s2 = s[1];
-  *s3 = s[2];
-  *s4 = s[3];
-}
 
 /*----------------------------------------------------------------------------
  * Block Jacobi utilities.
@@ -535,25 +270,27 @@ _dot_products_vr_vw_vq_rr(const cs_sles_it_t  *c,
  *----------------------------------------------------------------------------*/
 
 inline static void
-_fw_and_bw_lu33(const cs_real_t  mat[],
-                cs_real_t        x[restrict],
-                const cs_real_t  b[restrict],
-                const cs_real_t  c[restrict])
+_mat_c_m_b_33(const cs_real_t    mat[],
+              cs_real_t        *restrict x,
+              const cs_real_t  *restrict b,
+              const cs_real_t  *restrict c)
 {
+  /* c - b */
   cs_real_t  aux[3];
+  for (cs_lnum_t ii = 0; ii < 3; ii++) {
+    aux[ii] = (c[ii] - b[ii]);
+  }
 
-  aux[0] = (c[0] - b[0]);
-  aux[1] = (c[1] - b[1]) - aux[0]*mat[3];
-  aux[2] = (c[2] - b[2]) - aux[0]*mat[6] - aux[1]*mat[7];
-
-  x[2] = aux[2]/mat[8];
-  x[1] = (aux[1] - mat[5]*x[2])/mat[4];
-  x[0] = (aux[0] - mat[1]*x[1] - mat[2]*x[2])/mat[0];
+  for (cs_lnum_t ii = 0; ii < 3; ii++) {
+    x[ii] =   mat[3*ii + 0]*aux[0]
+            + mat[3*ii + 1]*aux[1]
+            + mat[3*ii + 2]*aux[2];
+  }
 }
 
 /*----------------------------------------------------------------------------
  * Block Jacobi utilities.
- * Compute forward and backward to solve an LU P*P system.
+ * Compute mat.(c-b) product.
  *
  * parameters:
  *   mat     <-- P*P*dim matrix
@@ -564,84 +301,76 @@ _fw_and_bw_lu33(const cs_real_t  mat[],
  *----------------------------------------------------------------------------*/
 
 inline static void
-_fw_and_bw_lu(const cs_real_t  mat[],
-              int              db_size,
-              cs_real_t        x[restrict],
-              const cs_real_t  b[restrict],
-              const cs_real_t  c[restrict])
+_mat_c_m_b(const cs_real_t   mat[],
+           cs_lnum_t         db_size,
+           cs_real_t        *restrict x,
+           const cs_real_t  *restrict b,
+           const cs_real_t  *restrict c)
 {
   assert(db_size <= DB_SIZE_MAX);
   cs_real_t aux[DB_SIZE_MAX];
 
-  /* forward */
-  for (int ii = 0; ii < db_size; ii++) {
+  /* c - b */
+  for (cs_lnum_t ii = 0; ii < db_size; ii++) {
     aux[ii] = (c[ii] - b[ii]);
-    for (int jj = 0; jj < ii; jj++) {
-      aux[ii] -= aux[jj]*mat[ii*db_size + jj];
+  }
+
+  for (cs_lnum_t ii = 0; ii < db_size; ii++) {
+    x[ii] = 0;
+    for (cs_lnum_t jj = 0; jj < db_size; jj++) {
+      x[ii] += aux[jj]*mat[ii*db_size + jj];
     }
-  }
-
-  /* backward */
-  for (int ii = db_size - 1; ii >= 0; ii-=1) {
-    x[ii] = aux[ii];
-    for (int jj = db_size - 1; jj > ii; jj-=1) {
-      x[ii] -= x[jj]*mat[ii*db_size + jj];
-    }
-    x[ii] /= mat[ii*(db_size + 1)];
-  }
-}
-
-/*----------------------------------------------------------------------------
- * Block Gauss-Seidel utilities.
- * Compute forward and backward to solve an LU P*P system.
- *
- * parameters:
- *   mat     <-- P*P*dim matrix
- *   db_size <-- matrix size
- *   x       --> solution
- *   b       <-> RHS in, work array
- *----------------------------------------------------------------------------*/
-
-inline static void
-_fw_and_bw_lu_gs(const cs_real_t  mat[],
-                 int              db_size,
-                 cs_real_t        x[restrict],
-                 const cs_real_t  b[restrict])
-{
-  assert(db_size <= DB_SIZE_MAX);
-
-  /* forward */
-  for (int ii = 0; ii < db_size; ii++) {
-    x[ii] = b[ii];
-    for (int jj = 0; jj < ii; jj++)
-      x[ii] -= x[jj]*mat[ii*db_size + jj];
-  }
-
-  /* backward */
-  for (int ii = db_size - 1; ii >= 0; ii--) {
-    for (int jj = db_size - 1; jj > ii; jj--)
-      x[ii] -= x[jj]*mat[ii*db_size + jj];
-    x[ii] /= mat[ii*(db_size + 1)];
   }
 }
 
 /*============================================================================
- * Public function definitions
+ * Semi-private function definitions
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Set execution location (host or device) and stream if appplicable.
+ *
+ * \param[in, out]  ctx            reference to dispatch context
+ * \param[in]       a              pointer to matrix
+ * \param[out]      local_stream   do we force a local stream ?
+ * \param[out]      stream         stream associated with current solve
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sles_it_set_exec_location
+(
+  [[maybe_unused]] cs_dispatch_context  &ctx,
+  const cs_matrix_t                     *a,
+  bool                                  &local_stream,
+  [[maybe_unused]] cs_stream_t          &stream
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Restore stream to previous settings if appplicable.
+ *
+ * \param[in]  local_stream   do we force a local stream ?
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_sles_it_restore_exec_location([[maybe_unused]] bool  &local_stream);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Initialize or reset convergence info structure.
- *        At this stage, the initial residue is set to HUGE_VAL, as it is
+ *        At this stage, the initial residual is set to HUGE_VAL, as it is
  *        unknown.
  *
- * \param[in, out] convergence   convergence info structure
- * \param[in]      solver_name   solver name
- * \param[in]      verbosity     verbosity level
- * \param[in]      n_iter_max    maximum number of iterations
- * \param[in]      precision     precision limit
- * \param[in]      r_norm        residue normalization
- * \param[in, out] residue       initial residue
+ * \param[in, out]  convergence   convergence info structure
+ * \param[in]       solver_name   solver name
+ * \param[in]       verbosity     verbosity level
+ * \param[in]       n_iter_max    maximum number of iterations
+ * \param[in]       precision     precision limit
+ * \param[in]       r_norm        residual normalization
+ * \param[in, out]  residual      initial residual
  */
 /*----------------------------------------------------------------------------*/
 
@@ -652,7 +381,7 @@ cs_sles_it_convergence_init(cs_sles_it_convergence_t  *convergence,
                             unsigned                   n_iter_max,
                             double                     precision,
                             double                     r_norm,
-                            double                    *residue);
+                            double                    *residual);
 
 /*----------------------------------------------------------------------------
  * Setup context for iterative linear solver.
@@ -667,6 +396,8 @@ cs_sles_it_convergence_init(cs_sles_it_convergence_t  *convergence,
  *   diag_block_size  <-- diagonal block size
  *   block_nn_inverse <-- if diagonal block size is 3 or 6, compute inverse of
  *                        block if true, inverse of block diagonal otherwise
+ *   l1_inv           <-- if diagonal block size is 1, compute
+ *                        inverse of L1 norm instead of diagonal
  *----------------------------------------------------------------------------*/
 
 void
@@ -675,10 +406,11 @@ cs_sles_it_setup_priv(cs_sles_it_t       *c,
                       const cs_matrix_t  *a,
                       int                 verbosity,
                       int                 diag_block_size,
-                      bool                block_nn_inverse);
+                      bool                block_nn_inverse,
+                      bool                l1_inv);
+
+/*! (DOXYGEN_SHOULD_SKIP_THIS) \endcond */
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_SLES_IT_PRIV_H__ */
+#endif /* CS_SLES_IT_PRIV_H */

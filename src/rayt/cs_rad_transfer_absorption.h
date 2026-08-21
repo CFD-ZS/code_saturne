@@ -1,14 +1,14 @@
-#ifndef __CS_RAD_TRANSFER_ABSORPTION_H__
-#define __CS_RAD_TRANSFER_ABSORPTION_H__
+#ifndef CS_RAD_TRANSFER_ABSORPTION_H
+#define CS_RAD_TRANSFER_ABSORPTION_H
 
 /*============================================================================
  * Radiative transfer module, absorption coefficient.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -75,6 +71,27 @@ cs_rad_transfer_absorption(const cs_real_t  tempk[],
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Compute absorption coefficient for the case of gas combustion.
+ *
+ * For the P-1 model, this function also checks whether the medium's optical
+ * length is at least of the order of unity.
+ *
+ * \param[in]   tempk      gas phase temperature at cells (in Kelvin)
+ * \param[out]  kgas       radiation coefficients of the gray gases at cells
+ *                         (per gas)
+ * \param[out]  agas       weights of the gray gases at cells (per gas)
+ * \param[out]  agasb      weights of the gray gases at boundary faces (per gas)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_rad_transfer_rcfsk_absorption(const cs_real_t  tempk[],
+                                 cs_real_t        kgas[],
+                                 cs_real_t        agas[],
+                                 cs_real_t        agasb[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Check the absorption validity fo the P-1 approximation.
  *
  * For the P-1 model, the medium's optical length should be at least of
@@ -89,6 +106,4 @@ cs_rad_transfer_absorption_check_p1(const cs_real_t  cpro_cak[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RAD_TRANSFER_ABSORPTION_H__ */
+#endif /* CS_RAD_TRANSFER_ABSORPTION_H */

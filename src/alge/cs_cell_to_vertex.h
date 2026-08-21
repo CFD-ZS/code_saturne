@@ -1,14 +1,14 @@
-#ifndef __CS_CELL_TO_VERTEX_H__
-#define __CS_CELL_TO_VERTEX_H__
+#ifndef CS_CELL_TO_VERTEX_H
+#define CS_CELL_TO_VERTEX_H
 
 /*============================================================================
  * Cell to vertex interpolation.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
+#include "base/cs_base.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Local Macro definitions
@@ -60,7 +58,7 @@ typedef enum {
 } cs_cell_to_vertex_type_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Short names for cell to vertex methods */
@@ -79,7 +77,7 @@ extern const char *cs_cell_to_vertex_type_name[];
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_cell_to_vertex_free(void);
 
 /*----------------------------------------------------------------------------*/
@@ -88,7 +86,7 @@ cs_cell_to_vertex_free(void);
  *
  * \param[in]       method            interpolation method
  * \param[in]       verbosity         verbosity level
- * \param[in]       var_dim           varible dimension
+ * \param[in]       var_dim           variable dimension
  * \param[in]       ignore_rot_perio  if true, ignore periodicity of rotation
  * \param[in]       c_weight          cell weight, or NULL
  * \param[in]       c_var             base cell-based variable
@@ -97,18 +95,16 @@ cs_cell_to_vertex_free(void);
  */
 /*----------------------------------------------------------------------------*/
 
+template <cs_lnum_t stride>
 void
 cs_cell_to_vertex(cs_cell_to_vertex_type_t   method,
                   int                        verbosity,
-                  cs_lnum_t                  var_dim,
                   bool                       ignore_rot_perio,
-                  const cs_real_t            c_weight[restrict],
-                  const cs_real_t            c_var[restrict],
-                  const cs_real_t            b_var[restrict],
-                  cs_real_t                  v_var[restrict]);
+                  const cs_real_t            c_weight[],
+                  const cs_real_t            c_var[],
+                  const cs_real_t            b_var[],
+                  cs_real_t                  v_var[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_CELL_TO_VERTEX__ */
+#endif /* CS_CELL_TO_VERTEX__ */

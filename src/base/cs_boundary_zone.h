@@ -1,14 +1,14 @@
-#ifndef __CS_BOUNDARY_ZONE_H__
-#define __CS_BOUNDARY_ZONE_H__
+#ifndef CS_BOUNDARY_ZONE_H
+#define CS_BOUNDARY_ZONE_H
 
 /*============================================================================
  * Boundary zones handling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,33 +28,29 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh_location.h"
+#include "base/cs_base.h"
+#include "mesh/cs_mesh_location.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_zone.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_zone.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
 
 /*!
- * @defgroup volume_zone_flags Flags specifying general boundary zone type
+ * @defgroup boundary_zone_flags Flags specifying general boundary zone type
  *
  * @{
  */
@@ -84,7 +80,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Initialize boundary zone structures.
  *
  * This defines a default boundary zone. This is the first function of
@@ -97,7 +93,7 @@ void
 cs_boundary_zone_initialize(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Free all boundary zone structures.
  */
 /*----------------------------------------------------------------------------*/
@@ -106,7 +102,7 @@ void
 cs_boundary_zone_finalize(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of boundary zones defined.
  */
 /*----------------------------------------------------------------------------*/
@@ -115,7 +111,7 @@ int
 cs_boundary_zone_n_zones(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of boundary zones which may vary in time.
  *
  * \return  number of zones which may vary in time
@@ -126,7 +122,7 @@ int
 cs_boundary_zone_n_zones_time_varying(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Update association of a given private boundary zone with a mesh.
  *
  * For time-varying zones, the associated mesh location is updated.
@@ -152,7 +148,7 @@ void
 cs_boundary_zone_build_all(bool  mesh_modified);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define a new boundary zone using a selection criteria string.
  *
  * \param[in]  name       name of location to define
@@ -169,7 +165,7 @@ cs_boundary_zone_define(const char  *name,
                         int          type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Define a new mesh location with an associated selection function.
  *
  * So as to define a subset of mesh entities of a given type, a pointer
@@ -195,7 +191,7 @@ cs_boundary_zone_define_by_func(const char                 *name,
                                 int                         type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a boundary zone based on its id.
  *
  * This function requires that a boundary zone of the given id is defined.
@@ -210,7 +206,7 @@ const cs_zone_t  *
 cs_boundary_zone_by_id(int  id);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return a pointer to a boundary zone based on its name if present.
  *
  * This function requires that a boundary zone of the given name is defined.
@@ -228,7 +224,7 @@ cs_boundary_zone_by_name(const char  *name);
 /*!
  * \brief Return a pointer to a boundary zone based on its name if present.
  *
- * If no boundary zone of the given name is defined, NULL is returned.
+ * If no boundary zone of the given name is defined, returned pointer is null.
  *
  * \param[in]  name  boundary zone name
  *
@@ -240,7 +236,22 @@ const cs_zone_t  *
 cs_boundary_zone_by_name_try(const char  *name);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief  Retrieve the boundary zone id from its zone name.
+ *         If the zone name is equal to NULL or has an empty length, then
+ *         the default zone id (=0) corresponding to all entities is returned
+ *
+ * \param[in] z_name        name of the zone or NULL or ""
+ *
+ * \return the id of the boundary zone
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_boundary_zone_id_by_name(const char   *z_name);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Set type flag for a given boundary zone.
  *
  * \param[in]  id         boundary zone id
@@ -253,7 +264,7 @@ cs_boundary_zone_set_type(int   id,
                           int   type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set time varying behavior for a given boundary zone.
  *
  * \param[in]  id            boundary zone id
@@ -266,7 +277,7 @@ cs_boundary_zone_set_time_varying(int   id,
                                   bool  time_varying);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set overlay behavior for a given boundary zone.
  *
  * \param[in]  id             boundary zone id
@@ -279,7 +290,7 @@ cs_boundary_zone_set_overlay(int   id,
                              bool  allow_overlay);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return pointer to zone id associated with each boundary face.
  *
  * In case of overlayed zones, the highest zone id associated with
@@ -292,7 +303,7 @@ const int *
 cs_boundary_zone_face_zone_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Print info relative to a given boundary zone to log file.
  *
  * \param[in]  z   pointer to boundary zone structure
@@ -303,7 +314,7 @@ void
 cs_boundary_zone_log_info(const cs_zone_t  *z);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Log setup information relative to defined boundary zones.
  */
 /*----------------------------------------------------------------------------*/
@@ -312,7 +323,7 @@ void
 cs_boundary_zone_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return number of boundary zones associated with a
  *        given zone flag.
  *
@@ -324,11 +335,11 @@ cs_boundary_zone_log_setup(void);
  */
 /*----------------------------------------------------------------------------*/
 
-cs_lnum_t
+int
 cs_boundary_zone_n_type_zones(int  type_flag);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Get pointer to optional boundary face class ids.
  *
  * For each boundary face, a specific output (logging and postprocessing)
@@ -355,7 +366,7 @@ int *
 cs_boundary_zone_face_class_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Get read pointer to optional boundary face class or zone ids.
  *
  * If no face classes have been defined by \ref cs_boundary_zone_face_class_id
@@ -369,7 +380,7 @@ const int *
 cs_boundary_zone_face_class_or_zone_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Update boundary face output class ids if present.
  *
  * Face class ids lower than 0 are replaced by the matching face zone id.
@@ -380,7 +391,7 @@ void
 cs_boundary_zone_update_face_class_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return the maximum defined face class or zone id.
  *
  * \return  maximum face class or zone id;
@@ -391,7 +402,7 @@ int
 cs_boundary_zone_max_class_or_zone_id(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Print boundary zones information to listing file
  */
 /*----------------------------------------------------------------------------*/
@@ -401,6 +412,4 @@ cs_boundary_zone_print_info(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BOUNDARY_ZONE_H__ */
+#endif /* CS_BOUNDARY_ZONE_H */

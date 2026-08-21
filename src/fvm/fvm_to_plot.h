@@ -1,5 +1,5 @@
-#ifndef __FVM_TO_PLOT_H__
-#define __FVM_TO_PLOT_H__
+#ifndef FVM_TO_PLOT_H
+#define FVM_TO_PLOT_H
 
 /*============================================================================
  * Write a nodal representation associated with a mesh and associated
@@ -7,9 +7,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-#include "fvm_writer.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
+#include "fvm/fvm_writer.h"
 
 /*=============================================================================
  * Macro definitions
@@ -60,6 +56,7 @@ BEGIN_C_DECLS
  * Options are:
  *   dat                 output .dat files
  *   csv                 output .csv files (default)
+ *   no_time_step        do not add time step id to file name
  *
  * parameters:
  *   name           <-- base output case name.
@@ -73,7 +70,7 @@ BEGIN_C_DECLS
 
 #if defined(HAVE_MPI)
 
-void *
+extern "C" void *
 fvm_to_plot_init_writer(const char             *name,
                         const char             *path,
                         const char             *options,
@@ -82,7 +79,7 @@ fvm_to_plot_init_writer(const char             *name,
 
 #else
 
-void *
+extern "C" void *
 fvm_to_plot_init_writer(const char             *name,
                         const char             *path,
                         const char             *options,
@@ -97,10 +94,10 @@ fvm_to_plot_init_writer(const char             *name,
  *   writer <-- pointer to opaque plot writer structure.
  *
  * returns:
- *   NULL pointer.
+ *   null pointer.
  *----------------------------------------------------------------------------*/
 
-void *
+extern "C" void *
 fvm_to_plot_finalize_writer(void  *writer);
 
 /*----------------------------------------------------------------------------
@@ -112,7 +109,7 @@ fvm_to_plot_finalize_writer(void  *writer);
  *   time_value    <-- time_value number
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 fvm_to_plot_set_mesh_time(void          *writer,
                           const int      time_step,
                           const double   time_value);
@@ -125,7 +122,7 @@ fvm_to_plot_set_mesh_time(void          *writer,
  *   mesh   <-- pointer to nodal mesh structure that should be written.
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 fvm_to_plot_export_nodal(void               *writer,
                          const fvm_nodal_t  *mesh);
 
@@ -154,7 +151,7 @@ fvm_to_plot_export_nodal(void               *writer,
  *   field_values     <-- array of associated field value arrays
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 fvm_to_plot_export_field(void                  *writer,
                          const fvm_nodal_t     *mesh,
                          const char            *name,
@@ -177,11 +174,9 @@ fvm_to_plot_export_field(void                  *writer,
  *   writer <-- pointer to associated writer
  *----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 fvm_to_plot_flush(void  *writer);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_TO_PLOT_H__ */
+#endif /* FVM_TO_PLOT_H */

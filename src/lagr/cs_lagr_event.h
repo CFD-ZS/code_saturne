@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_EVENT_H__
-#define __CS_LAGR_EVENT_H__
+#ifndef CS_LAGR_EVENT_H
+#define CS_LAGR_EVENT_H
 
 /*============================================================================
  * Lagrangian particle event model
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,19 +27,19 @@
 
 /*----------------------------------------------------------------------------*/
 
+#include "base/cs_defs.h"
+
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
-
-#include "cs_defs.h"
-
-#include "cs_lagr_particle.h"
 
 #include "assert.h"
 
-/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------
+ * Local headers
+ *----------------------------------------------------------------------------*/
 
-BEGIN_C_DECLS
+#include "lagr/cs_lagr_particle.h"
 
 /*=============================================================================
  * Macro definitions
@@ -149,7 +149,8 @@ typedef struct {
 /*!
  * \brief Define event map based on defined options.
  *
- * This function should only be called after \ref cs_lagr_attr_initialize,
+ * This function should only be called after
+ * \ref cs_lagr_particle_attr_initialize,
  * as it may use elements from the main particle attributes map.
  */
 /*----------------------------------------------------------------------------*/
@@ -203,7 +204,7 @@ cs_lagr_event_set_create(void);
 /*!
  * Destroy a cs_lagr_event_set_t structure.
  *
- * \param[in, out]  pointer to pointer to event set to destroy
+ * \param[in, out]  events  pointer to pointer to event set to destroy
  */
 /*----------------------------------------------------------------------------*/
 
@@ -265,9 +266,9 @@ cs_lagr_event_attr_in_range(int  attr);
 /*----------------------------------------------------------------------------*/
 
 inline static void *
-cs_lagr_events_attr(cs_lagr_event_set_t        *event_set,
-                    cs_lnum_t                   event_id,
-                    cs_lagr_event_attribute_t   attr)
+cs_lagr_events_attr(cs_lagr_event_set_t  *event_set,
+                    cs_lnum_t             event_id,
+                    int                   attr)
 {
   assert(event_set->e_am->count[attr] > 0);
 
@@ -292,13 +293,68 @@ cs_lagr_events_attr(cs_lagr_event_set_t        *event_set,
 inline static const void *
 cs_lagr_events_attr_const(const cs_lagr_event_set_t  *event_set,
                           cs_lnum_t                   event_id,
-                          cs_lagr_event_attribute_t   attr)
+                          int                         attr)
 {
   assert(event_set->e_am->count[attr] > 0);
 
   return   event_set->e_buffer
          + event_set->e_am->extents*event_id
          + event_set->e_am->displ[attr];
+}
+
+/*----------------------------------------------------------------------------*/
+
+template <typename T>
+T *
+cs_lagr_events_attr_get_ptr(cs_lagr_event_set_t  *event_set,
+                            cs_lnum_t             event_id,
+                            int                   attr)
+{
+  assert(event_set->e_am->count[attr] > 0);
+
+  return (T *)( event_set->e_buffer
+              + event_set->e_am->extents*event_id
+              + event_set->e_am->displ[attr]);
+}
+
+template <typename T>
+const T *
+cs_lagr_events_attr_get_const_ptr(const cs_lagr_event_set_t  *event_set,
+                                  cs_lnum_t                   event_id,
+                                  int                         attr)
+{
+  assert(event_set->e_am->count[attr] > 0);
+
+  return (const T *)( event_set->e_buffer
+                    + event_set->e_am->extents*event_id
+                    + event_set->e_am->displ[attr]);
+}
+
+template <typename T>
+T
+cs_lagr_events_attr_get_val(const cs_lagr_event_set_t  *event_set,
+                            cs_lnum_t                   event_id,
+                            int                         attr)
+{
+  assert(event_set->e_am->count[attr] > 0);
+
+  return *((const T *)( event_set->e_buffer
+                     + event_set->e_am->extents*event_id
+                     + event_set->e_am->displ[attr]));
+}
+
+template <typename T>
+void
+cs_lagr_events_attr_set_val(cs_lagr_event_set_t *event_set,
+                            cs_lnum_t            event_id,
+                            int                  attr,
+                            T                    value)
+{
+  assert(event_set->e_am->count[attr] > 0);
+
+  *((T *)(  event_set->e_buffer
+                  + event_set->e_am->extents*event_id
+                  + event_set->e_am->displ[attr])) = value;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -316,7 +372,7 @@ cs_lagr_events_attr_const(const cs_lagr_event_set_t  *event_set,
 inline static cs_lnum_t
 cs_lagr_events_get_lnum(const cs_lagr_event_set_t  *event_set,
                         cs_lnum_t                   event_id,
-                        cs_lagr_event_attribute_t   attr)
+                        int                         attr)
 {
   assert(event_set->e_am->count[attr] > 0);
 
@@ -339,7 +395,7 @@ cs_lagr_events_get_lnum(const cs_lagr_event_set_t  *event_set,
 inline static void
 cs_lagr_events_set_lnum(cs_lagr_event_set_t        *event_set,
                         cs_lnum_t                   event_id,
-                        cs_lagr_event_attribute_t   attr,
+                        int                         attr,
                         cs_lnum_t                   value)
 {
   assert(event_set->e_am->count[attr] > 0);
@@ -364,7 +420,7 @@ cs_lagr_events_set_lnum(cs_lagr_event_set_t        *event_set,
 inline static cs_real_t
 cs_lagr_events_get_real(const cs_lagr_event_set_t  *event_set,
                         cs_lnum_t                   event_id,
-                        cs_lagr_event_attribute_t   attr)
+                        int                         attr)
 {
   assert(event_set->e_am->count[attr] > 0);
 
@@ -385,10 +441,10 @@ cs_lagr_events_get_real(const cs_lagr_event_set_t  *event_set,
 /*----------------------------------------------------------------------------*/
 
 inline static void
-cs_lagr_events_set_real(cs_lagr_event_set_t         *event_set,
-                        cs_lnum_t                    event_id,
-                        cs_lagr_event_attribute_t    attr,
-                        cs_real_t                    value)
+cs_lagr_events_set_real(cs_lagr_event_set_t  *event_set,
+                        cs_lnum_t             event_id,
+                        int                   attr,
+                        cs_real_t             value)
 {
   assert(event_set->e_am->count[attr] > 0);
 
@@ -452,6 +508,4 @@ cs_lagr_event_set_boundary_interaction(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_EVENT_H__ */
+#endif /* CS_LAGR_EVENT_H */

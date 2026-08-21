@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -58,9 +58,11 @@ AC_ARG_WITH(ple-include,
 AC_ARG_WITH(ple-lib,
             [AS_HELP_STRING([--with-ple-lib=PATH],
                             [specify directory for PLE library])],
-            [PLE_LDFLAGS="-L$with_ple_lib"],
+            [PLE_LDFLAGS="-L$with_ple_lib"
+             PLERUNPATH="${LDRPATH}${with_ple_lib}"],
             [if test "x$with_ple" != "xno" -a "x$with_ple" != "xyes"; then
                PLE_LDFLAGS="-L$with_ple/lib"
+               PLERUNPATH="${LDRPATH}${with_ple}/lib"
              fi])
 
 AC_ARG_WITH(ple-doc,
@@ -169,18 +171,26 @@ if test "x$with_ple" != "xno" ; then
   unset saved_LIBS
 
   ple_type="external"
+  if test -d "$ple_docdir" ; then
+    ple_dox_tag="libple"
+  else
+    ple_dox_tag=""
+  fi
 
 else
 
   ple_type="internal"
+  ple_dox_tag="libple"
 
 fi
 
 AC_SUBST(ple_type)
 AC_SUBST(ple_docdir)
+AC_SUBST(ple_dox_tag)
 AC_SUBST(PLE_CPPFLAGS)
 AC_SUBST(PLE_LDFLAGS)
 AC_SUBST(PLE_LIBS)
+AC_SUBST(PLERUNPATH)
 
 ])dnl
 

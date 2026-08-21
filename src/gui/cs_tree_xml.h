@@ -1,14 +1,14 @@
-#ifndef __CS_TREE_XML_H__
-#define __CS_TREE_XML_H__
+#ifndef CS_TREE_XML_H
+#define CS_TREE_XML_H
 
 /*============================================================================
  * Read a tree structure from an xml file.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,18 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_tree.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_tree.h"
 
 /*============================================================================
  * Macro definitions
@@ -67,6 +63,4 @@ cs_tree_xml_read(cs_tree_node_t  *r,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_TREE_XML_H__ */
+#endif /* CS_TREE_XML_H */

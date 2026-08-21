@@ -1,14 +1,14 @@
-#ifndef __CS_DIVERGENCE_H__
-#define __CS_DIVERGENCE_H__
+#ifndef CS_DIVERGENCE_H
+#define CS_DIVERGENCE_H
 
 /*============================================================================
  * Divergence operators.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_halo.h"
+#include "alge/cs_gradient.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -47,133 +47,15 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
-
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_mass_flux
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (inimav, INIMAV)
-(
- const cs_int_t   *const  f_id,
- const cs_int_t   *const  itypfl,
- const cs_int_t   *const  iflmb0,
- const cs_int_t   *const  init,
- const cs_int_t   *const  inc,
- const cs_int_t   *const  imrgra,
- const cs_int_t   *const  nswrgu,
- const cs_int_t   *const  imligu,
- const cs_int_t   *const  iwarnu,
- const cs_real_t  *const  epsrgu,
- const cs_real_t  *const  climgu,
- const cs_real_t          rom[],
- const cs_real_t          romb[],
- const cs_real_3_t        vel[],
- const cs_real_3_t        coefav[],
- const cs_real_33_t       coefbv[],
- cs_real_t                i_massflux[],
- cs_real_t                b_massflux[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_divergence
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (divmas, DIVMAS)
-(
- const cs_int_t  *const   init,
- const cs_real_t          i_massflux[],
- const cs_real_t          b_massflux[],
- cs_real_t                diverg[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_divergence_tensor
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (divmat, DIVMAT)
-(
- const cs_int_t    *const   init,
- const cs_real_3_t          i_massflux[],
- const cs_real_3_t          b_massflux[],
- cs_real_3_t                diverg[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_ext_force_flux
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (projts, PROJTS)
-(
- const cs_int_t  *const   init,
- const cs_int_t  *const   nswrgu,
- const cs_real_3_t        frcxt[],
- const cs_real_t          cofbfp[],
- cs_real_t                i_massflux[],
- cs_real_t                b_massflux[],
- const cs_real_t          i_visc[],
- const cs_real_t          b_visc[],
- const cs_real_t          viselx[],
- const cs_real_t          visely[],
- const cs_real_t          viselz[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_ext_force_anisotropic_flux
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (projtv, PROJTV)
-(
- const cs_int_t  *const   init,
- const cs_int_t  *const   nswrgu,
- const cs_int_t  *const   ircflp,
- const cs_real_3_t        frcxt[],
- const cs_real_t          cofbfp[],
- const cs_real_t          i_visc[],
- const cs_real_t          b_visc[],
- cs_real_6_t              viscel[],
- const cs_real_2_t        weighf[],
- cs_real_t                i_massflux[],
- cs_real_t                b_massflux[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_tensor_face_flux
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (divrij, DIVRIJ)
-(
- const cs_int_t   *const  f_id,
- const cs_int_t   *const  itypfl,
- const cs_int_t   *const  iflmb0,
- const cs_int_t   *const  init,
- const cs_int_t   *const  inc,
- const cs_int_t   *const  imrgra,
- const cs_int_t   *const  nswrgu,
- const cs_int_t   *const  imligu,
- const cs_int_t   *const  iwarnu,
- const cs_real_t  *const  epsrgu,
- const cs_real_t  *const  climgu,
- const cs_real_t          rom[],
- const cs_real_t          romb[],
- const cs_real_6_t        tensorvel[],
- const cs_real_6_t        coefav[],
- const cs_real_66_t       coefbv[],
- cs_real_3_t              i_massflux[],
- cs_real_3_t              b_massflux[]
-);
 
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Add \f$ \rho \vect{u} \cdot \vect{s}_\ij\f$ to
  * the mass flux \f$ \dot{m}_\ij \f$.
  *
@@ -219,10 +101,7 @@ void CS_PROCF (divrij, DIVRIJ)
  * \param[in]     rom           cell density
  * \param[in]     romb          density at boundary faces
  * \param[in]     vel           vector variable
- * \param[in]     coefav        boundary condition array for the variable
- *                               (explicit part - vector array )
- * \param[in]     coefbv        boundary condition array for the variable
- *                               (implicit part - 3x3 tensor array)
+ * \param[in]     bc_coeffs_v   BC structure for the vector variable
  * \param[in,out] i_massflux    mass flux at interior faces \f$ \dot{m}_\fij \f$
  * \param[in,out] b_massflux    mass flux at boundary faces \f$ \dot{m}_\fib \f$
  */
@@ -230,7 +109,7 @@ void CS_PROCF (divrij, DIVRIJ)
 
 void
 cs_mass_flux(const cs_mesh_t             *m,
-             cs_mesh_quantities_t        *fvq,
+             const cs_mesh_quantities_t  *fvq,
              int                          f_id,
              int                          itypfl,
              int                          iflmb0,
@@ -238,17 +117,16 @@ cs_mass_flux(const cs_mesh_t             *m,
              int                          inc,
              int                          imrgra,
              int                          nswrgu,
-             int                          imligu,
+             cs_gradient_limit_t          imligu,
              int                          iwarnu,
              double                       epsrgu,
              double                       climgu,
              const cs_real_t              rom[],
              const cs_real_t              romb[],
              const cs_real_3_t            vel[],
-             const cs_real_3_t            coefav[],
-             const cs_real_33_t           coefbv[],
-             cs_real_t          *restrict i_massflux,
-             cs_real_t          *restrict b_massflux);
+             cs_field_bc_coeffs_t        *bc_coeffs_v,
+             cs_real_t                   *i_massflux,
+             cs_real_t                   *b_massflux);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -273,7 +151,7 @@ cs_divergence(const cs_mesh_t          *m,
               int                       init,
               const cs_real_t           i_massflux[],
               const cs_real_t           b_massflux[],
-              cs_real_t       *restrict diverg);
+              cs_real_t                *diverg);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -298,7 +176,7 @@ cs_tensor_divergence(const cs_mesh_t            *m,
                      int                         init,
                      const cs_real_3_t           i_massflux[],
                      const cs_real_3_t           b_massflux[],
-                     cs_real_3_t       *restrict diverg);
+                     cs_real_3_t                *diverg);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -335,8 +213,8 @@ cs_ext_force_flux(const cs_mesh_t          *m,
                   int                       nswrgu,
                   const cs_real_3_t         frcxt[],
                   const cs_real_t           cofbfp[],
-                  cs_real_t       *restrict i_massflux,
-                  cs_real_t       *restrict b_massflux,
+                  cs_real_t                *i_massflux,
+                  cs_real_t                *b_massflux,
                   const cs_real_t           i_visc[],
                   const cs_real_t           b_visc[],
                   const cs_real_t           viselx[],
@@ -386,8 +264,8 @@ cs_ext_force_anisotropic_flux(const cs_mesh_t          *m,
                               const cs_real_t           b_visc[],
                               cs_real_6_t               viscel[],
                               const cs_real_2_t         weighf[],
-                              cs_real_t       *restrict i_massflux,
-                              cs_real_t       *restrict b_massflux);
+                              cs_real_t                *i_massflux,
+                              cs_real_t                *b_massflux);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -422,39 +300,28 @@ cs_ext_force_anisotropic_flux(const cs_mesh_t          *m,
  * \param[in]     c_rho         cell density
  * \param[in]     b_rho         density at boundary faces
  * \param[in]     c_var         variable
- * \param[in]     coefav        boundary condition array for the variable
- *                               (explicit part - symmetric tensor array)
- * \param[in]     coefbv        boundary condition array for the variable
- *                               (implicit part - 6x6 symmetric tensor array)
+ * \param[in]     bc_coeffs_ts  boundary condition structure for the variable
  * \param[in,out] i_massflux    mass flux at interior faces \f$ \dot{m}_\fij \f$
  * \param[in,out] b_massflux    mass flux at boundary faces \f$ \dot{m}_\fib \f$
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_tensor_face_flux(const cs_mesh_t          *m,
-                    cs_mesh_quantities_t     *fvq,
-                    int                       f_id,
-                    int                       itypfl,
-                    int                       iflmb0,
-                    int                       init,
-                    int                       inc,
-                    int                       imrgra,
-                    int                       nswrgu,
-                    int                       imligu,
-                    int                       iwarnu,
-                    double                    epsrgu,
-                    double                    climgu,
-                    const cs_real_t           c_rho[],
-                    const cs_real_t           b_rho[],
-                    const cs_real_6_t         c_var[],
-                    const cs_real_6_t         coefav[],
-                    const cs_real_66_t        coefbv[],
-                    cs_real_3_t     *restrict i_massflux,
-                    cs_real_3_t     *restrict b_massflux);
+cs_tensor_face_flux(const cs_mesh_t             *m,
+                    const cs_mesh_quantities_t  *fvq,
+                    int                          f_id,
+                    int                          itypfl,
+                    int                          iflmb0,
+                    int                          init,
+                    int                          inc,
+                    const cs_equation_param_t   *eqp,
+                    const cs_real_t              c_rho[],
+                    const cs_real_t              b_rho[],
+                    const cs_real_6_t            c_var[],
+                    const cs_field_bc_coeffs_t  *bc_coeffs_ts,
+                    cs_real_3_t                 *i_massflux,
+                    cs_real_3_t                 *b_massflux);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_DIVERGENCE_H__ */
+#endif /* CS_DIVERGENCE_H */

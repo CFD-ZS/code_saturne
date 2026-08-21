@@ -1,14 +1,14 @@
-#ifndef __FVM_WRITER_H__
-#define __FVM_WRITER_H__
+#ifndef FVM_WRITER_H
+#define FVM_WRITER_H
 
 /*============================================================================
  * Handle export of mesh and fields.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,20 +27,16 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_timer.h"
+#include "base/cs_timer.h"
 
-#include "fvm_defs.h"
-#include "fvm_nodal.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_nodal.h"
 
 /*=============================================================================
  * Macro definitions
@@ -247,7 +243,7 @@ fvm_writer_init(const char             *name,
  *   this_writer <-- pointer to mesh and field output writer
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_writer_t *
@@ -431,6 +427,4 @@ fvm_writer_get_times(fvm_writer_t        *this_writer,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_WRITER_H__ */
+#endif /* FVM_WRITER_H */

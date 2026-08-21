@@ -1,14 +1,14 @@
-#ifndef __CS_PRE_PROCESSOR_DATA_H__
-#define __CS_PRE_PROCESSOR_DATA_H__
+#ifndef CS_PRE_PROCESSOR_DATA_H
+#define CS_PRE_PROCESSOR_DATA_H
 
 /*============================================================================
- * Exchange of data between Code_Saturne Kernel and Preprocessor
+ * Exchange of data between code_saturne Kernel and Preprocessor
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,41 +28,36 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_io_num.h"
+#include "fvm/fvm_io_num.h"
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
- *  Public function prototypes for Fortran API
+ * Type definitions
  *============================================================================*/
 
-/*----------------------------------------------------------------------------
- * Pass information relative to mesh metadata to the Fortran API
- *
- * Fortran Interface:
- *
- * subroutine ledevi(iperio, iperot)
- * *****************
- *
- * integer          iperio      : <-- : Periodicity indicator
- * integer          iperot      : <-- : Number of rotation periodicities
- *----------------------------------------------------------------------------*/
+/*! Mesh preprocessing operations in case of restart. */
 
-void
-CS_PROCF(ledevi, LEDEVI)(cs_int_t  *iperio,
-                         cs_int_t  *iperot);
+typedef enum {
+
+  CS_PREPROCESSOR_DATA_RESTART_AUTO,        /*!< use restart mesh for
+                                              computation if present */
+  CS_PREPROCESSOR_DATA_RESTART_NONE,        /*!< do not use restart mesh
+                                              for computation */
+  CS_PREPROCESSOR_DATA_RESTART_ONLY         /*!< use restart mesh as-is,
+                                              with no additional
+                                              preprocessing (default if
+                                              restart is present) */
+
+} cs_preprocessor_data_restart_mode_t;
 
 /*============================================================================
  *  Public function prototypes
@@ -80,7 +75,7 @@ CS_PROCF(ledevi, LEDEVI)(cs_int_t  *iperio,
  *   n_group_renames <-- number of groups to rename
  *   group_rename    <-- old (group_rename[i*2]) to new (group_rename[i*2 + 1])
  *                       group names array (size: n_group_renames*2)
- *   transf_matrix   <-- coordinate transformation matrix (or NULL)
+ *   transf_matrix   <-- coordinate transformation matrix (or null)
  *----------------------------------------------------------------------------*/
 
 void
@@ -101,17 +96,44 @@ cs_preprocessor_data_add_file(const char     *file_name,
 int
 cs_preprocessor_check_perio(void);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return restart behavior for preprocessing.
+ *
+ * \return  preprocessing mode in case of restart.
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_preprocessor_data_restart_mode_t
+cs_preprocessor_data_get_restart_mode(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define restart behavior in case of restart.
+ *
+ * If no restart/mesh_input.csm (or restart/mesh_input) file is found,
+ * CS_PREPROCESSOR_DATA_RESTART_NONE will be used.
+ *
+ * \param[in]  mode  chosen preprocessing mode on restart
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_preprocessor_data_set_restart_mode(cs_preprocessor_data_restart_mode_t  mode);
+
 /*----------------------------------------------------------------------------
  * Read mesh meta-data.
  *
  * parameters:
- *   mesh         <-- pointer to mesh structure
- *   mesh_builder <-- pointer to mesh builder structure
+ *   mesh             <-- pointer to mesh structure
+ *   mesh_builder     <-- pointer to mesh builder structure
+ *   ignore_cartesian <-- option to ignore cartesian blocks
  *----------------------------------------------------------------------------*/
 
 void
 cs_preprocessor_data_read_headers(cs_mesh_t          *mesh,
-                                  cs_mesh_builder_t  *mesh_builder);
+                                  cs_mesh_builder_t  *mesh_builder,
+                                  bool                ignore_cartesian);
 
 /*----------------------------------------------------------------------------
  * Read pre-processor mesh data and finalize input.
@@ -125,17 +147,17 @@ cs_preprocessor_data_read_headers(cs_mesh_t          *mesh,
  * the mesh structure.
  *
  * parameters:
- *   mesh         <-- pointer to mesh structure
- *   mesh_builder <-- pointer to mesh builder structure
+ *   mesh             <-- pointer to mesh structure
+ *   mesh_builder     <-- pointer to mesh builder structure
+ *   ignore_cartesian <-- option to ignore cartesian blocks
  *----------------------------------------------------------------------------*/
 
 void
 cs_preprocessor_data_read_mesh(cs_mesh_t          *mesh,
-                               cs_mesh_builder_t  *mesh_builder);
+                               cs_mesh_builder_t  *mesh_builder,
+                               bool                ignore_cartesian);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PRE_PROCESSOR_DATA_H__ */
+#endif /* CS_PRE_PROCESSOR_DATA_H */
 

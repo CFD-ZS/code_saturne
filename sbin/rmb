@@ -9,10 +9,11 @@ mkdir -p $RMBDIR || exit 1
 
 cd $PREFIX
 
-for file in src/*/*.[ch] src/*/*.f90 src/*/*.[ch]xx tests/*.c build-aux/*.py \
-            gui/*/*.py bin/*.py bin/studymanager/*py bin/*.in bin/runcase* \
+for file in src/*/*.[ch] src/*/*.f90 src/*/*.[ch]xx src/*/*.cu \
+            src/model/*.[ch]pp \
+            tests/*.c* build-aux/*.py \
+            python/code_saturne/*/*.py python/code_saturne/*/*/*.py \
             libple/*/*.[ch] preprocessor/*/*.[ch] \
-            salome/cfd_study/src/*/*.py \
             NEWS.md
 do
   tmpfile=`basename $file`
@@ -25,7 +26,7 @@ do
   fi
 done
 
-for file in docs/*/*.tex
+for file in doc/*/*.tex
 do
   tmpfile=`basename $file`
   sed -e 's/ *$//' $file > $RMBDIR/$tmpfile

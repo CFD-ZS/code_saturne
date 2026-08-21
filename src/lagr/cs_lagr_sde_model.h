@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_SDE_MODEL_H__
-#define __CS_LAGR_SDE_MODEL_H__
+#ifndef CS_LAGR_SDE_MODEL_H
+#define CS_LAGR_SDE_MODEL_H
 
 /*============================================================================
  * Lagrangian module physical model
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,9 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Macro definitions
@@ -54,13 +52,17 @@ BEGIN_C_DECLS
  * \brief Integration of particle stochastic differential equations
  *        for specific physical models.
  *
- * - fluid temperature seen by particles,
+ * - temperature seen by particles,
  * - particle temperature,
  * - particle diameter
  * - particle mass
  * - variables related to coal grains (Temp, MCH, MCK)
  * - additional user parameters
- *
+
+ * \param[in]  p_set        reference to particle set
+ * \param[in]  p_id         particle id
+ * \param[in]  dt_part      time step associated to the particle
+ * \param[in]  nor          current step id (for 2nd order scheme)
  * \param[in]  tempct       thermal characteristic time
  * \param[out] cpgd1,cpgd2  devolatilisation terms 1 and 2
  * \param[out] cpght        heterogeneos combusion terms (coal with thermal
@@ -68,14 +70,17 @@ BEGIN_C_DECLS
  */
 /*------------------------------------------------------------------------- */
 
+#if defined(__cplusplus)
 void
-cs_lagr_sde_model(const cs_real_t  tempct[],
-                  cs_real_t        cpgd1[],
-                  cs_real_t        cpgd2[],
-                  cs_real_t        cpght[]);
-
+cs_lagr_sde_model(cs_lagr_particle_set_t  &p_set,
+                  const cs_lnum_t          p_id,
+                  const cs_real_t          dt_part,
+                  int                      nor,
+                  const cs_real_2_t        tempct,
+                  cs_real_t                *cpgd1,
+                  cs_real_t                *cpgd2,
+                  cs_real_t                *cpght);
+#endif
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_SDE_MODEL_H__ */
+#endif /* CS_LAGR_SDE_MODEL_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_TIME_MOMENT_H__
-#define __CS_TIME_MOMENT_H__
+#ifndef CS_TIME_MOMENT_H
+#define CS_TIME_MOMENT_H
 
 /*============================================================================
  * Moments management
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_field.h"
-#include "cs_restart.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_field.h"
+#include "base/cs_restart.h"
+#include "base/cs_function.h"
 
 /*============================================================================
  * Macro definitions
@@ -53,20 +50,34 @@ BEGIN_C_DECLS
 
 /* Moment type */
 
+/*! Temporal moments management. */
 typedef enum {
 
-  CS_TIME_MOMENT_MEAN,
-  CS_TIME_MOMENT_VARIANCE
+  CS_TIME_MOMENT_MEAN,     /*!< Moment is a mean */
+  CS_TIME_MOMENT_VARIANCE, /*!< Moment is a variance */
+  CS_TIME_MOMENT_EWA       /*!< Exponentially weighted average with time scale T */
 
 } cs_time_moment_type_t;
 
 /* Moment restart behavior */
 
+/*! Moment restart behavior */
 typedef enum {
 
-  CS_TIME_MOMENT_RESTART_RESET,
-  CS_TIME_MOMENT_RESTART_AUTO,
-  CS_TIME_MOMENT_RESTART_EXACT
+  CS_TIME_MOMENT_RESTART_RESET, /*!< Moment is reset in case of a restart file:
+                                     starting time step will be no older than
+                                     the restart time step.*/
+  CS_TIME_MOMENT_RESTART_AUTO,  /*!< Moment uses restart information if
+                                     available:
+                                     if the requested time step is older than
+                                     the restart time step, restart information
+                                     will be used, though the starting time step
+                                     is not guaranteed*/
+  CS_TIME_MOMENT_RESTART_EXACT  /*!< If the requested time step is older than
+                                     the restart time step, restart information
+                                     will be used, and if the start time step
+                                     or time does not match the one available,
+                                     an error is thrown.*/
 
 } cs_time_moment_restart_t;
 
@@ -75,11 +86,11 @@ typedef enum {
  *
  * If the matching values are multidimensional, they must be interleaved.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so either:
  * - that value or structure should not be temporary (i.e. local);
- * - post-processing output must be ensured using cs_post_write_meshes()
- *   with a fixed-mesh writer before the data pointed to goes out of scope;
+ * - when a single integer identifier is needed, the input pointer can be
+ *   set to that value instead of an actual address;
  *
  * parameters:
  *   input <-- pointer to optional (untyped) value or structure.
@@ -139,9 +150,8 @@ cs_time_moment_update_all(void);
 int
 cs_time_moment_is_active(int moment_id);
 
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Define a moment of a product of existing field components
+/*----------------------------------------------------------------------------
+ * Define a moment of a product of existing field components
  *
  * Moments will involve the tensor products of their component fields,
  * and only scalar, vector, or rank-2 tensors are handled (for
@@ -151,15 +161,18 @@ cs_time_moment_is_active(int moment_id);
  * If of dimension > 1, the moment array is always interleaved.
  *
  * parameters:
- *   name         <-- name of associated moment
- *   n_fields     <-- number of associated fields
- *   field_id     <-- ids of associated fields
- *   component_id <-- ids of matching field components (-1 for all)
- *   type         <-- moment type
- *   nt_start     <-- starting time step (or -1 to use t_start)
- *   t_start      <-- starting time
- *   restart_mode <-- behavior in case of restart (reset, auto, or strict)
- *   restart_name <-- if not NULL, previous name in case of restart
+ *   name            <-- name of associated moment
+ *   n_fields        <-- number of associated fields
+ *   field_id        <-- ids of associated fields
+ *   component_id    <-- ids of matching field components (-1 for all)
+ *   type            <-- moment type
+ *   nt_start        <-- starting time step (or -1 to use t_start)
+ *   t_start         <-- starting time
+ *   restart_mode    <-- behavior in case of restart (reset, auto, or strict)
+ *   restart_name    <-- if non-null, previous name in case of restart
+ *   ewa_time_scale  <-- EWA time scale T (s); required (> 0) when type is
+ *                       CS_TIME_MOMENT_EWA, must be left unset (default -1)
+ *                       otherwise
  *
  * returns:
  *   id of new moment in case of success, -1 in case of error.
@@ -174,7 +187,78 @@ cs_time_moment_define_by_field_ids(const char                *name,
                                    int                        nt_start,
                                    double                     t_start,
                                    cs_time_moment_restart_t   restart_mode,
-                                   const char                *restart_name);
+                                   const char                *restart_name,
+                                   cs_real_t                  ewa_time_scale = -1.);
+
+/*----------------------------------------------------------------------------
+ * Define a time moment of an existing field.
+ *
+ * Moments will involve the tensor products of their component fields,
+ * and only scalar, vector, or rank-2 tensors are handled (for
+ * post-processing output reasons), so a 1st-order moment (i.e. mean) may
+ * involve a scalar, vector, or tensor, while a second-order moment
+ * (i.e. variance) may only involve a scalar or vector.
+ *
+ * parameters:
+ *   name            <-- name of associated moment
+ *   f               <-- pointer to associated field
+ *   type            <-- moment type
+ *   nt_start        <-- starting time step (or -1 to use t_start)
+ *   t_start         <-- starting time
+ *   restart_mode    <-- behavior in case of restart (reset, auto, or strict)
+ *   restart_name    <-- if non-null, previous name in case of restart
+ *   ewa_time_scale  <-- EWA time scale T (s); required (> 0) when type is
+ *                       CS_TIME_MOMENT_EWA, must be left unset (default -1)
+ *                       otherwise
+ *
+ * returns:
+ *   id of new moment in case of success, -1 in case of error.
+ *----------------------------------------------------------------------------*/
+
+int
+cs_time_moment_define_by_field(const char                *name,
+                               const cs_field_t          *f,
+                               cs_time_moment_type_t      type,
+                               int                        nt_start,
+                               double                     t_start,
+                               cs_time_moment_restart_t   restart_mode,
+                               const char                *restart_name,
+                               cs_real_t                  ewa_time_scale = -1.);
+
+/*----------------------------------------------------------------------------
+ * Define a time moment based on an evaluation function.
+ *
+ * Moments will involve the tensor products of their component fields,
+ * and only scalar, vector, or rank-2 tensors are handled (for
+ * post-processing output reasons), so a 1st-order moment (i.e. mean) may
+ * involve a scalar, vector, or tensor, while a second-order moment
+ * (i.e. variance) may only involve a scalar or vector.
+ *
+ * parameters:
+ *   name            <-- name of associated moment
+ *   f               <-- pointer to function object
+ *   type            <-- moment type
+ *   nt_start        <-- starting time step (or -1 to use t_start)
+ *   t_start         <-- starting time
+ *   restart_mode    <-- behavior in case of restart (reset, auto, or strict)
+ *   restart_name    <-- if non-null, previous name in case of restart
+ *   ewa_time_scale  <-- EWA time scale T (s); required (> 0) when type is
+ *                       CS_TIME_MOMENT_EWA, must be left unset (default -1)
+ *                       otherwise
+ *
+ * returns:
+ *   id of new moment in case of success, -1 in case of error.
+ *----------------------------------------------------------------------------*/
+
+int
+cs_time_moment_define_by_function(const char                *name,
+                                  cs_function_t             *f,
+                                  cs_time_moment_type_t      type,
+                                  int                        nt_start,
+                                  double                     t_start,
+                                  cs_time_moment_restart_t   restart_mode,
+                                  const char                *restart_name,
+                                  cs_real_t                  ewa_time_scale = -1.);
 
 /*----------------------------------------------------------------------------
  * Define a moment whose data values will be computed using a
@@ -183,20 +267,24 @@ cs_time_moment_define_by_field_ids(const char                *name,
  * If of dimension > 1, the moment array is always interleaved.
  *
  * parameters:
- *   name         <-- name of associated moment
- *   location_id  <-- id of associated mesh location
- *   dim          <-- dimension associated with element data
- *   data_func    <-- function used to define data values
- *   data_input   <-- pointer to optional (untyped) value or structure
- *                    to be used by data_func
- *   weight_func  <-- function used to define weight values
- *   weight_input <-- pointer to optional (untyped) value or structure
- *                    to be used by weight_func
- *   type         <-- moment type
- *   nt_start     <-- starting time step (or -1 to use t_start)
- *   t_start      <-- starting time
- *   restart_mode <-- behavior in case of restart (reset, auto, or strict)
- *   restart_name <-- if not NULL, previous name in case of restart
+ *   name            <-- name of associated moment
+ *   location_id     <-- id of associated mesh location
+ *   dim             <-- dimension associated with element data
+ *   is_intensive    <-- is the time moment intensive?
+ *   data_func       <-- function used to define data values
+ *   data_input      <-- pointer to optional (untyped) value or structure
+ *                       to be used by data_func
+ *   weight_func     <-- function used to define weight values
+ *   weight_input    <-- pointer to optional (untyped) value or structure
+ *                       to be used by weight_func
+ *   type            <-- moment type
+ *   nt_start        <-- starting time step (or -1 to use t_start)
+ *   t_start         <-- starting time
+ *   restart_mode    <-- behavior in case of restart (reset, auto, or strict)
+ *   restart_name    <-- if non-null, previous name in case of restart
+ *   ewa_time_scale  <-- EWA time scale T (s); required (> 0) when type is
+ *                       CS_TIME_MOMENT_EWA, must be left unset (default -1)
+ *                       otherwise
  *
  * returns:
  *   id of new moment in case of success, -1 in case of error.
@@ -206,6 +294,7 @@ int
 cs_time_moment_define_by_func(const char                *name,
                               int                        location_id,
                               int                        dim,
+                              bool                       is_intensive,
                               cs_time_moment_data_t     *data_func,
                               const void                *data_input,
                               cs_time_moment_data_t     *w_data_func,
@@ -214,7 +303,8 @@ cs_time_moment_define_by_func(const char                *name,
                               int                        nt_start,
                               double                     t_start,
                               cs_time_moment_restart_t   restart_mode,
-                              const char                *restart_name);
+                              const char                *restart_name,
+                              cs_real_t                  ewa_time_scale = -1.);
 
 /*----------------------------------------------------------------------------
  * Return the number of defined time moments.
@@ -263,7 +353,7 @@ cs_time_moment_restart_options_by_id(int                         restart_id,
  *   restart_id <-- id of time moment in restart data
  *
  * returns:
- *   name of defined moment in restart file, or NULL
+ *   name of defined moment in restart file, or null
  *----------------------------------------------------------------------------*/
 
 const char *
@@ -272,14 +362,14 @@ cs_time_moment_restart_name(int  restart_id);
 /*----------------------------------------------------------------------------
  * Return pointer to field associated with a given moment.
  *
- * For moments defined automatically to assist computation of higher
- * order moments, which do not have an associated field, NULL is returned.
+ * For moments defined automatically to assist computation of higher order
+ * moments, which do not have an associated field, a null pointer is returned.
  *
  * parameters:
  *   moment_id <-- id of associated moment
  *
  * returns:
- *   pointer to field associated with given moment, or NULL
+ *   pointer to field associated with given moment, or null
  *----------------------------------------------------------------------------*/
 
 cs_field_t *
@@ -299,10 +389,44 @@ int
 cs_time_moment_is_active(int  moment_id);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Reset a time moment.
+/*
+ * \brief Reset selected time step for starting time step of selected moment.
  *
- * \param[in]   moment_id  id of associated moment
+ * All other time moments sharing the same start time will also start
+ * at the same time step.
+ *
+ * \param[in]   moment_id  id of associated moment, or -1 for all
+ * \param[in]   nt_start   starting time step
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_time_moment_set_start_time(int   moment_id,
+                              int   nt_start);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Reset selected time step for starting time step of selected moment.
+ *
+ * All other time moments sharing the same start time will also start
+ * at the same time step.
+ *
+ * \param[in]   moment_id  id of associated moment, or -1 for all
+ * \param[in]   nt_start   starting time value
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_time_moment_set_start_time(int     moment_id,
+                              double  t_start);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set current iteration as starting time step of selected moment.
+ *
+ * All other time moments sharing the same start time should also be reset.
+ *
+ * \param[in]   moment_id  id of associated moment, or -1 for all.
  */
 /*----------------------------------------------------------------------------*/
 
@@ -362,6 +486,4 @@ cs_time_moment_restart_write(cs_restart_t  *restart);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_TIME_MOMENT_H__ */
+#endif /* CS_TIME_MOMENT_H */

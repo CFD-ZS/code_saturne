@@ -1,14 +1,14 @@
-#ifndef __CS_BAD_CELLS_REGULARISATION_H__
-#define __CS_BAD_CELLS_REGULARISATION_H__
+#ifndef CS_BAD_CELLS_REGULARISATION_H
+#define CS_BAD_CELLS_REGULARISATION_H
 
 /*============================================================================
  * Divergence operators.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_halo.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -47,7 +43,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*============================================================================
@@ -60,28 +56,52 @@ BEGIN_C_DECLS
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Add comments
+ * \brief Regularisation on bad cells for scalars
  *
+ * \param[in, out]  var  variable to regularize.
  */
 /*----------------------------------------------------------------------------*/
 
 void
 cs_bad_cells_regularisation_scalar(cs_real_t *var);
 
-void
-cs_bad_cells_regularisation_vector(cs_real_3_t *var,
-                                   int         boundary_projection);
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Regularisation on bad cells for symmetric tensors.
+ *
+ * \param[in, out]  var  variable to regularize.
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 cs_bad_cells_regularisation_sym_tensor(cs_real_6_t *var,
-                                       int         boundary_projection);
+                                       int          boundary_projection);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Regularisation on bad cells for tensors
+ *
+ * \param[in, out]  var  variable to regularize.
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 cs_bad_cells_regularisation_tensor(cs_real_9_t *var,
                                    int          boundary_projection);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Regularisation on bad cells for vectors
+ *
+ * \param[in, out]  var  variable to regularize.
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+template <typename T>
+void
+cs_bad_cells_regularisation_vector(T      (*var)[3],
+                                   int     boundary_projection);
 
-#endif /* __CS_BAD_CELLS_REGULARISATION_H__ */
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_BAD_CELLS_REGULARISATION_H */

@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,39 +33,17 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/atmo \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/cfbl \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/darc \
--I$(top_srcdir)/src/ctwr \
--I$(top_srcdir)/src/elec \
--I$(top_srcdir)/src/lagr \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/gui \
--I$(top_srcdir)/src/pprt \
--I$(top_srcdir)/src/rayt \
--I$(top_srcdir)/src/turb \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
+$(PETSC_CPPFLAGS) \
+$(HYPRE_CPPFLAGS) \
+$(MUMPS_CPPFLAGS) \
+$(MEDCOUPLING_CPPFLAGS) \
+$(MED_CPPFLAGS) \
+$(HDF5_CPPFLAGS) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
-
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/atmo \
-$(FCMODINCLUDE)$(top_builddir)/src/cfbl \
-$(FCMODINCLUDE)$(top_builddir)/src/cogz \
-$(FCMODINCLUDE)$(top_builddir)/src/comb \
-$(FCMODINCLUDE)$(top_builddir)/src/ctwr \
-$(FCMODINCLUDE)$(top_builddir)/src/elec \
-$(FCMODINCLUDE)$(top_builddir)/src/lagr \
-$(FCMODINCLUDE)$(top_builddir)/src/pprt \
-$(FCMODINCLUDE)$(top_builddir)/src/rayt \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
@@ -73,16 +51,32 @@ AM_LDFLAGS =
 # for by automake
 EXTRA_DIST =
 
+# Public header files (to be installed)
+
+csmeg_includedir=$(pkgincludedir)/meg
+csmeg_include_HEADERS = \
+cs_meg_prototypes.h \
+cs_meg_xdef_wrapper.h \
+cs_meg_headers.h
+
 # Library source files
 
 megfiles = \
-cs_meg_boundary_function.c \
-cs_meg_immersed_boundaries_inout.c \
-cs_meg_initialization.c \
-cs_meg_source_terms.c \
-cs_meg_volume_function.c
+cs_meg_boundary_function.cxx \
+cs_meg_fsi_struct.cxx \
+cs_meg_immersed_boundaries.cxx \
+cs_meg_immersed_boundaries_fsi.cxx \
+cs_meg_immersed_boundaries_volume.cxx \
+cs_meg_initialization.cxx \
+cs_meg_post_calculator.cxx \
+cs_meg_post_output.cxx \
+cs_meg_post_profile.cxx \
+cs_meg_source_terms.cxx \
+cs_meg_volume_function.cxx \
+cs_meg_xdef_wrapper.cxx
 
-noinst_LTLIBRARIES = libcsmeg.la
-libcsmeg_la_SOURCES = $(megfiles)
-libcsmeg_la_LDFLAGS = -no-undefined
+noinst_LIBRARIES = libcsmeg.a
+libcsmeg_a_SOURCES = $(megfiles)
 
+clean-local:
+	-rm -rf .deps

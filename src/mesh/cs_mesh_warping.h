@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_WARPING_H__
-#define __CS_MESH_WARPING_H__
+#ifndef CS_MESH_WARPING_H
+#define CS_MESH_WARPING_H
 
 /*============================================================================
  * Cut warped faces in serial or parallel with/without periodicity.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
@@ -45,29 +41,6 @@ BEGIN_C_DECLS
 /*============================================================================
  * Type definitions
  *============================================================================*/
-
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Set the threshold to cut warped faces.
- *
- * Fortran interface :
- *
- * subroutine setcwf (cwfthr)
- * *****************
- *
- * integer          cwfpst      : <-> : if 1, activate postprocessing when
- *                                      cutting warped faces (default 0)
- * double precision cwfthr      : <-> : threshold angle (in degrees) if
- *                                      positive, do not cut warped faces
- *                                      if negative (default -1)
- *----------------------------------------------------------------------------*/
-
-void
-CS_PROCF (setcwf, SETCWF) (const cs_int_t   *cwfpst,
-                           const cs_real_t  *cwfthr);
 
 /*=============================================================================
  * Public function prototypes
@@ -107,10 +80,10 @@ cs_mesh_warping_set_defaults(double  max_warp_angle,
  * Get defaults for cutting of warped faces.
  *
  * parameters:
- *   max_warp_angle --> if non NULL, returns maximum warp angle (in degrees)
+ *   max_warp_angle --> if non-null, returns maximum warp angle (in degrees)
  *                      over which faces will be cut, or -1 if faces should
  *                      not be cut
- *   postprocess    --> if non NULL, returns 1 if postprocessing should be
+ *   postprocess    --> if non-null, returns 1 if postprocessing should be
  *                      activated when cutting warped faces, 0 otherwise
  *----------------------------------------------------------------------------*/
 
@@ -120,6 +93,4 @@ cs_mesh_warping_get_defaults(double  *max_warp_angle,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MESH_WARPING_H__ */
+#endif /* CS_MESH_WARPING_H */

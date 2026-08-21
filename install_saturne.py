@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #-------------------------------------------------------------------------------
 # Library modules import
@@ -6,8 +6,8 @@
 
 import sys
 
-if sys.version_info[:2] < (2,6):
-    sys.stderr.write("This script needs Python 2.6 at least\n")
+if sys.version_info[:2] < (3, 4):
+    sys.stderr.write("This script needs Python 3.4 at least\n")
 
 import platform
 
@@ -93,7 +93,7 @@ def check_directory():
         message = \
 """
 The '%(script_name)s' installer script should not be run from inside the
-'%(top_srcdir)s' Code_Saturne source directory,
+'%(top_srcdir)s' code_saturne source directory,
 but from a separate directory.
 
 We recommend running for example:
@@ -233,17 +233,17 @@ class Package:
 
     def download(self):
 
-        if sys.version_info[0] < (3):
-            import urllib2
-            u = urllib2.urlopen(self.url)
-            data = u.read()
-            f = open(self.archive, 'wb')
-            f.write(data)
-            f.close()
-
-        else:
-            import urllib.request
+        import urllib.request
+        try:
             urllib.request.urlretrieve(self.url, self.archive)
+        except Exception as e:
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      limit=2, file=sys.stderr)
+            print("")
+            print("Failed downloading " + str(self.url))
+            pass
 
     #---------------------------------------------------------------------------
 
@@ -288,7 +288,11 @@ class Package:
             tar = tarfile.open(self.archive)
 
             first_member = tar.next()
-            relative_source_dir = first_member.name.split(os.path.sep)[0]
+            path = first_member.name.split(os.path.sep)
+            if path[0] == '.':
+                relative_source_dir = path[1]
+            else:
+                relative_source_dir = path[0]
             self.source_dir = os.path.abspath(relative_source_dir)
 
             try:
@@ -370,96 +374,6 @@ class Package:
 
     #---------------------------------------------------------------------------
 
-    def install_ptscotch(self):
-
-        current_dir = os.getcwd()
-
-        build_dir = self.source_dir + '.build'
-        if os.path.isdir(build_dir): shutil.rmtree(build_dir)
-
-        # Create some install directories in case install script does not work
-        if self.install_dir:
-            inc_dir = os.path.join(self.install_dir, 'include')
-            lib_dir = os.path.join(self.install_dir, 'lib')
-            for dir in [inc_dir, lib_dir]:
-                if not os.path.isdir(dir):
-                    os.makedirs(dir)
-
-        # Copy source files in build directory as VPATH feature is unsupported
-        shutil.copytree(self.source_dir, build_dir)
-
-        os.chdir(os.path.join(build_dir, 'src'))
-
-        if self.shared:
-            fdr = open('Make.inc/Makefile.inc.x86-64_pc_linux2.shlib')
-        else:
-            fdr = open('Make.inc/Makefile.inc.x86-64_pc_linux2')
-        fd = open('Makefile.inc','w')
-
-        re_thread = re.compile('-DSCOTCH_PTHREAD')
-        re_intsize32 = re.compile('-DINTSIZE32')
-        re_intsize64 = re.compile('-DINTSIZE64')
-        re_idxsize64 = re.compile('-DIDXSIZE64')
-
-        for line in fdr:
-
-            if line[0:3] in ['CCS', 'CCP', 'CCD']:
-                i1 = line.find('=')
-                line = line[0:i1] + '= ' + self.cc + '\n'
-            line = re.sub(re_thread, '', line)
-            line = re.sub(re_intsize32, '', line)
-            line = re.sub(re_intsize64, '', line)
-            line = re.sub(re_idxsize64, '-DIDXSIZE64 -DINTSIZE64', line)
-
-            fd.write(line)
-
-        fdr.close()
-        fd.close()
-
-        # Build and install
-        for target in ['scotch', 'ptscotch']:
-            run_command("make "+target, "Compile", self.name, self.log_file)
-            run_command("make install prefix="+self.install_dir,
-                        "Install", self.name, self.log_file)
-            run_command("make clean", "Clean", self.name, self.log_file)
-
-        # End of installation
-        os.chdir(current_dir)
-
-    #---------------------------------------------------------------------------
-
-    def install_parmetis(self):
-
-        current_dir = os.getcwd()
-
-        build_dir = self.source_dir + '.build'
-        if os.path.isdir(build_dir): shutil.rmtree(build_dir)
-
-        # Copy source files in build directory as VPATH feature is unsupported
-        shutil.copytree(self.source_dir, build_dir)
-
-        for d in [os.path.join(build_dir, 'metis'), build_dir]:
-
-            os.chdir(d)
-
-            configure = "make config prefix=" + self.install_dir
-            configure += " cc=" + self.cc
-            if self.cxx:
-                configure += " cxx=" + self.cxx
-            if self.shared:
-                configure += " shared=1 "
-
-            # Install the package and clean build directory
-            run_command(configure, "Configure", self.name, self.log_file)
-            run_command("make", "Compile", self.name, self.log_file)
-            run_command("make install", "Install", self.name, self.log_file)
-            run_command("make clean", "Clean", self.name, self.log_file)
-
-        # End of installation
-        os.chdir(current_dir)
-
-    #---------------------------------------------------------------------------
-
     def test_library(self, executables=None, header=None, libname=None):
 
         libroot = None
@@ -514,7 +428,7 @@ class Package:
             self.install_dir = None
 
 #-------------------------------------------------------------------------------
-# Class definition for Code_Saturne setup
+# Class definition for code_saturne setup
 #-------------------------------------------------------------------------------
 
 class Setup:
@@ -525,7 +439,7 @@ class Setup:
         self.top_srcdir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
         # Optional libraries
-        self.optlibs = ['hdf5', 'cgns', 'med', 'scotch', 'parmetis']
+        self.optlibs = ['hdf5', 'cgns', 'med', 'scotch']
 
         # Optional libraries configure could find in salome
         self.salome_optlibs = ['hdf5', 'cgns', 'med']
@@ -536,10 +450,7 @@ class Setup:
         # Download packages
         self.download = 'yes'
 
-        # Code_Saturne language (may be en/fr)
-        self.language = 'en'
-
-        # Code_Saturne installation with debugging symbols
+        # code_saturne installation with debugging symbols
         self.debug = 'no'
 
         # Installation with shared libraries (not modifiable yet)
@@ -574,11 +485,11 @@ class Setup:
         # Packages definition
         self.packages = {}
 
-        # Code_Saturne
+        # code_saturne
 
         self.packages['code_saturne'] = \
-            Package(name="Code_Saturne",
-                    description="Code_Saturne CFD tool",
+            Package(name="code_saturne",
+                    description="code_saturne CFD tool",
                     package="code_saturne",
                     version=None,
                     archive=None,
@@ -597,9 +508,9 @@ class Setup:
             Package(name="HDF5",
                     description="Hierarchical Data Format",
                     package="hdf5",
-                    version="1.10.5",
-                    archive="hdf5-1.10.5.tar.gz",
-                    url="https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.5/src/%s")
+                    version="1.12.3",
+                    archive="hdf5-1.12.3.tar.bz2",
+                    url="https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.3/src/%s")
 
         p = self.packages['hdf5']
         p.config_opts = "--enable-build-mode=production"
@@ -610,35 +521,26 @@ class Setup:
             Package(name="CGNS",
                     description="CFD General Notation System",
                     package="cgns",
-                    version="3.4.0",
-                    archive="CGNS-3.4.0.tar.gz",
-                    url="https://github.com/CGNS/CGNS/archive/v3.4.0.tar.gz")
+                    version="4.4.0",
+                    archive="CGNS-4.4.0.tar.gz",
+                    url="https://github.com/CGNS/CGNS/archive/v4.4.0.tar.gz")
 
         p = self.packages['cgns']
         p.config_opts = "-DCGNS_ENABLE_64BIT=ON -DCGNS_ENABLE_SCOPING=ON"
 
         # MED library
+        # Note: alternative address: https://www.code-saturne.org/releases/external/med-5.0.0.tar.bz2
 
         self.packages['med'] = \
             Package(name="MED",
                     description="Model for Exchange of Data",
                     package="med",
-                    version="4.0.0",
-                    archive="med-4.0.0.tar.gz",
-                    url="http://files.salome-platform.org/Salome/other/%s")
+                    version="5.0.0",
+                    archive="med-5.0.0.tar.bz2",
+                    url="https://files.salome-platform.org/Salome/medfile/%s")
 
         p = self.packages['med']
         p.config_opts = "--with-med_int=long --disable-fortran --disable-python"
-
-        # ParMETIS
-
-        self.packages['parmetis'] = \
-            Package(name="parmetis",
-                    description="ParMETIS",
-                    package="parmetis",
-                    version="4.0.3",
-                    archive="parmetis-4.0.3.tar.gz",
-                    url="http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/%s")
 
         # SCOTCH
 
@@ -646,20 +548,24 @@ class Setup:
             Package(name="scotch",
                     description="PT-Scotch",
                     package="scotch",
-                    version="6.0.6",
-                    archive="scotch_6.0.6.tar.gz",
-                    url="https://gforge.inria.fr/frs/download.php/file/37622/%s")
+                    version="7.0.4",
+                    archive="scotch_7.0.4.tar.gz",
+                    url="https://gitlab.inria.fr/scotch/scotch/-/archive/v7.0.4/%s")
+        p = self.packages['scotch']
+        p.config_opts = "-DBUILD_LIBSCOTCHMETIS=OFF"
+        if self.shared:
+            p.config_opts += " -DBUILD_SHARED_LIBS=ON"
 
     #---------------------------------------------------------------------------
 
     def setup_defaults(self):
 
-        self.cc = find_executable(['cc', 'gcc', 'icc', 'xlc', 'clang'], 'CC')
-        self.fc = find_executable(['f95', 'gfortran', 'ifort'], 'FC')
-        self.cxx = find_executable(['c++', 'g++', 'icpc', 'xlc++', 'clang++'], 'CXX')
+        self.cc = find_executable(['cc', 'gcc', 'icx', 'icc', 'xlc', 'clang'], 'CC')
+        self.fc = find_executable(['f95', 'gfortran', 'ifx', 'ifort'], 'FC')
+        self.cxx = find_executable(['c++', 'g++', 'icpx', 'icpc', 'xlc++', 'clang++'], 'CXX')
         self.mpicc = find_executable(['mpicc', 'mpicc.openmpi', 'mpicc.mpich'])
         self.mpicxx = find_executable(['mpicxx', 'mpicxx.openmpi', 'mpicxx.mpich'])
-        self.python = find_executable(['python'], 'PYTHON')
+        self.python = find_executable(['python3'], 'PYTHON')
 
         # Architecture name
         self.arch = os.uname()[0] + '_' + os.uname()[4]
@@ -696,7 +602,7 @@ class Setup:
         p = self.packages['code_saturne']
         from os.path import expanduser
         home = expanduser("~")
-        self.prefix = os.path.join(home, 'Code_Saturne', p.version)
+        self.prefix = os.path.join(home, 'code_saturne', p.version)
 
     #---------------------------------------------------------------------------
 
@@ -712,7 +618,7 @@ class Setup:
 """
 
 Please edit the 'setup' file in the current directory
-to define your Code_Saturne setup options.
+to define your code_saturne setup options.
 
 You may then re-run '%(script_path)s'
 to start the installation.
@@ -760,7 +666,6 @@ to start the installation.
                     if not list[1] in ['default', 'auto']:
                         self.prefix = list[1]
                 elif key == 'debug': self.debug = list[1]
-                elif key == 'language': self.language = list[1]
                 elif key == 'use_arch': self.use_arch = list[1]
                 elif key == 'arch':
                     self.arch = list[1]
@@ -857,14 +762,6 @@ Check the setup file and some utilities presence.
                              "Please check your setup file.\n\n")
             sys.exit(1)
 
-        # Testing language option
-        if self.language not in ['en', 'fr']:
-            sys.stderr.write("\n*** Aborting installation:\n"
-                             "\'language\' option in the setup file "
-                             "should be \'en\' or \'fr'.\n"
-                             "Please check your setup file.\n\n")
-            sys.exit(1)
-
         # Testing prefix directory
         if self.prefix and not os.path.isdir(self.prefix):
             try:
@@ -916,7 +813,7 @@ Check the setup file and some utilities presence.
                                  "Please check your setup file.\n\n")
             sys.exit(1)
         else:
-            cmd = python + " -c \'import sys; print(sys.version[:3])\'"
+            cmd = python + " -c \'import sys; print(\"%d.%d\" % (sys.version_info.major, sys.version_info.minor))\'"
             if verbose == 'yes':
                 sys.stdout.write("     Python version is ")
             p = subprocess.Popen(cmd,
@@ -972,7 +869,7 @@ Check the setup file and some utilities presence.
         ret = run_test("make")
         if ret != 0:
             sys.stderr.write("\n*** Aborting installation:\n"
-                             "\'make\' utility is mandatory for Code_Saturne "
+                             "\'make\' utility is mandatory for code_saturne "
                              "compilation.\n"
                              "Please install development tools.\n\n")
             sys.exit(1)
@@ -998,9 +895,7 @@ Check the setup file and some utilities presence.
             # Compilers
             p.cc = self.cc
             p.cxx = self.cxx
-            if lib in ['scotch'] and self.mpicc:
-                p.cc = self.mpicc
-            elif lib in ['code_saturne', 'parmetis']:
+            if lib in ['code_saturne']:
                 if self.mpicc:
                     p.cc = self.mpicc
                 if self.mpicxx:
@@ -1019,7 +914,6 @@ Check the setup file and some utilities presence.
         cgns = self.packages['cgns']
         med= self.packages['med']
         scotch = self.packages['scotch']
-        parmetis = self.packages['parmetis']
 
         # Disable GUI
 
@@ -1059,13 +953,6 @@ Check the setup file and some utilities presence.
             if med.install_dir:
                 config_opts = config_opts + " --with-med=" + med.install_dir
 
-        # ParMetis
-
-        if parmetis.use == 'no':
-            config_opts = config_opts + " --without-metis"
-        else:
-            config_opts = config_opts + " --with-metis=" + parmetis.install_dir
-
         # PT-Scotch
 
         if scotch.use == 'no':
@@ -1082,11 +969,6 @@ Check the setup file and some utilities presence.
 
         if self.salome:
             config_opts = config_opts + " --with-salome=" + self.salome
-
-        # Language
-
-        if self.language == 'fr':
-            config_opts = config_opts + " --enable-french"
 
         # Build type
 
@@ -1120,12 +1002,7 @@ Check the setup file and some utilities presence.
                 sys.stdout.write("Installation of %s\n" % p.name)
                 if verbose == 'yes':
                     p.info()
-                if lib == 'scotch':
-                    p.install_ptscotch()
-                elif lib == 'parmetis':
-                    p.install_parmetis()
-                else:
-                    p.install()
+                p.install()
                 p.installation = 'no'
                 self.write_setup()
                 if verbose == 'yes':
@@ -1154,7 +1031,7 @@ Check the setup file and some utilities presence.
 
         setupMain = \
 """#========================================================
-# Setup file for Code_Saturne installation
+# Setup file for code_saturne installation
 #========================================================
 #
 #--------------------------------------------------------
@@ -1163,14 +1040,7 @@ Check the setup file and some utilities presence.
 download  %(download)s
 #
 #--------------------------------------------------------
-# Language
-#   default: "en" english
-#   others:  "fr" french
-#--------------------------------------------------------
-language  %(lang)s
-#
-#--------------------------------------------------------
-# Install Code_Saturne with debugging symbols
+# Install code_saturne with debugging symbols
 #--------------------------------------------------------
 debug     %(debug)s
 #
@@ -1229,7 +1099,7 @@ disable_frontend  %(disable_frontend)s
 # This is the path for the main SALOME directory,
 # not the application directory.
 #
-# If Code_Saturne is built with SALOME support,
+# If code_saturne is built with SALOME support,
 # running "code_saturne salome" will launch the
 # associated application, containing the CFDSTUDY module.
 #--------------------------------------------------------
@@ -1240,13 +1110,12 @@ salome    %(salome)s
 # ------------------
 #
 # MED / HDF5  For MED file format support
-#             (used by SALOME and by Gmsh)
+#             (used by SALOME and by Gmsh).
 #
 # CGNS / HDF5 For CGNS file support
-#             (used by many meshing tools)
+#             (used by many meshing tools).
 #
-# Scotch (includes PT-Scotch) and/or ParMetis
-# for parallel partitioning
+# Scotch (includes PT-Scotch) for parallel partitioning
 #
 #   For Linux workstations, HDF5, CGNS, and even MED
 # packages may be available through the package manager.
@@ -1258,9 +1127,9 @@ salome    %(salome)s
 #
 # Scotch and Pt-Scotch are available in some Linux
 # distributions, but may be built with options
-# incompatible with non-threaded Code_Saturne runs.
+# incompatible with non-threaded code_saturne runs.
 #
-#   To install CGNS or ParMetis, the CMake
+#   To install CGNS, the CMake
 # configuration/installation tool is required
 # (it is available in most Linux distributions).
 #--------------------------------------------------------
@@ -1299,7 +1168,7 @@ salome    %(salome)s
 
         sf.write(setupMain
                  % { 'download':self.download, 'prefix':prefix,
-                     'lang':self.language, 'debug':self.debug,
+                     'debug':self.debug,
                      'use_arch':self.use_arch, 'arch':arch,
                      'cc':cc, 'mpicc':mpicc,
                      'fc':fc,
@@ -1328,7 +1197,7 @@ if __name__ == "__main__":
     # --------
     welcome = \
         """
-        Installation of Code_Saturne
+        Installation of code_saturne
         ____________________________
 
 The process will take several minutes.
@@ -1337,14 +1206,14 @@ You can have a look at the log file meanwhile.
 
     finalize = \
 """
-Before using Code_Saturne, please update your environment with:
+Before using code_saturne, please update your environment with:
 
   cspath=%(cspath)s
   alias code_saturne="$cspath/code_saturne"
 
 The documentation should then be available through the commands:
-  code_saturne info -g refcard
   code_saturne info -g user
+  code_saturne info -g theory
 
 Do not forget the post-installation steps recommended in the
 installation documentation, available using:
@@ -1354,7 +1223,7 @@ installation documentation, available using:
 
     thanks = \
 """
-Thank you for choosing Code_Saturne!
+Thank you for choosing code_saturne!
 
 """
 

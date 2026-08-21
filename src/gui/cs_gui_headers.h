@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_HEADERS_H__
-#define __CS_GUI_HEADERS_H__
+#ifndef CS_GUI_HEADERS_H
+#define CS_GUI_HEADERS_H
 
 /*============================================================================
- * Global Code_Saturne headers file for easier include
+ * Global code_saturne headers file for easier include
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,18 +29,17 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_gui.h"
-#include "cs_gui_boundary_conditions.h"
-#include "cs_gui_conjugate_heat_transfer.h"
-#include "cs_gui_mesh.h"
-#include "cs_gui_mobile_mesh.h"
-#include "cs_gui_output.h"
-#include "cs_gui_particles.h"
-#include "cs_gui_radiative_transfer.h"
-#include "cs_gui_specific_physics.h"
-#include "cs_gui_util.h"
-#include "cs_gui_variables.h"
+#include "gui/cs_gui.h"
+#include "gui/cs_gui_boundary_conditions.h"
+#include "gui/cs_gui_conjugate_heat_transfer.h"
+#include "gui/cs_gui_mesh.h"
+#include "gui/cs_gui_mobile_mesh.h"
+#include "gui/cs_gui_output.h"
+#include "gui/cs_gui_particles.h"
+#include "gui/cs_gui_radiative_transfer.h"
+#include "gui/cs_gui_specific_physics.h"
+#include "gui/cs_gui_util.h"
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __CS_GUI_HEADERS_H__ */
+#endif /* CS_GUI_HEADERS_H */

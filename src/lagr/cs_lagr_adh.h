@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_ADHESION_H__
-#define __CS_LAGR_ADHESION_H__
+#ifndef CS_LAGR_ADHESION_H
+#define CS_LAGR_ADHESION_H
 
 /*============================================================================
  * Functions and types for the Lagrangian module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -81,6 +77,4 @@ cs_lagr_adh_pp(cs_real_t   rpart,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_ADHESION_H__ */
+#endif /* CS_LAGR_ADHESION_H */

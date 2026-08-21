@@ -1,14 +1,14 @@
-#ifndef __CS_IO_H__
-#define __CS_IO_H__
+#ifndef CS_IO_H
+#define CS_IO_H
 
 /*============================================================================
  *  Low level file I/O utility functions for Preprocessor and restart files
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,18 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_file.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_file.h"
 
 /*=============================================================================
  * Local Macro Definitions
@@ -97,7 +93,7 @@ extern int       cs_glob_io_hints;
 /*----------------------------------------------------------------------------
  * Initialize a kernel IO file structure.
  *
- * The magic string may be NULL only in read mode;
+ * The magic string may be null only in read mode;
  *
  * If the position of section bodies is already known (after initial
  * analysis for example), the file may be opened for reading section bodies
@@ -148,7 +144,7 @@ cs_io_initialize(const char        *file_name,
 /*----------------------------------------------------------------------------
  * Initialize a kernel IO file structure in read mode, building an index.
  *
- * The magic string may be NULL, if we choose to ignore it.
+ * The magic string may be null, if we choose to ignore it.
  *
  * parameters:
  *   name         <-- file name
@@ -185,6 +181,49 @@ cs_io_initialize_with_index(const char        *file_name,
                             long               echo);
 
 #endif /* HAVE_MPI */
+
+/*----------------------------------------------------------------------------
+ * Initialize a kernel IO file structure with in-memory data,
+ * building an index.
+ *
+ * The magic string may be null, if we choose to ignore it.
+ *
+ * parameters:
+ *   name         <-- file name
+ *   magic_string <-- magic string associated with file type
+ *   method       <-- file access method
+ *   echo         <-- echo on main output (< 0 if none, header if 0,
+ *                    n first and last elements if n > 0)
+ *   nb           <-- number of matching bytes for data
+ *   data         <-- data buffer (ownership is relinquished by caller)
+ *   block_comm   <-- handle to MPI communicator used for distributed file
+ *                    block access (may be a subset of comm if some ranks do
+ *                    not directly access distributed data blocks)
+ *   comm         <-- handle to main MPI communicator
+ *
+ * returns:
+ *   pointer to kernel IO structure
+ *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_MPI)
+cs_io_t *
+cs_io_initialize_with_index_from_mem(const char        *file_name,
+                                     const char        *magic_string,
+                                     cs_file_access_t   method,
+                                     long               echo,
+                                     size_t             nb,
+                                     void              *data,
+                                     MPI_Comm           block_comm,
+                                     MPI_Comm           comm);
+#else
+cs_io_t *
+cs_io_initialize_with_index_from_mem(const char        *file_name,
+                                     const char        *magic_string,
+                                     cs_file_access_t   method,
+                                     long               echo,
+                                     size_t             nb,
+                                     void              *data);
+#endif
 
 /*----------------------------------------------------------------------------
  * Free a preprocessor output file structure, closing the associated file.
@@ -227,7 +266,7 @@ cs_io_get_index_size(const cs_io_t  *inp);
  *   id  <-- id of section in index (0 to n-1 numbering)
  *
  * returns:
- *   pointer to section name if id in index range, NULL otherwise
+ *   pointer to section name if id in index range, null otherwise
  *----------------------------------------------------------------------------*/
 
 const char *
@@ -258,6 +297,21 @@ cs_io_get_indexed_sec_header(const cs_io_t  *inp,
 
 size_t
 cs_io_get_echo(const cs_io_t  *pp_io);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Access raw restart data serialized in memory.
+ *
+ * \param[in]   pp_io  kernel IO structure
+ * \param[out]  nb     size of data
+ * \param[out]  data   pointer to data
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_io_get_data_in_mem(const cs_io_t   *pp_io,
+                      size_t          *nb,
+                      void           **data);
 
 /*----------------------------------------------------------------------------
  * Read a message header.
@@ -293,6 +347,20 @@ int
 cs_io_set_indexed_position(cs_io_t             *inp,
                            cs_io_sec_header_t  *header,
                            size_t               id);
+
+/*----------------------------------------------------------------------------
+ * Set a section's final data type to int.
+ *
+ * It the datatype is not compatible, throw an error.
+ *
+ * parameters:
+ *   header <-- header structure
+ *   cs_io  --> kernel IO structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_io_set_int(cs_io_sec_header_t  *header,
+              const cs_io_t       *cs_io);
 
 /*----------------------------------------------------------------------------
  * Set a message's final data type to cs_lnum_t.
@@ -339,17 +407,17 @@ cs_io_assert_cs_real(const cs_io_sec_header_t  *header,
  *
  * If the array intended to receive the data already exists, we pass an
  * "elt" pointer to this array; this same pointer is then returned.
- * Otherwise, if this pointer is passed as NULL, memory is allocated
+ * Otherwise, if this pointer is passed as null, memory is allocated
  * by this function, and the corresponding pointer is returned. It is
  * the caller's responsibility to free this array.
  *
  * parameters:
  *   header           <-- header structure
- *   elts             <-> pointer to data array, or NULL
+ *   elts             <-> pointer to data array, or null
  *   pp_io            --> kernel IO structure
  *
  * returns:
- *   elts if non NULL, or pointer to allocated array otherwise
+ *   elts if non-null, or pointer to allocated array otherwise
  *----------------------------------------------------------------------------*/
 
 void *
@@ -367,7 +435,7 @@ cs_io_read_global(const cs_io_sec_header_t  *header,
  *
  * If the array intended to receive the data already exists, we pass an
  * "elt" pointer to this array; this same pointer is then returned.
- * Otherwise, if this pointer is passed as NULL, memory is allocated
+ * Otherwise, if this pointer is passed as null, memory is allocated
  * by this function, and the corresponding pointer is returned. It is
  * the caller's responsibility to free this array.
  *
@@ -376,11 +444,11 @@ cs_io_read_global(const cs_io_sec_header_t  *header,
  *   global_num_start <-- global number of first block item (1 to n numbering)
  *   global_num_end   <-- global number of past-the end block item
  *                        (1 to n numbering)
- *   elts             <-> pointer to data array, or NULL
+ *   elts             <-> pointer to data array, or null
  *   pp_io            --> kernel IO structure
  *
  * returns:
- *   elts if non NULL, or pointer to allocated array otherwise
+ *   elts if non-null, or pointer to allocated array otherwise
  *----------------------------------------------------------------------------*/
 
 void *
@@ -406,7 +474,7 @@ cs_io_read_block(const cs_io_sec_header_t  *header,
  *
  * If the array intended to receive the data already exists, we pass an
  * "elt" pointer to this array; this same pointer is then returned.
- * Otherwise, if this pointer is passed as NULL, memory is allocated
+ * Otherwise, if this pointer is passed as null, memory is allocated
  * by this function, and the corresponding pointer is returned. It is
  * the caller's responsibility to free this array.
  *
@@ -415,11 +483,11 @@ cs_io_read_block(const cs_io_sec_header_t  *header,
  *   global_num_start <-- global number of first block item (1 to n numbering)
  *   global_num_end   <-- global number of past-the end block item
  *                        (1 to n numbering)
- *   elts             <-> pointer to data array, or NULL
+ *   elts             <-> pointer to data array, or null
  *   pp_io            --> kernel IO structure
  *
  * returns:
- *   elts if non NULL, or pointer to allocated array otherwise
+ *   elts if non-null, or pointer to allocated array otherwise
  *----------------------------------------------------------------------------*/
 
 void *
@@ -612,6 +680,4 @@ cs_io_dump(const cs_io_t  *cs_io);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_IO_H__ */
+#endif /* CS_IO_H */

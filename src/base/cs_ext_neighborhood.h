@@ -1,15 +1,14 @@
-#ifndef __CS_EXT_NEIGHBOR_H__
-#define __CS_EXT_NEIGHBOR_H__
+#ifndef CS_EXT_NEIGHBOR_H
+#define CS_EXT_NEIGHBOR_H
 
 /*============================================================================
- * Fortran interfaces of functions needing a synchronization of the extended
- * neighborhood.
+ * Extendend neighborhood hnalding and filtering.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh.h"
-#include "cs_mesh_quantities.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -56,6 +51,8 @@ typedef enum {
 
   CS_EXT_NEIGHBORHOOD_NONE,                  /* No extended neighborhood */
   CS_EXT_NEIGHBORHOOD_COMPLETE,              /* Full extended neighborhood */
+  CS_EXT_NEIGHBORHOOD_OPTIMIZED,             /* Extended neighborhood
+                                                optimized through heuristics */
   CS_EXT_NEIGHBORHOOD_CELL_CENTER_OPPOSITE,  /* Cell centers best aligned
                                                 opposite to adjacent
                                                 cell centers */
@@ -66,7 +63,7 @@ typedef enum {
 } cs_ext_neighborhood_type_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /* Short names for extended neighborhood types */
@@ -98,6 +95,29 @@ cs_ext_neighborhood_get_type(void);
 
 void
 cs_ext_neighborhood_set_type(cs_ext_neighborhood_type_t  enh_type);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Query whether full extended neighborhood should be kept at boundaries.
+ *
+ * \return  extended neighborhood type
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_ext_neighborhood_get_boundary_complete(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Set the extended neighborhood type.
+ *
+ * \param[in]  keep  true if full extended neighborhood should be maintained
+ *             at boundary
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_ext_neighborhood_set_boundary_complete(bool  keep);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -153,6 +173,4 @@ cs_ext_neighborhood_define(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_EXT_NEIGHBOR_H__ */
+#endif /* CS_EXT_NEIGHBOR_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_DBG_H__
-#define __CS_DBG_H__
+#ifndef CS_DBG_H
+#define CS_DBG_H
 
 /*============================================================================
  * General functions or variables for the INNOV module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,22 +26,16 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include <float.h>
-
-#include "cs_base.h"
-#include "cs_cdo_bc.h"
-#include "cs_cdo_local.h"
-#include "cs_defs.h"
-#include "cs_equation_param.h"
-#include "cs_math.h"
-#include "cs_matrix.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "alge/cs_matrix.h"
+#include "base/cs_base.h"
+#include "base/cs_defs.h"
+#include "base/cs_math.h"
+#include "cdo/cs_cdo_bc.h"
+#include "cdo/cs_cdo_local.h"
+#include "cdo/cs_equation_param.h"
 
 /*============================================================================
  * Macro definitions
@@ -59,7 +53,6 @@ BEGIN_C_DECLS
  * Static inline function prototypes
  *============================================================================*/
 
-#if defined(DEBUG) && !defined(NDEBUG)
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief   Check if there is no invalid setting for a homogeneous Dirichlet
@@ -75,7 +68,7 @@ cs_dbg_check_hmg_dirichlet_cw(const char           *fname,
 {
   for (short int i = 0; i < csys->n_dofs; i++) {
     if (csys->dof_flag[i] & CS_CDO_BC_HMG_DIRICHLET)
-      if (fabs(csys->dir_values[i]) > 100*DBL_MIN)
+      if (cs::abs(csys->dir_values[i]) > 100. * cs_dbl_min)
         bft_error(__FILE__, __LINE__, 0,
                   " %s: Invalid value for a homogeneous Dirichlet condition",
                   fname);
@@ -110,8 +103,8 @@ cs_dbg_cw_test(const cs_equation_param_t   *eqp,
  *          The usage of threshold allows one to compare more easier arrays.
  *          without taking into account numerical roundoff.
  *
- * \param[in]  fp         pointer to a file structure or NULL
- * \param[in]  fname      filename or NULL
+ * \param[in]  fp         pointer to a file structure or null
+ * \param[in]  fname      filename or null
  * \param[in]  thd        threshold (below this value --> set 0)
  * \param[in]  n_elts     size of the array
  * \param[in]  array      list of values to dump
@@ -133,7 +126,7 @@ cs_dbg_array_fprintf(FILE             *fp,
  *         side
  *
  * \param[in] eqname     name of the related equation
- * \param[in] nt         number of time step
+ * \param[in] id         id number
  * \param[in] level      level of debug
  * \param[in] sol        solution array
  * \param[in] rhs        rhs array
@@ -143,7 +136,7 @@ cs_dbg_array_fprintf(FILE             *fp,
 
 void
 cs_dbg_fprintf_system(const char        *eqname,
-                      int                nt,
+                      int                id,
                       int                level,
                       const cs_real_t   *sol,
                       const cs_real_t   *rhs,
@@ -187,8 +180,8 @@ cs_dbg_iarray_to_listing(const char        *header,
 /*!
  * \brief  In debug mode, dump a linear system. Case of scalar-valued entries.
  *
- * \param[in] eqname     name of the equation related to the current system
- * \param[in] matrix     pointer to the matrix to dump
+ * \param[in] name      name of the equation related to the current system
+ * \param[in] matrix    pointer to the matrix to dump
  */
 /*----------------------------------------------------------------------------*/
 
@@ -198,10 +191,25 @@ cs_dbg_dump_local_scalar_msr_matrix(const char          *name,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  In debug mode, dump a linear system
+ * \brief  Print a linear system. Case of scalar-valued entries.
+ *
+ * \param[in] name         name of the equation related to the current system
+ * \param[in] matrix       pointer to the matrix to dump
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_dbg_print_local_scalar_msr_matrix(const char          *name,
+                                     const cs_matrix_t   *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  In debug mode, dump a linear system stored in a MSR format into the
+ *         listing file (should be a small system)
  *
  * \param[in] eqname     name of the equation related to the current system
  * \param[in] size       number of elements in array
+ * \param[in] verbosity  level of display
  * \param[in] x          solution array
  * \param[in] b          right-hand side
  * \param[in] row_index  index on row entries (column id and extra-diag values)
@@ -212,19 +220,32 @@ cs_dbg_dump_local_scalar_msr_matrix(const char          *name,
 /*----------------------------------------------------------------------------*/
 
 void
-cs_dbg_dump_linear_system(const char        *eqname,
-                          cs_lnum_t          size,
-                          int                verbosity,
-                          const cs_real_t    x[],
-                          const cs_real_t    b[],
-                          const cs_lnum_t    row_index[],
-                          const cs_lnum_t    col_id[],
-                          const cs_real_t    xval[],
-                          const cs_real_t    dval[]);
-#endif  /* DEBUG */
+cs_dbg_dump_msr_system(const char        *eqname,
+                       cs_lnum_t          size,
+                       int                verbosity,
+                       const cs_real_t    x[],
+                       const cs_real_t    b[],
+                       const cs_lnum_t    row_index[],
+                       const cs_lnum_t    col_id[],
+                       const cs_real_t    xval[],
+                       const cs_real_t    dval[]);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Binary dump (matrix, rhs and solution) of a matrix, its right-hand
+ *        side and the solution array
+ *
+ * \param[in] basename  name of the system
+ * \param[in] matrix    matrix to dump
+ * \param[in] b         right-hand side to dump or null
+ * \param[in] x         solution array to dump or null
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_dbg_binary_dump_system(const char         *basename,
+                          const cs_matrix_t  *matrix,
+                          const cs_real_t    *rhs,
+                          const cs_real_t    *sol);
 
-#endif /* __CS_DBG_H__ */
+#endif /* CS_DBG_H */

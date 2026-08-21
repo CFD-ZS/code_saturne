@@ -1,14 +1,14 @@
-#ifndef __CS_INTERNAL_COUPLING_H__
-#define __CS_INTERNAL_COUPLING_H__
+#ifndef CS_INTERNAL_COUPLING_H
+#define CS_INTERNAL_COUPLING_H
 
 /*============================================================================
- * Internal coupling: coupling for one instance of Code_Saturne
+ * Internal coupling: coupling for one instance of code_saturne
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -34,19 +34,18 @@
 #include <ple_locator.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_base.h"
-#include "cs_matrix_assembler.h"
-#include "cs_mesh.h"
-#include "cs_parameters.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_dispatch.h"
+#include "base/cs_field.h"
+#include "alge/cs_matrix_assembler.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
+#include "base/cs_parameters.h"
 
 /*=============================================================================
  * Macro definitions
@@ -55,7 +54,6 @@ BEGIN_C_DECLS
 /*============================================================================
  * Type definitions
  *============================================================================*/
-
 
 /* Internal coupling structure definition */
 
@@ -72,26 +70,22 @@ typedef struct {
   char  *cells_criteria;
   char  *faces_criteria;
 
+  char *interior_faces_group_name;
+  char *exterior_faces_group_name;
+
+  /* Associated zone ids */
+
+  int   n_volume_zones;
+  int  *volume_zone_ids;
+
   cs_lnum_t  n_local; /* Number of faces */
   cs_lnum_t *faces_local; /* Coupling boundary faces, numbered 0..n-1 */
 
   cs_lnum_t  n_distant; /* Number of faces in faces_distant */
   cs_lnum_t *faces_distant; /* Distant boundary faces associated with locator */
 
-  /* face i is coupled in this entity if coupled_faces[i] = true */
-  bool *coupled_faces;
-
-  /* Geometrical weights around coupling interface */
-  cs_real_t *g_weight;
-
   /* IJ vectors */
   cs_real_3_t *ci_cj_vect;
-
-  /* OF vectors  */
-  cs_real_3_t *offset_vect;
-
-  /* User information */
-  char *namesca;
 
 } cs_internal_coupling_t;
 
@@ -116,36 +110,81 @@ cs_internal_coupling_n_couplings(void);
  *
  * Then, this volume must be separated from the rest of the domain with a wall.
  *
- * \param[in, out] mesh            pointer to mesh structure to modify
- * \param[in]      criteria_cells  criteria for the first group of cells
- * \param[in]      criteria_faces  criteria for faces to be joined
+ * \param[in]  criteria_cells  criteria for the first group of cells
+ * \param[in]  criteria_faces  criteria for faces to be joined
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_internal_coupling_add(cs_mesh_t   *mesh,
-                         const char   criteria_cells[],
-                         const char   criteria_faces[]);
+cs_internal_coupling_add(const char  criteria_cells[],
+                         const char  criteria_faces[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Define coupling volume using given criteria. Then, this volume will
  * be separated from the rest of the domain with thin walls.
  *
- * \param[in, out] mesh            pointer to mesh structure to modify
+ * \param[in]  criteria_cells  criteria for the first group of cells
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_internal_coupling_add_volume(const char criteria_cells[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define coupling volume using a cs_zone_t. Then, this volume will
+ * be separated from the rest of the domain with thin walls.
+ *
+ * \param[in]  z  pointer to cs_volume_zone_t
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_internal_coupling_add_volume_zone(const cs_zone_t *z);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define coupling volume using given cs_zone_t. Then, this volume will
+ * be separated from the rest of the domain with thin walls.
+ *
+ * \param[in]  n_zones   number of associated volume zones
+ * \param[in]  zone_ids  ids of associated volume zones
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_internal_coupling_add_volume_zones(int        n_zones,
+                                      const int  zone_ids[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Define internal coupling volume boundary group names.
+ *
+ * This is used only for internal couplings based on a separation of volumes
+ * (cs_internal_coupling_add_volume, cs_internal_coupling_add_volume_zone,
+ * cs_internal_coupling_add_volume_zones).
+ *
+ * The interior name is used for faces adjacent to the main volume, and
+ * the exterio name for faces adjacent to the selected (exterior) volume.
+ *
+ * This allows filtering faces on each side of the boundary in a simpler manner.
+ *
+ * \param[in, out] cpl             pointer to mesh structure to modify
  * \param[in]      criteria_cells  criteria for the first group of cells
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_internal_coupling_add_volume(cs_mesh_t  *mesh,
-                                const char criteria_cells[]);
+cs_internal_coupling_add_boundary_groups(cs_internal_coupling_t  *cpl,
+                                         const char              *interior_name,
+                                         const char              *exterior_name);
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Impose wall BCs to internal coupled faces if not yet defined.
  *
- *   \param[in, out]     bc_type       face boundary condition type
+ * \param[in, out] bc_type       face boundary condition type
  */
 /*----------------------------------------------------------------------------*/
 
@@ -226,45 +265,6 @@ cs_internal_coupling_exchange_by_face_id(const cs_internal_coupling_t  *cpl,
                                          const cs_real_t                tab[],
                                          cs_real_t                      local[]);
 
-/*----------------------------------------------------------------------------
- * Modify LSQ COCG matrix to include internal coupling
- *
- * parameters:
- *   cpl  <-- pointer to coupling entity
- *   cocg <-> cocg matrix modified
- *----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_lsq_cocg_contribution(const cs_internal_coupling_t  *cpl,
-                                           cs_real_33_t                   cocg[]);
-
-/*----------------------------------------------------------------------------
- * Modify LSQ COCG matrix to include internal coupling
- * when diffusivity is a tensor
- *
- * parameters:
- *   cpl  <-- pointer to coupling entity
- *   c_weight  <-- weigthing coefficients
- *   cocg <-> cocg matrix modified
- *----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_lsq_cocg_weighted(const cs_internal_coupling_t  *cpl,
-                                       const cs_real_t               *c_weight,
-                                       cs_real_33_t                   cocg[]);
-
-/*----------------------------------------------------------------------------
- * Modify iterative COCG matrix to include internal coupling
- *
- * parameters:
- *   cpl  <-- pointer to coupling entity
- *   cocg <-> cocg matrix modified
- *----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_it_cocg_contribution(const cs_internal_coupling_t  *cpl,
-                                          cs_real_33_t                   cocg[]);
-
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Setup internal coupling related parameters.
@@ -283,178 +283,6 @@ cs_internal_coupling_setup(void);
 void
 cs_internal_coupling_initialize(void);
 
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for LSQ gradient calculation
- *
- * \param[in]       cpl       pointer to coupling entity
- * \param[in]       c_weight  weighted gradient coefficient variable, or NULL
- * \param[in]       w_stride  stride of weighting coefficient
- * \param[in, out]  rhsv      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_lsq_scalar_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const int                      w_stride,
-    cs_real_4_t                    rhsv[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for LSQ gradient calculation
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       c_weight weighted gradient coefficient variable, or NULL
- * \param[in]       w_stride stride of weighting coefficient
- * \param[in]       pvar     pointer to variable
- * \param[in, out]  rhs      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_lsq_vector_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const int                      w_stride,
-    const cs_real_3_t              pvar[],
-    cs_real_33_t                   rhs[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for LSQ gradient calculation
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       c_weight weighted gradient coefficient variable, or NULL
- * \param[in]       w_stride stride of weighting coefficient
- * \param[in]       pvar     pointer to variable
- * \param[in, out]  rhs      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_lsq_tensor_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const int                      w_stride,
-    const cs_real_6_t              pvar[],
-    cs_real_63_t                   rhs[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for iterative gradient
- * calculation
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       c_weight weighted gradient coefficient variable, or NULL
- * \param[in]       grad     pointer to gradient
- * \param[in]       pvar     pointer to variable
- * \param[in, out]  rhs      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_iterative_scalar_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    cs_real_3_t          *restrict grad,
-    const cs_real_t                pvar[],
-    cs_real_3_t                    rhs[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for iterative vector gradient
- * calculation
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       c_weight weighted gradient coefficient variable, or NULL
- * \param[in]       grad     pointer to gradient
- * \param[in]       pvar     pointer to variable
- * \param[in, out]  rhs      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_iterative_vector_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    cs_real_33_t         *restrict grad,
-    const cs_real_3_t              pvar[],
-    cs_real_33_t                   rhs[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Add internal coupling rhs contribution for iterative tensor gradient
- * calculation
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       c_weight weighted gradient coefficient variable, or NULL
- * \param[in]       grad     pointer to gradient
- * \param[in]       pvar     pointer to variable
- * \param[in, out]  rhs      pointer to rhs contribution
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_iterative_tensor_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    cs_real_63_t         *restrict grad,
-    const cs_real_6_t              pvar[],
-    cs_real_63_t                   rhs[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Add internal coupling contribution for reconstruction of the
- * gradient of a scalar.
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       r_grad   pointer to reconstruction gradient
- * \param[in, out]  grad     pointer to gradient to be reconstructed var
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_reconstruct_scalar_gradient(
-    const cs_internal_coupling_t  *cpl,
-    cs_real_3_t          *restrict r_grad,
-    cs_real_3_t                    grad[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Add internal coupling contribution for reconstruction of the
- * gradient of a vector.
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       r_grad   pointer to reconstruction gradient
- * \param[in, out]  grad     pointer to gradient to be reconstructed var
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_reconstruct_vector_gradient(
-    const cs_internal_coupling_t  *cpl,
-    cs_real_33_t         *restrict r_grad,
-    cs_real_33_t                   grad[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Add internal coupling contribution for reconstruction of the
- *         gradient of a symmetric tensor.
- *
- * \param[in]       cpl      pointer to coupling entity
- * \param[in]       r_grad   pointer to reconstruction gradient
- * \param[in, out]  grad     pointer to gradient to be reconstructed var
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_reconstruct_tensor_gradient(
-    const cs_internal_coupling_t  *cpl,
-    cs_real_63_t         *restrict r_grad,
-    cs_real_63_t                   grad[]);
-
 /*----------------------------------------------------------------------------
  * Addition to matrix-vector product in case of internal coupling.
  *
@@ -468,8 +296,8 @@ cs_internal_coupling_reconstruct_tensor_gradient(
 void
 cs_internal_coupling_spmv_contribution(bool               exclude_diag,
                                        const cs_field_t  *f,
-                                       const cs_real_t   *restrict x,
-                                       cs_real_t         *restrict y);
+                                       const cs_real_t            *x,
+                                       cs_real_t                  *y);
 
 /*----------------------------------------------------------------------------
  * Add coupling term coordinates to matrix assembler.
@@ -508,18 +336,21 @@ cs_internal_coupling_matrix_add_values(const cs_field_t              *f,
  *
  * parameters:
  *   cpl             <-- pointer to coupling entity
- *   n_local         --> NULL or pointer to component n_local
- *   faces_local     --> NULL or pointer to component faces_local
- *   n_distant       --> NULL or pointer to component n_distant
- *   faces_distant   --> NULL or pointer to component faces_distant
+ *   n_local         --> null or pointer to component n_local
+ *   faces_local     --> null or pointer to component faces_local
+ *   n_distant       --> null or pointer to component n_distant
+ *   faces_distant   --> null or pointer to component faces_distant
  *----------------------------------------------------------------------------*/
 
 void
-cs_internal_coupling_coupled_faces(const cs_internal_coupling_t  *cpl,
-                                   cs_lnum_t                     *n_local,
-                                   cs_lnum_t                     *faces_local[],
-                                   cs_lnum_t                     *n_distant,
-                                   cs_lnum_t                     *faces_distant[]);
+cs_internal_coupling_coupled_faces
+(
+  const cs_internal_coupling_t  *cpl,
+  cs_lnum_t                     *n_local,
+  const cs_lnum_t               *faces_local[],
+  cs_lnum_t                     *n_distant,
+  const cs_lnum_t               *faces_distant[]
+);
 
 /*----------------------------------------------------------------------------
  * Log information about a given internal coupling entity
@@ -553,7 +384,7 @@ cs_internal_coupling_dump(void);
  *----------------------------------------------------------------------------*/
 
 void
-cs_internal_coupling_preprocess(cs_mesh_t   *mesh);
+cs_internal_coupling_preprocess(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------
  * Define face to face mappings for internal couplings.
@@ -577,75 +408,17 @@ cs_internal_coupling_add_entity(int        f_id);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief Add contribution from coupled faces (internal coupling) to
- * initialisation for iterative scalar gradient calculation.
- *
- * \param[in]      cpl       pointer to coupling entity
- * \param[in]      c_weight  weighted gradient coefficient variable, or NULL
- * \param[in]      pvar      variable
- * \param[in, out] grad      gradient
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_initialize_scalar_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const cs_real_t                pvar[],
-    cs_real_3_t          *restrict grad);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Add contribution from coupled faces (internal coupling) to
- * initialisation for iterative vector gradient calculation
- *
- * \param[in]       cpl       pointer to coupling entity
- * \param[in]       c_weight  weighted gradient coefficient variable, or NULL
- * \param[in]       pvar      variable
- * \param[in, out]  grad      gradient
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_initialize_vector_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const cs_real_3_t              pvar[],
-    cs_real_33_t         *restrict grad);
-
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  Add contribution from coupled faces (internal coupling) to
- * initialisation for iterative symmetric tensor gradient calculation
- *
- * \param[in]       cpl       pointer to coupling entity
- * \param[in]       c_weight  weighted gradient coefficient variable, or NULL
- * \param[in, out]  pvar      variable
- * \param[in, out]  grad      gradient
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_internal_coupling_initialize_tensor_gradient(
-    const cs_internal_coupling_t  *cpl,
-    const cs_real_t                c_weight[],
-    const cs_real_6_t              pvar[],
-    cs_real_63_t         *restrict grad);
-
-/*----------------------------------------------------------------------------*/
-/*!
  * \brief  Update internal coupling coefficients of the field of the
  * given id using given boundary exchange coefficients passed by face id.
  *
- * \param[in] field_id  field id
- * \param[in] hbnd      boundary exchange coefficients passed by face id
+ * \param[in] f          pointer to field
+ * \param[in] h_int_tot  boundary exchange coefficients passed by face id
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_ic_field_set_exchcoeff(const int         field_id,
-                          const cs_real_t  *hbnd);
+cs_ic_field_set_exchcoeff(const cs_field_t  *f,
+                          const cs_real_t   *h_int_tot);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -665,8 +438,80 @@ cs_ic_field_dist_data_by_face_id(const int         field_id,
                                  const cs_real_t   tab_distant[],
                                  cs_real_t         tab_local[]);
 
+/*=============================================================================
+ * Public C++ functions
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Update scalar boundary condition coefficients for internal coupling.
+ *
+ * \param[in]     ctx              reference to dispatch context
+ * \param[in]     bc_coeffs        associated BC coefficients structure
+ * \param[in]     cpl              structure associated with internal coupling
+ * \param[in]     compute_diffusion_coeffs compute diffusion coefficients or not
+ * \param[in]     halo_type        halo type
+ * \param[in]     w_stride         stride for weighting coefficient
+ * \param[in]     clip_coeff       clipping coefficient
+ * \param[in]     hyd_p_flag       flag for hydrostatic pressure
+ * \param[in]     f_ext            exterior force generating pressure
+ * \param[in]     weighb           boundary face weight for cells i in case
+ *                                 of tensor diffusion, or nullptr
+ * \param[in]     df_limiter       diffusion limiter array
+ * \param[in]     var              gradient's base variable
+ * \param[in]     c_weight         weighted gradient coefficient variable,
+ *                                 or nullptr
+ */
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_internal_coupling_update_bc_coeffs_s
+(
+  cs_dispatch_context           &ctx,
+  const cs_field_bc_coeffs_t    *bc_coeffs,
+  const cs_internal_coupling_t  *cpl,
+  const bool                     compute_diffusion_coeffs,
+  cs_halo_type_t                 halo_type,
+  int                            w_stride,
+  double                         clip_coeff,
+  int                            hyd_p_flag,
+  cs_real_t                      f_ext[][3],
+  const cs_real_t               *c_weight,
+  const cs_real_t                weighb[],
+  cs_real_t                     *df_limiter,
+  const cs_real_t               *var
+);
 
-#endif /* __CS_INTERNAL_COUPLING_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Update vector boundary condition coefficients for internal coupling.
+ *
+ * \param[in]     ctx              reference to dispatch context
+ * \param[in]     bc_coeffs        boundary condition structure
+ * \param[in]     cpl              structure associated with internal coupling
+ * \param[in]     halo_type        halo type
+ * \param[in]     clip_coeff       clipping coefficient
+ * \param[in]     df_limiter       diffusion limiter array
+ * \param[in]     var              gradient's base variable
+ * \param[in]     c_weight         weighted gradient coefficient variable,
+ *                                 or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+template <cs_lnum_t stride>
+void
+cs_internal_coupling_update_bc_coeffs_strided
+(
+ cs_dispatch_context           &ctx,
+ const cs_field_bc_coeffs_t    *bc_coeffs,
+ const cs_internal_coupling_t  *cpl,
+ cs_halo_type_t                 halo_type,
+ double                         clip_coeff,
+ cs_real_t                     *df_limiter,
+ const cs_real_t                var[][stride],
+ const cs_real_t               *c_weight
+);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_INTERNAL_COUPLING_H */

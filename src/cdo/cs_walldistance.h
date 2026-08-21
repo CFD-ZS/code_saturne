@@ -1,14 +1,14 @@
-#ifndef __CS_WALLDISTANCE_H__
-#define __CS_WALLDISTANCE_H__
+#ifndef CS_WALLDISTANCE_H
+#define CS_WALLDISTANCE_H
 
 /*============================================================================
  * Compute the wall distance using the CDO framework
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_equation.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "cdo/cs_equation.h"
 
 /*============================================================================
  * Macro definitions
@@ -79,20 +75,6 @@ cs_walldistance_setup(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Finalize the setup stage for the equation related to the wall
- *         distance. Only useful for Hamilton-Jacobi equation
- *
- * \param[in]      connect    pointer to a cs_cdo_connect_t structure
- * \param[in]      cdoq       pointer to a cs_cdo_quantities_t structure
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_walldistance_finalize_setup(const cs_cdo_connect_t       *connect,
-                               const cs_cdo_quantities_t    *cdoq);
-
-/*----------------------------------------------------------------------------*/
-/*!
  * \brief  Compute the wall distance
  *
  * \param[in]      mesh       pointer to a cs_mesh_t structure
@@ -108,8 +90,4 @@ cs_walldistance_compute(const cs_mesh_t              *mesh,
                         const cs_cdo_connect_t       *connect,
                         const cs_cdo_quantities_t    *cdoq);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_WALLDISTANCE_H__ */
+#endif /* CS_WALLDISTANCE_H */

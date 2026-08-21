@@ -7,9 +7,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -143,6 +143,14 @@ void
 ecs_maillage__orient_nodal(ecs_maillage_t    *maillage,
                            ecs_tab_int_t     *liste_cel_err,
                            bool               correc_orient);
+
+/*----------------------------------------------------------------------------
+ *  Remove cells causing errors from mesh in nodal connectivity.
+ *----------------------------------------------------------------------------*/
+
+void
+ecs_maillage__suppr_cel(ecs_maillage_t    *maillage,
+                        ecs_tab_int_t      liste_cel_err);
 
 /*----------------------------------------------------------------------------
  *  Fonction qui assigne la tete de la liste chainee des familles donnee

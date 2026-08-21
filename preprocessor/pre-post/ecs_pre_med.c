@@ -4,9 +4,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -641,7 +641,7 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
 
     if (nbr_ele_med > 0) { /* Special case for polygons and polyhedra */
 
-      if (typ_geo_med == MED_POLYGON)
+      if (typ_geo_med == MED_POLYGON || typ_geo_med == MED_POLYGON2)
         data_type = MED_INDEX_NODE;
       else if (typ_geo_med == MED_POLYHEDRON)
         data_type = MED_INDEX_FACE;
@@ -722,9 +722,18 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
       /* Traitement des éléments "classiques" */
       /*--------------------------------------*/
 
-      if (typ_geo_med != MED_POLYGON && typ_geo_med != MED_POLYHEDRON) {
+      if (   typ_geo_med != MED_POLYGON
+          && typ_geo_med != MED_POLYGON2
+          && typ_geo_med != MED_POLYHEDRON) {
 
-        nbr_som_elt = ecs_fic_elt_typ_liste_c[typ_geo_ecs].nbr_som;
+        switch (typ_geo_med) {
+        case MED_OCTA12:
+          nbr_som_elt = 44; /* convert to polyhedron */
+          break;
+        default:
+          nbr_som_elt = ecs_fic_elt_typ_liste_c[typ_geo_ecs].nbr_som;
+          break;
+        }
 
         taille = elt_pos_som_ent[entmail_e][cpt_elt_ent[entmail_e]] - 1;
 
@@ -795,11 +804,16 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
       /* Traitement des polygones */
       /*--------------------------*/
 
-      else if (typ_geo_med == MED_POLYGON) {
+      else if (   typ_geo_med == MED_POLYGON
+               || typ_geo_med == MED_POLYGON2) {
 
         ecs_int_t    ival;
         ecs_int_t    nbr_val_elt;
-        med_int    * index_med = NULL;
+        med_int     *index_med = NULL;
+
+        /* On ne garde que la première moité de la connectivité
+           dans le cas quadratique. */
+        med_int      d_taille = (typ_geo_med == MED_POLYGON2) ? 2 : 1;
 
         /* Taille du tableau des connectivites */
 
@@ -808,7 +822,7 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
                                     MED_NO_DT,
                                     MED_NO_IT,
                                     typ_ent_med,
-                                    MED_POLYGON,
+                                    typ_geo_med,
                                     MED_CONNECTIVITY,
                                     MED_NODAL,
                                     &changement,
@@ -826,18 +840,19 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
         taille = elt_pos_som_ent[entmail_e][cpt_elt_ent[entmail_e]] - 1;
 
         ECS_REALLOC(elt_val_som_ent[entmail_e],
-                    taille + (ecs_int_t)taille_med, ecs_int_t);
+                    taille + (ecs_int_t)taille_med/d_taille, ecs_int_t);
 
         ECS_MALLOC(index_med, (ecs_int_t)(nbr_ele_med + 1), med_int);
         ECS_MALLOC(connect_med, (ecs_int_t)taille_med, med_int);
 
         /* Lecture de la connectivité des polygones */
 
-        ret_med = MEDmeshPolygonRd(fic_maillage->fid,
+        ret_med = MEDmeshPolygon2Rd(fic_maillage->fid,
                                    nom_maillage_med,
                                    MED_NO_DT,
                                    MED_NO_IT,
                                    typ_ent_med,
+                                   typ_geo_med,
                                    MED_NODAL,
                                    index_med,
                                    connect_med);
@@ -854,9 +869,9 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
 
         for (ielt = 0; ielt < nbr_elt; ielt++)
           elt_pos_som_ent[entmail_e][cpt_elt_ent[entmail_e] + ielt + 1]
-            = pos_elt + index_med[ielt + 1] - index_med[0];
+            = pos_elt + (index_med[ielt + 1] - index_med[0]) / d_taille;
 
-        nbr_val_elt = index_med[nbr_elt] - index_med[0];
+        nbr_val_elt = (index_med[nbr_elt] - index_med[0])/d_taille;
 
         for (ival = 0; ival < nbr_val_elt; ival++)
           elt_val_som_ent[entmail_e][pos_elt - 1 + ival]
@@ -1021,7 +1036,7 @@ ecs_loc_pre_med__lit_maille(ecs_maillage_t   *maillage,
 
               /* On rajoute une seconde référence au premier sommet de
                  chaque face en fin de liste pour "fermer" cette face
-                 (convention polyèdre Enveloppe Code_Saturne pour repérer
+                 (convention polyèdre Enveloppe code_saturne pour repérer
                  les faces d'un polyèdre en connectivité nodale) */
 
               isom = index_f_med[ifac    ] - index_f_med[0];

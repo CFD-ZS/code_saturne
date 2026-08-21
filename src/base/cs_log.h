@@ -1,14 +1,14 @@
-#ifndef __CS_LOG_H__
-#define __CS_LOG_H__
+#ifndef CS_LOG_H
+#define CS_LOG_H
 
 /*============================================================================
  * Program timing information
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,33 +28,28 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_timer.h"
+#include "base/cs_defs.h"
+#include "base/cs_timer.h"
 #include "stdarg.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*============================================================================
  * Public types
  *============================================================================*/
 
-/* Code_Saturne log file types */
+/* code_saturne log file types */
 
 typedef enum {
 
   CS_LOG_DEFAULT,      /* Default (main) log */
   CS_LOG_SETUP,        /* Calculation setup and options log */
   CS_LOG_PERFORMANCE,  /* Performance log */
+  CS_LOG_WARNINGS,     /* Warnings log */
   CS_LOG_N_TYPES       /* Number of log file types */
 
 } cs_log_t;
-
-extern int cs_glob_log_frequency;
 
 /*============================================================================
  * Public macros
@@ -298,7 +293,27 @@ cs_log_timer_array(cs_log_t                   log,
                    const cs_timer_counter_t   time_count[]);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Print log info to a given log type.
+ *
+ * The format and variable arguments are similar to those of the printf()
+ * type functions.
+ *
+ * In parallel, output is only handled by rank 0.
+ *
+ * \param[in]  log     log file type
+ * \param[in]  format  format string, as printf() and family.
+ * \param[in]  ...     variable arguments based on format string.
+ *
+ * \return number of characters printed, not counting the trailing '\0' used
+ *         to end output strings
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+int
+cs_log_warning(const char *format,
+               ...);
 
-#endif /* __CS_LOG_H__ */
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_LOG_H */

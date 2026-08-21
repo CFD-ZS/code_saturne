@@ -1,14 +1,14 @@
-#ifndef __CS_PREPROCESS_H__
-#define __CS_PREPROCESS_H__
+#ifndef CS_PREPROCESS_H
+#define CS_PREPROCESS_H
 
 /*============================================================================
  * Handle successive preprocessing operations.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_halo.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_adjacencies.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*=============================================================================
  * Macro definitions
@@ -50,21 +49,6 @@ BEGIN_C_DECLS
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Determine if preprocessing is needed.
- *
- * Preprocessing is ignored when a ./restart/mesh_input file is present but
- * no ./mesh_input file or directory is present. In this case, restart mesh
- * file is read, and all other preprocessing steps are skipped.
- *
- * \return  true if preprocessing is needed, false if only reading is needed.
- */
-/*----------------------------------------------------------------------------*/
-
-bool
-cs_preprocess_mesh_is_needed(void);
 
 /*----------------------------------------------------------------------------
  * Define all mesh preprocessing operations.
@@ -83,15 +67,35 @@ cs_preprocess_mesh_define(void);
 void
 cs_preprocess_mesh(cs_halo_type_t   halo_type);
 
-/*----------------------------------------------------------------------------
- * Update fortran arrays relative to the global mesh.
- *----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Apply numbering changes to ignore selected boundary faces.
+ *
+ * \param[in, out]  m         pointer to mesh structure
+ * \param[in, out]  mq        pointer to mesh quantities structure
+ * \param[in]       n_faces   number of selected faces
+ * \param[in]       face_ids  ids of selected faces
+ */
+/*----------------------------------------------------------------------------*/
 
 void
-cs_preprocess_mesh_update_fortran(void);
+cs_preprocess_mesh_selected_b_faces_ignore(cs_mesh_t             *m,
+                                           cs_mesh_quantities_t  *mq,
+                                           cs_lnum_t              n_faces,
+                                           const cs_lnum_t        face_ids[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Map some mesh arrays for use on device.
+ *
+ * More elements may be mapped depending on which arrays are used in
+ * accelerated algorithms.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_preprocess_mesh_update_device(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PREPROCESS_H__ */
+#endif /* CS_PREPROCESS_H */

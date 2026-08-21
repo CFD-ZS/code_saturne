@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_REMOVE_H__
-#define __CS_MESH_REMOVE_H__
+#ifndef CS_MESH_REMOVE_H
+#define CS_MESH_REMOVE_H
 
 /*============================================================================
  * Functions to remove mesh elements.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
 
 /*=============================================================================
  * Macro definitions
@@ -81,7 +77,17 @@ void
 cs_mesh_remove_cells_negative_volume(cs_mesh_t  *m);
 
 /*----------------------------------------------------------------------------*/
+/* Remove cells based on a selection criteria (string) */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_mesh_remove_cells_from_selection_criteria
+(
+  cs_mesh_t  *m,
+  const char *criteria,
+  const char *group_name
+);
 
-#endif /* __CS_MESH_REMOVE_H__ */
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_MESH_REMOVE_H */

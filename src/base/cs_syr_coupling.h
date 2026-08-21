@@ -1,14 +1,14 @@
-#ifndef __CS_SYR_COUPLING_H__
-#define __CS_SYR_COUPLING_H__
+#ifndef CS_SYR_COUPLING_H
+#define CS_SYR_COUPLING_H
 
 /*============================================================================
  * SYRTHES coupling
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,20 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
+#include "fvm/fvm_defs.h"
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_zone.h"
 
 /*=============================================================================
  * Local Macro Definitions
@@ -52,173 +49,8 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables definition
+ * Global variables definition
  *============================================================================*/
-
-/*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Get number of SYRTHES couplings.
- *
- * Fortran Interface:
- *
- * SUBROUTINE NBCSYR
- * *****************
- *
- * INTEGER          n_couplings     : <-- : number of SYRTHES couplings
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(nbcsyr, NBCSYR)
-(
- cs_int_t  *const n_couplings
-);
-
-/*----------------------------------------------------------------------------
- * Test if the given SYRTHES coupling number is a surface coupling
- * Return 1 if true else 0
- *
- * Fortran Interface:
- *
- * SUBROUTINE TSURSY
- * *****************
- *
- * INTEGER          cplnum     : <-- : number of the SYRTHES coupling
- * INTEGER          issurf     : --> : 1 if surface coupling else 0
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(tsursy, TSURSY)
-(
- cs_int_t  *const cplnum,
- cs_int_t  *issurf
-);
-
-/*----------------------------------------------------------------------------
- * Test if the given SYRTHES coupling number is a volume coupling
- * Return 1 if true else 0
- *
- * Fortran Interface:
- *
- * SUBROUTINE TVOLSY
- * *****************
- *
- * INTEGER          cplnum     : <-- : number of the SYRTHES coupling
- * INTEGER          issurf     : --> : 1 if volume coupling else 0
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(tvolsy, TVOLSY)
-(
- cs_int_t  *const cplnum,
- cs_int_t  *isvol
-);
-
-/*----------------------------------------------------------------------------
- * Get number of coupled elements with SYRTHES.
- *
- * Fortran Interface:
- *
- * SUBROUTINE NBESYR
- * *****************
- *
- * INTEGER          coupl_num       : --> : coupling number
- * INTEGER          mode            : --> : 0 (surface); 1 (volume)
- * INTEGER          n_coupl_elts    : <-- : number of coupled elements
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(nbesyr, NBESYR)
-(
- const cs_int_t  *coupl_num,
- const cs_int_t  *mode,
-       cs_int_t  *n_coupl_elts
-);
-
-/*----------------------------------------------------------------------------
- * Get local numbering of coupled elements
- *
- * Fortran interface:
- *
- * SUBROUTINE LELTSY
- * *****************
- *
- * INTEGER      coupl_num       : --> : coupling number
- * INTEGER      mode            : --> : 0 (surface); 1 (volume)
- * INTEGER      coupl_elt_list  : <-- : list of coupled elements
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(leltsy, LELTSY)
-(
- const cs_int_t    *coupl_num,
- const cs_int_t    *mode,
-       cs_lnum_t   *coupl_elt_list
-);
-
-/*----------------------------------------------------------------------------
- * Receive coupling variables from SYRTHES
- *
- * Fortran Interface:
- *
- * SUBROUTINE VARSYI
- * *****************
- *
- * INTEGER          NUMSYR      : --> : Number of SYRTHES coupling
- * INTEGER          MODE        : --> : 0 (surface); 1 (volume)
- * DOUBLE PRECISION TSOLID      : <-- : Solid temperature
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (varsyi, VARSYI)
-(
- cs_int_t   *numsyr,
- cs_int_t   *mode,
- cs_real_t  *tsolid
-);
-
-/*----------------------------------------------------------------------------
- * Send coupling variables to SYRTHES
- *
- * Fortran Interface:
- *
- * SUBROUTINE VARSYO
- * *****************
- *
- * INTEGER          NUMSYR      : --> : Number of SYRTHES coupling
- * INTEGER          MODE        : --> : 0 (surface); 1 (volume)
- * INTEGER          LSTELT      : --> : List of coupled elements
- * DOUBLE PRECISION TFLUID      : --> : Fluid temperature
- * DOUBLE PRECISION HFLUID      : --> : Exchange coefficient
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (varsyo, VARSYO)
-(
- cs_int_t   *numsyr,
- cs_int_t   *mode,
- cs_int_t   *lstelt,
- cs_real_t  *tfluid,
- cs_real_t  *hfluid
-);
-
-/*----------------------------------------------------------------------------
- * Compute the explicit/implicit contribution to source terms in case of
- * volume coupling with SYRTHES4
- *
- * Fortran Interface:
- *
- * SUBROUTINE CTBVSY
- * *****************
- *
- * INTEGER          NUMSYR      : --> : Number of SYRTHES coupling
- * DOUBLE PRECISION TFLUID      : --> : Fluid temperature
- * DOUBLE PRECISION CTBIMP      : <-> : Implicit contribution
- * DOUBLE PRECISION CTBEXP      : <-> : Explicit contribution
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (ctbvsy, CTBVSY)
-(
- cs_int_t   *numsyr,
- cs_real_t  *tfluid,
- cs_real_t  *ctbimp,
- cs_real_t  *ctbexp
-);
 
 /*============================================================================
  * Public function prototypes
@@ -227,7 +59,7 @@ void CS_PROCF (ctbvsy, CTBVSY)
 /*----------------------------------------------------------------------------
  * Define new SYRTHES coupling.
  *
- * In the case of a single Code_Saturne and single SYRTHES instance, the
+ * In the case of a single code_saturne and single SYRTHES instance, the
  * syrthes_name argument is ignored.
  *
  * In case of multiple couplings, a coupling will be matched with available
@@ -256,6 +88,20 @@ cs_syr_coupling_define(const char  *syrthes_name,
                        float        tolerance,
                        int          verbosity,
                        int          visualization);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Associated a zone to a defined SYRTHES coupling.
+ *
+ * \param[in] syrthes_name  matching SYRTHES application name
+ * \param[in] z             pointer to matching zone
+ *                          (boundary or volume)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_add_zone(const char       *syrthes_name,
+                         const cs_zone_t  *z);
 
 /*----------------------------------------------------------------------------
  * Initialize SYRTHES couplings.
@@ -303,7 +149,38 @@ void
 cs_syr_coupling_set_explicit_treatment(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief  Set time synchronization mode for a given SYRTHES coupling.
+ *
+ * This will suggest options on the SYRTHES side.
+ *
+ * \param[in] cpl_id   matching SYRTHES coupling id
+ * \param[in] flag     suggested synchronization flags for the SYRTHES side
+ *                     This should be a combination of
+ *                     - PLE_COUPLING_TS_MIN (use smallest time step)
+ *                     - PLE_COUPLING_TS_LEADER (prescribe time step for all)
+ *                     - PLE_COUPLING_TS_FOLLOWER (time step of this domain
+ *                       is ignored by coupled applications)
+ *                     - PLE_COUPLING_TS_INDEPENDENT (do not modify time
+ *                       step based on other applications)
+ *
+ * By default, no flags are set for constant and local (pseudo-steady) time
+ * stepping schemes. With a adaptive time step, the default is
+ *   PLE_COUPLING_TS_MIN | PLE_COUPLING_TS_FOLLOWER
+ * so that the smallest time step of code_saturne domains will be used, but
+ * the time step of the SYRTHES domains is ignored (as it does not recompute
+ * an adaptive time step, not making it a follower would let it provide the
+ * smallest time step encountered, preventing time steps from icnreasing
+ * again in the case of multiple fluid domains).
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_set_time_sync_flag(int  cpl_id,
+                                   int  flag);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Log SYRTHES coupling setup information.
  */
 /*----------------------------------------------------------------------------*/
@@ -312,7 +189,7 @@ void
 cs_syr_coupling_log_setup(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Create coupled meshes and setup PLE locator for Syrthes couplings.
  */
 /*----------------------------------------------------------------------------*/
@@ -321,7 +198,181 @@ void
 cs_syr_coupling_init_meshes(void);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief  Check if the given SYRTHES coupling number is a surface couplings.
+ *
+ * \param[in] cpl_id   matching SYRTHES coupling id
+ *
+ * \return 1 if the coupling includes the surface, 0 otherwise.
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+int
+cs_syr_coupling_is_surf(int  cpl_id);
 
-#endif /* __CS_SYR_COUPLING_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Read boundary field/variable values relative to a SYRTHES coupling.
+ *
+ * \param[in]   nvar     number of variables
+ * \param[in]   bc_type  boundary condition type
+ * \param[out]  icodcl   boundary condition codes
+ * \param[out]  rcodcl   boundary condition values
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_recv_boundary(const int  nvar,
+                              int        bc_type[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Send field/variable values relative to a SYRTHES coupling.
+ *
+ * \param[in]  h_wall   wall thermal exchange coefficient
+ * \param[in]  v_fluid  near-wall fluid thermal variable
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_send_boundary(const cs_real_t  h_wall[],
+                              cs_real_t        v_fluid[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Exchange volume values relative to a SYRTHES coupling.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_exchange_volume(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Compute the source term (implicit and/or explicit part) for a
+ *         volume coupling with SYRTHES.
+ *
+ * \param[in]       field_id  field id
+ * \param[in, out]  st_exp    explicit source term
+ * \param[in, out]  st_imp    implicit source term
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_volume_source_terms(int        field_id,
+                                    cs_real_t  st_exp[],
+                                    cs_real_t  st_imp[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Get number of coupled elements with SYRTHES.
+ *
+ * \param[in]   cpl_id  coupling id
+ * \param[in]   mode    0 for boundary, 1 for volume
+ *
+ * \return  number of coupled elements for this coupling
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_lnum_t
+cs_syr_coupling_n_elts(int  cpl_id,
+                       int  mode);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Get local ids of elements coupled with SYRTHES
+ *
+ * \param[in]    cpl_id   coupling id
+ * \param[in]    mode     0 for boundary, 1 for volume
+ * \param[out]   elt_ids  ids of coupled elements (preallocated)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_elt_ids(int        cpl_id,
+                        int        mode,
+                        cs_lnum_t  elt_ids[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Receive coupling variables from SYRTHES.
+ *
+ * \param[in]    cpl_id   coupling id
+ * \param[in]    mode     0 for boundary, 1 for volume
+ * \param[out]   t_solid  solid temperature
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_recv_tsolid(int        cpl_id,
+                            int        mode,
+                            cs_real_t  t_solid[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Send coupling variables to SYRTHES.
+ *
+ * \param[in]    cpl_id   coupling id
+ * \param[in]    mode     0 for boundary, 1 for volume
+ * \param[in]    elt_ids  ids of coupled elements
+ * \param[in]    t_fluid  fluid temperature
+ * \param[in]    h_fluid  fluid exchange coefficient
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_send_tf_hf(int              cpl_id,
+                           int              mode,
+                           const cs_lnum_t  elt_ids[],
+                           cs_real_t        t_fluid[],
+                           cs_real_t        h_fluid[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Receive coupling variables (Tf,hf) from code_saturne
+ * (called by CDO thermal solver).
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_recv_tf_hf
+(
+  int              cpl_id,
+  int              mode,
+  const cs_lnum_t  elt_ids[],
+  cs_real_t        t_fluid[],
+  cs_real_t        h_fluid[]
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Send coupling variables (Ts) to code_saturne
+ * (called by CDO thermal solver).
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_syr_coupling_send_tsolid
+(
+  int              cpl_id,
+  int              mode,
+  const cs_real_t  t_solid[]
+);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Check if a boundary zone is coupled.
+ *
+ * \return 1 if coupled 0 if not.
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_syr_coupling_is_bnd_zone_coupled
+(
+  const cs_zone_t *z
+);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_SYR_COUPLING_H */

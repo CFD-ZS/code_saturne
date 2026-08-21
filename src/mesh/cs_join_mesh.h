@@ -1,14 +1,14 @@
-#ifndef __CS_JOIN_MESH_H__
-#define __CS_JOIN_MESH_H__
+#ifndef CS_JOIN_MESH_H
+#define CS_JOIN_MESH_H
 
 /*============================================================================
  * Subroutines useful to manipulate a cs_join_mesh_t structure
  *===========================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -37,14 +37,10 @@
  * Local library headers
  *---------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
+#include "fvm/fvm_defs.h"
 
-#include "cs_base.h"
-#include "cs_join_util.h"
-
-/*---------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_join_util.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -282,7 +278,7 @@ cs_join_mesh_minmax_tol(cs_join_param_t    param,
 
 void
 cs_join_mesh_exchange(cs_lnum_t              n_send,
-                      const cs_lnum_t        send_rank[],
+                      const int              send_rank[],
                       const cs_lnum_t        send_faces[],
                       const cs_join_mesh_t  *send_mesh,
                       cs_join_mesh_t        *recv_mesh,
@@ -374,7 +370,7 @@ cs_join_mesh_define_edges(const cs_join_mesh_t  *mesh);
  *   an edge number relative to the couple of vertices
  *---------------------------------------------------------------------------*/
 
-cs_int_t
+cs_lnum_t
 cs_join_mesh_get_edge(cs_lnum_t               v1_num,
                       cs_lnum_t               v2_num,
                       const cs_join_edges_t  *edges);
@@ -488,6 +484,4 @@ cs_join_mesh_dump_edges(FILE                   *f,
 
 /*---------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_JOIN_MESH_H__ */
+#endif /* CS_JOIN_MESH_H */

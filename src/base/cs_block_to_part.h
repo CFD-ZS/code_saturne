@@ -1,14 +1,14 @@
-#ifndef __CS_BLOCK_TO_PART_H__
-#define __CS_BLOCK_TO_PART_H__
+#ifndef CS_BLOCK_TO_PART_H
+#define CS_BLOCK_TO_PART_H
 
 /*============================================================================
  * Convert between block distribution and general domain partition.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,15 +32,11 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_block_dist.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_block_dist.h"
 
 /*=============================================================================
  * Macro definitions
@@ -77,7 +73,7 @@ BEGIN_C_DECLS
  * The returned all to all distributor should be used in reverse
  * mode to copy data from the block to partition distribution.
  *
- * If the part_gnum array is requested (i.e. passed an non-NULL pointer),
+ * If the part_gnum array is requested (i.e. passed an non-null pointer),
  * the caller is responsible for freeing it.
  *
  * \param[in]   comm               communicator
@@ -86,12 +82,12 @@ BEGIN_C_DECLS
  * \param[in]   stride             stride of adjacency array (1 or 2)
  * \param[in]   adjacency          entity adjacency (1 to n numbering)
  * \param[in]   adjacent_ent_rank  destination rank for adjacent entities, or
- * \param[in]                      NULL if based on block size and range only.
+ *                                 null if based on block size and range only.
  * \param[in]   default_rank       default rank in case there is no adjacency,
- *                                 or NULL
+ *                                 or null
  * \param[out]  n_part_elts        number of elements in partition, or NULL
  * \param[out]  part_gnum          global elements numbers in partition,
- *                                 or NULL
+ *                                 or null
  *
  * \return  initialized all to all block to partition distributor
  */
@@ -148,6 +144,4 @@ cs_block_to_part_global_to_local(cs_lnum_t        n_ents,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_BLOCK_TO_PART_H__ */
+#endif /* CS_BLOCK_TO_PART_H */

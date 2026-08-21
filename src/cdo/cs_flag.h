@@ -1,14 +1,14 @@
-#ifndef __CS_FLAG_H__
-#define __CS_FLAG_H__
+#ifndef CS_FLAG_H
+#define CS_FLAG_H
 
 /*============================================================================
  * Manage the definition/setting of a computation
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Macro definitions
@@ -44,17 +40,46 @@ BEGIN_C_DECLS
 /*!
  * @name Flags specifying the type of cell
  * @{
+ *
+ * \def CS_FLAG_BOUNDARY_CELL_BY_FACE
+ * \brief (= 1) boundary cell with at least one border face
+ *
+ * \def CS_FLAG_BOUNDARY_CELL_BY_VERTEX
+ * \brief (= 2) boundary cell with at least one border vertex
+ *
+ * \def CS_FLAG_BOUNDARY_CELL_BY_EDGE
+ * \brief (= 4) boundary cell with at least one border edge
+ *
+ * \def CS_FLAG_SOLID_CELL
+ * \brief (= 8) cell attached to a solid zone during the calculation
+ *
+ * @}
  */
 
-#define CS_FLAG_BOUNDARY_CELL_BY_FACE   (1 << 0)  /*!< 1: boundary cell with at
-                                                    least one border face */
-#define CS_FLAG_BOUNDARY_CELL_BY_VERTEX (1 << 1)  /*!< 2: boundary cell with at
-                                                    least one border vertex */
-#define CS_FLAG_BOUNDARY_CELL_BY_EDGE   (1 << 2)  /*!< 4: boundary cell with at
-                                                    least one border edge   */
+#define CS_FLAG_BOUNDARY_CELL_BY_FACE     (1 << 0)
+#define CS_FLAG_BOUNDARY_CELL_BY_VERTEX   (1 << 1)
+#define CS_FLAG_BOUNDARY_CELL_BY_EDGE     (1 << 2)
+#define CS_FLAG_SOLID_CELL                (1 << 3)
 
 /*!
+ * @name Flags specifying the type of update to perform
+ * @{
+ *
+ * \def CS_FLAG_CURRENT_TO_PREVIOUS
+ * \brief (value = 1) perform a previous to current operation on fields during
+ *        the update step
+ *
+ * \def CS_FLAG_INITIALIZATION
+ * \brief (value = 2) This is the first time that the update is called so it is
+ *        also an initialization step
+ *
  * @}
+*/
+
+#define CS_FLAG_CURRENT_TO_PREVIOUS       (1 << 0)
+#define CS_FLAG_INITIALIZATION            (1 << 1)
+
+/*!
  * @name Flag related to the way a CDO system is built
  * @{
  */
@@ -73,15 +98,14 @@ BEGIN_C_DECLS
  * @{
  */
 
-#define CS_FLAG_STATE_UNIFORM     (1 << 0) /*!<   1: uniform (in space) */
-#define CS_FLAG_STATE_CELLWISE    (1 << 1) /*!<   2: cellwise uniform */
-#define CS_FLAG_STATE_FACEWISE    (1 << 2) /*!<   4: uniform on each face */
-#define CS_FLAG_STATE_STEADY      (1 << 3) /*!<   8: steady */
-#define CS_FLAG_STATE_POTENTIAL   (1 << 4) /*!<  16: potential */
-#define CS_FLAG_STATE_CIRCULATION (1 << 5) /*!<  32: circulation */
-#define CS_FLAG_STATE_FLUX        (1 << 6) /*!<  64: flux */
-#define CS_FLAG_STATE_DENSITY     (1 << 7) /*!< 128: density */
-#define CS_FLAG_STATE_OWNER       (1 << 8) /*!< 256: owner */
+#define CS_FLAG_STATE_UNIFORM      (1 << 0) /*!<   1: uniform (in space) */
+#define CS_FLAG_STATE_CELLWISE     (1 << 1) /*!<   2: cellwise uniform */
+#define CS_FLAG_STATE_FACEWISE     (1 << 2) /*!<   4: uniform on each face */
+#define CS_FLAG_STATE_STEADY       (1 << 3) /*!<   8: steady */
+#define CS_FLAG_STATE_POTENTIAL    (1 << 4) /*!<  16: potential */
+#define CS_FLAG_STATE_CIRCULATION  (1 << 5) /*!<  32: circulation */
+#define CS_FLAG_STATE_FLUX         (1 << 6) /*!<  64: flux */
+#define CS_FLAG_STATE_DENSITY      (1 << 7) /*!< 128: density */
 
 /*!
  * @}
@@ -103,11 +127,12 @@ BEGIN_C_DECLS
 #define CS_FLAG_BORDER    (1 << 10) /*!< 1024: located on the boundary */
 #define CS_FLAG_BY_CELL   (1 << 11) /*!< 2048: by cell (c2e, c2f, c2v) */
 #define CS_FLAG_BY_FACE   (1 << 12) /*!< 4096: by face (bf2v) */
+#define CS_FLAG_MAC_LOC   (1 << 13) /*!< 8192: MAC */
 
 /*!
  * @}
  * @name Flags use to identify the type of equations requested.
-
+ *
  * There exists one flag for each type of space discretization.
  * If this flag is activated, then at least one equation or system of this
  * kind is discretized with this space discretization scheme.
@@ -136,16 +161,26 @@ typedef unsigned char       cs_mask_t;   /* Elementary flag */
  *============================================================================*/
 
 /* Default locations */
+
 extern const cs_flag_t  cs_flag_primal_vtx;
 extern const cs_flag_t  cs_flag_primal_edge;
 extern const cs_flag_t  cs_flag_primal_face;
 extern const cs_flag_t  cs_flag_primal_cell;
+extern const cs_flag_t  cs_flag_vertex;      /* equal to cs_flag_primal_vtx */
+extern const cs_flag_t  cs_flag_cell;        /* equal to cs_flag_primal_cell */
+extern const cs_flag_t  cs_flag_boundary_face;
+extern const cs_flag_t  cs_flag_mac_primal_face;
+
 extern const cs_flag_t  cs_flag_dual_vtx;
 extern const cs_flag_t  cs_flag_dual_face;
 extern const cs_flag_t  cs_flag_dual_cell;
+
+extern const cs_flag_t  cs_flag_primal_edge_byc;
+extern const cs_flag_t  cs_flag_dual_cell_byc;
 extern const cs_flag_t  cs_flag_dual_face_byc;
 
 /* Part of dual cell closure belonging to a boundary primal face */
+
 extern const cs_flag_t  cs_flag_dual_closure_byf;
 
 /* According to the extended flag defined below one can identify which set of
@@ -155,6 +190,7 @@ extern const cs_flag_t  cs_flag_dual_closure_byf;
 typedef unsigned int  cs_eflag_t;
 
 /* Store predefined flags */
+
 extern const cs_eflag_t  cs_flag_need_v;
 extern const cs_eflag_t  cs_flag_need_e;
 extern const cs_eflag_t  cs_flag_need_f;
@@ -166,89 +202,115 @@ extern const cs_eflag_t  cs_flag_need_pfq;
 extern const cs_eflag_t  cs_flag_need_deq;
 extern const cs_eflag_t  cs_flag_need_pfc;
 
-/* Compute simple and cellwise information for vertices */
-#define CS_FLAG_COMP_PV      (1 << 0)   /* = 1 */
+typedef enum {
 
-/* Compute cellwise quantities for vertices */
-#define CS_FLAG_COMP_PVQ     (1 << 1)   /* = 2 */
+  /* Compute simple and cellwise information for vertices */
 
-/* Compute simple and cellwise information for edges */
-#define CS_FLAG_COMP_PE      (1 << 2)   /* = 4 */
+  CS_FLAG_COMP_PV      = 1 << 0,   /* = 1 */
 
-/* Compute cellwise quantities for edges */
-#define CS_FLAG_COMP_PEQ     (1 << 3)   /* = 8 */
+  /* Compute cellwise quantities for vertices */
 
-/* Compute cellwise quantities for dual faces (associated to edges) */
-#define CS_FLAG_COMP_DFQ     (1 << 4)   /* = 16 */
+  CS_FLAG_COMP_PVQ     = 1 << 1,   /* = 2 */
 
-/* Compute simple and cellwise information for faces */
-#define CS_FLAG_COMP_PF      (1 << 5)   /* = 32 */
+  /* Compute simple and cellwise information for edges */
 
-/* Compute cellwise quantities for faces */
-#define CS_FLAG_COMP_PFQ     (1 << 6)   /* = 64 */
+  CS_FLAG_COMP_PE      = 1 << 2,   /* = 4 */
 
-/* Compute cellwise quantities for dual edges (associated to faces) */
-#define CS_FLAG_COMP_DEQ     (1 << 7)   /* = 128 */
+  /* Compute cellwise quantities for edges */
 
-/* Compute the cellwise connectivity edge to vertices */
-#define CS_FLAG_COMP_EV      (1 << 8)   /* = 256 */
+  CS_FLAG_COMP_PEQ     = 1 << 3,   /* = 8 */
 
-/* Compute cellwise connectivity face to edges */
-#define CS_FLAG_COMP_FE      (1 << 9)   /* = 512 */
+  /* Compute cellwise quantities for dual faces (associated to edges) */
 
-/* Compute cellwise quantities associated to the couple (face, edge) */
-#define CS_FLAG_COMP_FEQ     (1 << 10)  /* = 1024 */
+  CS_FLAG_COMP_DFQ     = 1 << 4,   /* = 16 */
 
-/* Compute cellwise connectivity face to vertices */
-#define CS_FLAG_COMP_FV      (1 << 11)  /* = 2048 */
+  /* Compute simple and cellwise information for faces */
 
-/* Compute cellwise connectivity edge to faces */
-#define CS_FLAG_COMP_EF      (1 << 12)  /* = 4096 */
+  CS_FLAG_COMP_PF      = 1 << 5,   /* = 32 */
 
-/* Compute elemental portion of dual faces associated to the couple
-   (edge, face) */
-#define CS_FLAG_COMP_SEF     (1 << 13)  /* = 8192 */
+  /* Compute cellwise quantities for faces */
 
-/* Compute cellwise quantities related to the height of the pyramid with basis
-   spanned by a face and with apex the cell center */
-#define CS_FLAG_COMP_HFQ     (1 << 14)  /* = 16384 */
+  CS_FLAG_COMP_PFQ     = 1 << 6,   /* = 64 */
 
-/* Compute cellwise orientation of oriented edges belonging to a face */
-#define CS_FLAG_COMP_FES     (1 << 15)  /* = 32768 */
+  /* Compute cellwise quantities for dual edges (associated to faces) */
 
-/* Compute cellwise quantities related to the volume of the pyramid with basis
-   spanned by a face and with apex the cell center */
-#define CS_FLAG_COMP_PFC     (1 << 16)  /* = 65536 */
+  CS_FLAG_COMP_DEQ     = 1 << 7,   /* = 128 */
 
-/* Compute cellwise quantities related to the volume surrounding an edge */
-#define CS_FLAG_COMP_PEC     (1 << 17)  /* = 131072 */
+  /* Compute the cellwise connectivity edge to vertices */
 
-/* Compute cellwise diameters */
-#define CS_FLAG_COMP_DIAM    (1 << 18)  /* = 262144 */
+  CS_FLAG_COMP_EV      = 1 << 8,   /* = 256 */
 
-/* typedef enum { */
+  /* Compute cellwise connectivity face to edges */
 
-/*   CS_FLAG_COMP_PV   = 1,      /\*  local info. for vertices *\/ */
-/*   CS_FLAG_COMP_PVQ  = 2,      /\*  local quant. on vertices *\/ */
-/*   CS_FLAG_COMP_PE   = 4,      /\*  local info. for edges *\/ */
-/*   CS_FLAG_COMP_PEQ  = 8,      /\*  local quant. on edges *\/ */
-/*   CS_FLAG_COMP_DFQ  = 16,     /\*  local quant. on dual faces *\/ */
-/*   CS_FLAG_COMP_PF   = 32,     /\*  local info. for faces *\/ */
-/*   CS_FLAG_COMP_PFQ  = 64,     /\*  local quant. on faces *\/ */
-/*   CS_FLAG_COMP_DEQ  = 128,    /\*  local quant. on dual edges *\/ */
-/*   CS_FLAG_COMP_EV   = 256,    /\*  local e2v connectivity *\/ */
-/*   CS_FLAG_COMP_FE   = 512,    /\*  local f2e connectivity *\/ */
-/*   CS_FLAG_COMP_FEQ  = 1024,   /\*  local f2e quantities *\/ */
-/*   CS_FLAG_COMP_FV   = 2048,   /\*  local f2v connectivity *\/ */
-/*   CS_FLAG_COMP_EF   = 4096,   /\*  local e2f connectivity *\/ */
-/*   CS_FLAG_COMP_SEF  = 8192,   /\*  local sefc quantities *\/ */
-/*   CS_FLAG_COMP_HFQ  = 16384,  /\* local quant. on face pyramids *\/ */
-/*   CS_FLAG_COMP_FES  = 32768,  /\* local f2e orientations *\/ */
-/*   CS_FLAG_COMP_PFC  = 65536,  /\* pvol_fc face subvolumes *\/ */
-/*   CS_FLAG_COMP_PEC  = 131072, /\* pvol_ec edge subvolumes *\/ */
-/*   CS_FLAG_COMP_DIAM = 262144  /\* local diameters on faces/cell *\/ */
+  CS_FLAG_COMP_FE      = 1 << 9,   /* = 512 */
 
-/* } cs_eflag_t; */
+  /* Compute cellwise quantities associated to the couple (face, edge) */
+
+  CS_FLAG_COMP_FEQ     = 1 << 10,  /* = 1024 */
+
+  /* Compute cellwise connectivity face to vertices */
+
+  CS_FLAG_COMP_FV      = 1 << 11,  /* = 2048 */
+
+  /* Compute cellwise connectivity edge to faces */
+
+  CS_FLAG_COMP_EF      = 1 << 12,  /* = 4096 */
+
+  /* Compute elemental portion of dual faces associated to the couple
+     (edge, face) */
+
+  CS_FLAG_COMP_SEF     = 1 << 13,  /* = 8192 */
+
+  /* Compute cellwise quantities related to the height of the pyramid with
+     basis spanned by a face and with apex the cell center */
+
+  CS_FLAG_COMP_HFQ     = 1 << 14,  /* = 16384 */
+
+  /* Compute cellwise orientation of oriented edges belonging to a face */
+
+  CS_FLAG_COMP_FES     = 1 << 15,  /* = 32768 */
+
+  /* Compute cellwise quantities related to the volume of the pyramid with
+     basis spanned by a face and with apex the cell center */
+
+  CS_FLAG_COMP_PFC     = 1 << 16,  /* = 65536 */
+
+  /* Compute cellwise quantities related to the volume surrounding an edge */
+
+  CS_FLAG_COMP_PEC     = 1 << 17,  /* = 131072 */
+
+  /* Compute cellwise diameters */
+
+  CS_FLAG_COMP_DIAM    = 1 << 18,  /* = 262144 */
+
+} cs_flag_comp_bits_t;
+
+typedef enum {
+
+  CS_FLAG_LOCATION_PRIMAL_VTX  = CS_FLAG_PRIMAL | CS_FLAG_VERTEX,
+  CS_FLAG_LOCATION_PRIMAL_EDGE = CS_FLAG_PRIMAL | CS_FLAG_EDGE,
+  CS_FLAG_LOCATION_PRIMAL_FACE = CS_FLAG_PRIMAL | CS_FLAG_FACE,
+  CS_FLAG_LOCATION_PRIMAL_CELL = CS_FLAG_PRIMAL | CS_FLAG_CELL,
+  CS_FLAG_LOCATION_DUAL_VTX    = CS_FLAG_DUAL | CS_FLAG_VERTEX,
+  CS_FLAG_LOCATION_DUAL_EDGE   = CS_FLAG_DUAL | CS_FLAG_EDGE,
+  CS_FLAG_LOCATION_DUAL_FACE   = CS_FLAG_DUAL | CS_FLAG_FACE,
+  CS_FLAG_LOCATION_DUAL_CELL   = CS_FLAG_DUAL | CS_FLAG_CELL,
+  CS_FLAG_LOCATION_MAC_PRIMAL_FACE
+  = CS_FLAG_PRIMAL | CS_FLAG_FACE | CS_FLAG_MAC_LOC,
+
+  CS_FLAG_N_LOCATIONS
+
+} cs_flag_location_t;
+
+typedef enum {
+
+  CS_FLAG_X_AXIS = 0,
+  CS_FLAG_Y_AXIS = 1,
+  CS_FLAG_Z_AXIS = 2,
+
+  CS_FLAG_N_AXIS /* undefined Cartesian axis */
+
+} cs_flag_cartesian_axis_t;
 
 /*============================================================================
  * Public function prototypes
@@ -256,20 +318,20 @@ extern const cs_eflag_t  cs_flag_need_pfc;
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Check if a two flag share the same pattern
- *         Return true if the flag to check has at least the pattern of the
- *         reference flag.
+ * \brief Check if two flags share the same pattern
+ *        Return true if the flag to check has at least the pattern of the
+ *        reference flag.
  *
- * \param[in]  flag_to_check   flag corresponding to the location to check
- * \param[in]  reference       flag corresponding to the referenced support
+ * \param[in] flag_to_check  flag corresponding to the location to check
+ * \param[in] reference      flag corresponding to the referenced support
  *
  * \return true or false
  */
 /*----------------------------------------------------------------------------*/
 
 static inline bool
-cs_flag_test(cs_flag_t    flag_to_check,
-             cs_flag_t    reference)
+cs_flag_test(cs_flag_t flag_to_check,
+             cs_flag_t reference)
 {
   if ((flag_to_check & reference) == reference)
     return true;
@@ -279,22 +341,21 @@ cs_flag_test(cs_flag_t    flag_to_check,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Check if a two flag share the same pattern
- *         Return true if the flag to check has at least the pattern of the
- *         reference flag.
+ * \brief Check if a flag has in common at least one of the given masks
+ *        Return true if the test is satisfied.
  *
- * \param[in]  flag_to_check   flag corresponding to the location to check
- * \param[in]  n_masks         number of masks to check
- * \param[in]  masks           array of masks
+ * \param[in] flag_to_check  flag corresponding to the location to check
+ * \param[in] n_masks        number of masks to check
+ * \param[in] masks          array of masks
  *
  * \return true or false
  */
 /*----------------------------------------------------------------------------*/
 
 static inline bool
-cs_flag_at_least(cs_flag_t    flag_to_check,
-                 int          n_masks,
-                 cs_flag_t    masks[])
+cs_flag_at_least(cs_flag_t flag_to_check,
+                 int       n_masks,
+                 cs_flag_t masks[])
 {
   for (int i = 0; i < n_masks; i++)
     if ((flag_to_check & masks[i]) == masks[i])
@@ -304,20 +365,21 @@ cs_flag_at_least(cs_flag_t    flag_to_check,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Check if a two compute flag share the same pattern
- *         Return true if the computed flag to check has at least the pattern
- *         of the reference compute flag.
+ * \brief Check if a two compute flag share the same pattern
+ *        Return true if the computed flag to check has at least the pattern
+ *        of the reference compute flag.
+ *        Case of extended flags.
  *
- * \param[in]  flag_to_check   flag corresponding to the location to check
- * \param[in]  reference       flag corresponding to the referenced support
+ * \param[in] flag_to_check  flag corresponding to the location to check
+ * \param[in] reference      flag corresponding to the referenced support
  *
  * \return true or false
  */
 /*----------------------------------------------------------------------------*/
 
 static inline bool
-cs_eflag_test(cs_eflag_t    flag_to_check,
-              cs_eflag_t    reference)
+cs_eflag_test(cs_eflag_t flag_to_check,
+              cs_eflag_t reference)
 {
   if ((flag_to_check & reference) == reference)
     return true;
@@ -327,17 +389,15 @@ cs_eflag_test(cs_eflag_t    flag_to_check,
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Retrieve the label associated to a location flag
+ * \brief Retrieve the label associated to a location flag
  *
- * \return a string
+ * \param[in] loc  flag related to the location of a mesh entitiy
+ *
+ * \return a string associated to the given location
  */
 /*----------------------------------------------------------------------------*/
 
 const char *
 cs_flag_str_location(cs_flag_t  loc);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_FLAG_H__ */
+#endif /* CS_FLAG_H */

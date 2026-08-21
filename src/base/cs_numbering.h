@@ -1,14 +1,14 @@
-#ifndef __CS_NUMBERING_H__
-#define __CS_NUMBERING_H__
+#ifndef CS_NUMBERING_H
+#define CS_NUMBERING_H
 
 /*============================================================================
  * Numbering information for vectorization or multithreading
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,12 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_base.h"
-#include "cs_log.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_base.h"
+#include "base/cs_log.h"
 
 /*============================================================================
  * Macro definitions
@@ -57,6 +53,18 @@ BEGIN_C_DECLS
 #elif defined(__AVX512F__)               /* For Intel with AVX 512 */
 
 #  define CS_NUMBERING_SIMD_SIZE 64
+
+#elif defined(HAVE_CUDA)                 /* For CUDA devices (warp size) */
+
+#  define CS_NUMBERING_SIMD_SIZE 32
+
+#elif defined(HAVE_HIP)                 /* For HIP devices (use warp size) */
+
+#if defined(__GFX8__) || defined(__GFX9__)
+#  define CS_NUMBERING_SIMD_SIZE 64
+#else
+#  define CS_NUMBERING_SIMD_SIZE 32
+#endif
 
 #else
 
@@ -112,13 +120,30 @@ typedef struct {
 
 extern const char  *cs_numbering_type_name[];
 
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Round size of array to ensure SIMD alignment.
+ *
+ * \param[in]  n_elts     number of associated elements
+ * \param[in]  type_size  associated element size
+ *
+ * \return  array size >= n_elts which is a multiple of SIMD alignment
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline size_t
+cs_numbering_simd_size(cs_lnum_t  n_elts,
+                       size_t     type_size)
+{
+  size_t simd_bytes = CS_NUMBERING_SIMD_SIZE * 8;
+  size_t elt_bytes = n_elts * type_size;
+  size_t n_ceil = (((elt_bytes-1)/simd_bytes+1)*simd_bytes);
+  return n_ceil / type_size;
+}
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -154,6 +179,7 @@ cs_numbering_create_vectorized(cs_lnum_t  n_elts,
  * \brief Create a default numbering information structure
  *        in case of threading.
  *
+ * \param[in]  n_threads    number of threads
  * \param[in]  n_groups     number of groups
  * \param[in]  group_index  group_index[thread_id*group_id*2 + group_id*2] and
  *                          group_index[thread_id*group_id*2 + group_id*2 +1]
@@ -210,6 +236,4 @@ cs_numbering_dump(const cs_numbering_t  *numbering);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_NUMBERING_H__ */
+#endif /* CS_NUMBERING_H */

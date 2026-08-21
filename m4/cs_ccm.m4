@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -57,13 +57,13 @@ AC_ARG_WITH(ccm-lib,
                with_ccm=yes
              fi
              CCM_LDFLAGS="-L$with_ccm_lib"
-             # Add the libdir to the runpath as CCM is not libtoolized
-             CCMRUNPATH="-R$with_ccm_lib"],
+             # Add the libdir to the runpath for the preprocessor build
+             CCMRUNPATH="${LDRPATH}$with_ccm_lib"],
             [if test "x$with_ccm" != "xno" -a "x$with_ccm" != "xyes" \
 	          -a "x$with_ccm" != "xcheck"; then
                CCM_LDFLAGS="-L$with_ccm/lib"
-               # Add the libdir to the runpath as CCM is not libtoolized
-               CCMRUNPATH="-R$with_ccm/lib"
+               # Add the libdir to the runpath for the preprocessor build
+               CCMRUNPATH="${LDRPATH}$with_ccm/lib"
              fi])
 
 if test "x$with_ccm" != "xno" ; then

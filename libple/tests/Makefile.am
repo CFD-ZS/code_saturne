@@ -2,7 +2,7 @@
 #   This file is part of the "Parallel Location and Exchange" library,
 #   intended to provide mesh or particle-based code coupling services.
 #
-#   Copyright (C) 2004-2020  EDF S.A.
+#   Copyright (C) 2004-2023  EDF S.A.
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Lesser General Public
@@ -32,8 +32,8 @@ if HAVE_MPI
 check_PROGRAMS += ple_coupling_test
 ple_coupling_test_SOURCES = ple_coupling_test.c
 ple_coupling_test_CPPFLAGS = -I$(top_srcdir)/src $(MPI_CPPFLAGS)
-ple_coupling_test_LDFLAGS  = $(MPI_LDFLAGS)
-ple_coupling_test_LDADD = $(top_builddir)/src/libple.la $(MPI_LIBS) $(INTLLIBS) -lm
+ple_coupling_test_LDFLAGS  = -L$(top_builddir)/src $(MPI_LDFLAGS)
+ple_coupling_test_LDADD = -lple $(MPI_LIBS) $(INTLLIBS) -lm
 endif
 
 # Uncomment for tests execution at "make check"

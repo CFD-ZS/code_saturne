@@ -1,14 +1,14 @@
-#ifndef __CS_FIELD_POINTER_H__
-#define __CS_FIELD_POINTER_H__
+#ifndef CS_FIELD_POINTER_H
+#define CS_FIELD_POINTER_H
 
 /*============================================================================
  * Field pointers and ids for standard and model fields
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,15 +28,11 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_field.h"
 
 /*=============================================================================
  * Macro definitions
@@ -65,17 +61,13 @@ typedef enum {
   CS_ENUMF_(dt),           /*!< local time step */
 
   CS_ENUMF_(p),            /*!< pressure */
+  CS_ENUMF_(pgr),          /*!< granular pressure */
+  CS_ENUMF_(pfr),          /*!< frictional pressure */
   CS_ENUMF_(vel),          /*!< velocity */
 
   CS_ENUMF_(k),            /*!< turbulent kinetic energy \f$ k \f$ */
   CS_ENUMF_(eps),          /*!< turbulent dissipation \f$ \varepsilon \f$ */
 
-  CS_ENUMF_(r11),          /*!< Reynolds stress component \f$ R_{xx} \f$ */
-  CS_ENUMF_(r22),          /*!< Reynolds stress component \f$ R_{yy} \f$ */
-  CS_ENUMF_(r33),          /*!< Reynolds stress component \f$ R_{zz} \f$ */
-  CS_ENUMF_(r12),          /*!< Reynolds stress component \f$ R_{xy} \f$ */
-  CS_ENUMF_(r23),          /*!< Reynolds stress component \f$ R_{yz} \f$ */
-  CS_ENUMF_(r13),          /*!< Reynolds stress component \f$ R_{xz} \f$ */
   CS_ENUMF_(rij),          /*!< Reynolds stress tensor \f$ R_{ij} \f$ */
 
   CS_ENUMF_(phi),          /*!< \f$ \phi \f$ for \f$ \phi-f_b \f$ model */
@@ -89,7 +81,8 @@ typedef enum {
 
   CS_ENUMF_(hybrid_blend), /*!< Blending factor for DDES*/
 
-  CS_ENUMF_(mesh_u),       /*!< mesh velocity */
+  CS_ENUMF_(mesh_u),       /*!< ALE mesh velocity */
+  CS_ENUMF_(mesh_disp),    /*!< ALE mesh displacement */
 
   CS_ENUMF_(void_f),       /*!< void fraction */
   CS_ENUMF_(vol_f),        /*!< volume fraction */
@@ -110,7 +103,7 @@ typedef enum {
   CS_ENUMF_(mu_t),         /*!< turbulent dynamic viscosity */
 
   CS_ENUMF_(lambda),       /*!< Thermal conductivity */
-  CS_ENUMF_(th_diff),      /*!< Thermal diffusivity */
+  CS_ENUMF_(th_diff),      /*!< Dynamic thermal diffusivity */
 
   CS_ENUMF_(poro),         /*!< porosity */
   CS_ENUMF_(if_poro),      /*!< internal faces porosity */
@@ -127,7 +120,6 @@ typedef enum {
   CS_ENUMF_(energy_f),     /*!< homogeneous model energy fraction */
 
   CS_ENUMF_(pot_t),        /*!< potential temperature */
-  CS_ENUMF_(totwt),        /*!< total water content */
   CS_ENUMF_(ntdrp),        /*!< total number of droplets */
   CS_ENUMF_(chemistry),    /*!< chemistry species (indexed) */
 
@@ -137,30 +129,6 @@ typedef enum {
   CS_ENUMF_(fsm),          /*!< soot mass fraction */
   CS_ENUMF_(npm),          /*!< soot precursor number */
   CS_ENUMF_(ygfm),         /*!< fresh gas fraction */
-
-  CS_ENUMF_(yfm),          /*!< mass fraction */
-  CS_ENUMF_(yfp2m),        /*!< mass fraction variance */
-  CS_ENUMF_(coyfp),        /*!< mass fraction covariance */
-
-  CS_ENUMF_(np),           /*!< particles per kg for coal class */
-  CS_ENUMF_(xch),          /*!< reactive coal mass fraction for coal class */
-  CS_ENUMF_(xck),          /*!< coke mass fraction for coal class */
-  CS_ENUMF_(xwt),          /*!< water mass fraction for coal class */
-  CS_ENUMF_(h2),           /*!< mass enthalpy for coal class (permeatic case) */
-  CS_ENUMF_(f1m),          /*!< mean value light volatiles for coal class */
-  CS_ENUMF_(f2m),          /*!< mean value heavy volatiles for coal class */
-  CS_ENUMF_(f4m),          /*!< oxydant 2 mass fraction */
-  CS_ENUMF_(f5m),          /*!< oxydant 3 mass fraction */
-  CS_ENUMF_(f6m),          /*!< water from coal drying mass fraction */
-  CS_ENUMF_(f7m),          /*!< carbon from coal oxidyzed by O2 mass fraction */
-  CS_ENUMF_(f8m),          /*!< carbon from coal gasified by CO2 mass fraction */
-  CS_ENUMF_(f9m),          /*!< carbon from coal gasified by H2O mass fraction */
-  CS_ENUMF_(fvp2m),        /*!< f1f2 variance */
-  CS_ENUMF_(yco2),         /*!< CO2 fraction */
-  CS_ENUMF_(yhcn),         /*!< HCN fraction */
-  CS_ENUMF_(yno),          /*!< NO fraction */
-  CS_ENUMF_(ynh3),         /*!< NH3 enthalpy */
-  CS_ENUMF_(hox),          /*!< Ox enthalpy */
 
   CS_ENUMF_(potr),         /*!< Electric potential, real part */
   CS_ENUMF_(poti),         /*!< Electric potential, imaginary part */
@@ -175,8 +143,9 @@ typedef enum {
   CS_ENUMF_(magfl),        /*!< magnetic field */
   CS_ENUMF_(elefl),        /*!< electric field */
 
-  CS_ENUMF_(rad_lumin),    /*!< Radiative luminance */
+  CS_ENUMF_(rad_energy),   /*!< Radiative energy */
   CS_ENUMF_(rad_q),        /*!< Radiative flux */
+  CS_ENUMF_(radiance),     /*!< (spectral) radiance field */
 
   CS_ENUMF_(rad_est),      /*!< Radiative flux explicit source term */
   CS_ENUMF_(rad_ist),      /*!< Radiative flux implicit source term */
@@ -184,7 +153,7 @@ typedef enum {
   CS_ENUMF_(rad_emi),      /*!< Radiative emission */
   CS_ENUMF_(rad_cak),      /*!< Radiative absorption coefficient */
 
-  CS_ENUMF_(qinci),        /*!< Radiative incident radiative flux density */
+  CS_ENUMF_(qinci),        /*!< Incident radiative flux density at boundary */
   CS_ENUMF_(qinsp),        /*!< Spectral radiative incident flux */
   CS_ENUMF_(xlam),         /*!< Wall thermal conductivity */
   CS_ENUMF_(epa),          /*!< Wall thickness */
@@ -192,6 +161,11 @@ typedef enum {
   CS_ENUMF_(fnet),         /*!< Boundary radiative flux */
   CS_ENUMF_(fconv),        /*!< Boundary radiative convective flux */
   CS_ENUMF_(hconv),        /*!< radiative exchange coefficient */
+  CS_ENUMF_(fup),          /*!< Spectral upward radiative flux */
+  CS_ENUMF_(fdown),        /*!< Spectral downward radiative flux */
+  CS_ENUMF_(rad_ck_up),    /*!< Spectral upward Radiative absorption coefficient */
+  CS_ENUMF_(rad_ck_down),  /*!< Spectral downward Radiative absorption
+                             coefficient */
 
   CS_ENUMF_(mol_mass),     /*!< gas mix molar max */
 
@@ -200,8 +174,8 @@ typedef enum {
   /* Cooling tower fields */
   CS_ENUMF_(humid),          /*!< Humidity */
   CS_ENUMF_(ym_w),           /*!< Mass fraction of dry air in humid air */
-  CS_ENUMF_(t_l),            /*!< Injected liquid water temperature */
-  CS_ENUMF_(h_l),            /*!< Injected liquid water enthalpy */
+  CS_ENUMF_(t_l_pack),       /*!< Injected liquid water temperature */
+  CS_ENUMF_(yh_l_pack),      /*!< Injected liquid water enthalpy */
   CS_ENUMF_(y_l_pack),       /*!< Mass of liquid per unit volume of cell */
   CS_ENUMF_(thermal_diff_h), /*!< Humid air thermal diffusivity  */
   CS_ENUMF_(thermal_diff_l), /*!< Injected liquid water thermal diffusivity */
@@ -231,13 +205,29 @@ typedef enum {
   CS_ENUMF_(drho_dp),        /*!< drho over dp */
   CS_ENUMF_(drho_dh),        /*!< drho over dh */
   CS_ENUMF_(tau12_t),        /*!< turbulent tau12 */
-  CS_ENUMF_(lift),           /*!< Particles lift */
+  CS_ENUMF_(lift),           /*!< Lift coefficient */
   CS_ENUMF_(disp_t),         /*!< Turbulent dispersion */
+  CS_ENUMF_(surf_tens),      /*!< Surface tension */
+  CS_ENUMF_(psi_fs),         /*!< Flow regime indicator for GLIM */
   CS_ENUMF_(drift_vel),      /*!< Particles drift velocity */
   CS_ENUMF_(yplus),          /*!< Wall distance: y+ */
   CS_ENUMF_(vel_mean),       /*!< Mean velocity (for dispersed phases) */
   CS_ENUMF_(vel_rel),        /*!< Relative velocity (for dispersed phases) */
   CS_ENUMF_(dt_dp),          /*!< dtemp/dpress derivative */
+  CS_ENUMF_(kindiff),        /*!< Particles kinetic diffusivity */
+  CS_ENUMF_(coldiff),        /*!< Particles collisional diffusivity */
+  CS_ENUMF_(elast),          /*!< Particles restitution coefficient */
+  CS_ENUMF_(flux_b),         /*!< Wall heat flux by phase */
+  CS_ENUMF_(tf_b),           /*!< Phase temperature at the wall */
+  CS_ENUMF_(exch_b),         /*!< Phase heat exchange coefficient */
+  CS_ENUMF_(gamma_lwfm),     /*!< Activation ponderation for liquid wall film model */
+  CS_ENUMF_(delta_lwfm),     /*!< Liquid film thickness for liquid wall film model */
+  CS_ENUMF_(taui_lwfm),      /*!< Interfacial shear stress for liquid wall film model */
+  CS_ENUMF_(ti_lwfm),        /*!< Interfacial temperature for liquid wall film model */
+  CS_ENUMF_(vsucplus_lwfm),  /*!< Adimensionned succion velocity for liquid wall film model */
+  CS_ENUMF_(rij_wia),        /*!< Reynolds stress tensor \f$ R_{ij} \f$ for Wake-Induced Agitation */
+  CS_ENUMF_(rij_pwf),        /*!< Reynolds stress tensor \f$ R_{ij} \f$ for Potential flow and averaged Wake Fluctuations */
+  CS_ENUMF_(eps_wia),        /*!< Dissipation for Wake-Induced Agitation */
 
   /* Added variables (scalars) */
   CS_ENUMF_(add_var),        /*!< User added variables */
@@ -269,6 +259,13 @@ extern struct cs_field_pointer_array_t  *cs_glob_field_pointers;
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------
+ * Ensure field pointer array is initialized.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_field_pointer_ensure_init(void);
 
 /*----------------------------------------------------------------------------
  * Free all field pointer data.
@@ -336,49 +333,6 @@ void
 cs_field_pointer_map_atmospheric(int        n_chem_species,
                                  const int  species_f_id[]);
 
-/*----------------------------------------------------------------------------
- * Map base fields to enumerated pointers for atmospheric models
- *
- * parameters:
- *   n_coals   <-- number of coals
- *   n_classes <-- number of coal classes
- *----------------------------------------------------------------------------*/
-
-void
-cs_field_pointer_map_coal_combustion(int  n_coals,
-                                     int  n_classes);
-
-/*----------------------------------------------------------------------------*
- * Map base fields to enumerated pointers for compressible model
- *----------------------------------------------------------------------------*/
-
-void
-cs_field_pointer_map_compressible(void);
-
-/*----------------------------------------------------------------------------*
- * Map base fields to enumerated pointers for gas mix model
- *----------------------------------------------------------------------------*/
-
-void
-cs_field_pointer_map_gas_mix(void);
-
-/*----------------------------------------------------------------------------
- * Map base fields to enumerated pointers for gas combustion.
- *----------------------------------------------------------------------------*/
-
-void
-cs_field_pointer_map_gas_combustion(void);
-
-/*----------------------------------------------------------------------------*/
-/*
- * Map base fields to enumerated pointers for groundwater flows
- *----------------------------------------------------------------------------*/
-
-void
-cs_field_pointer_map_groundwater(void);
-
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FIELD_POINTER_H__ */
+#endif /* CS_FIELD_POINTER_H */

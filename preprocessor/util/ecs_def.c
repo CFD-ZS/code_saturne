@@ -3,9 +3,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -64,6 +64,7 @@ char  ecs_glob_build_date[]   = __DATE__;
 static ecs_loc_def__sighandler_t ecs_loc_def__sighup_sauve  = SIG_DFL;
 #endif
 
+static ecs_loc_def__sighandler_t ecs_loc_def__sigabrt_sauve  = SIG_DFL;
 static ecs_loc_def__sighandler_t ecs_loc_def__sigint_sauve  = SIG_DFL;
 static ecs_loc_def__sighandler_t ecs_loc_def__sigterm_sauve = SIG_DFL;
 static ecs_loc_def__sighandler_t ecs_loc_def__sigfpe_sauve  = SIG_DFL;
@@ -127,6 +128,10 @@ ecs_loc_def__sig_fatal(int  signum)
     break;
 #endif
 
+  case SIGABRT:
+    fprintf(stderr, _("SIGABRT signal (abort) intercepted !\n"));
+    break;
+
   case SIGINT:
     fprintf(stderr, _("SIGINT signal (Control+C or equivalent) received.\n"
                       "--> computation interrupted by user.\n"));
@@ -161,6 +166,8 @@ ecs_loc_def__sig_fatal(int  signum)
   ecs_backtrace_print(3);
 
   assert(0);   /* Use assert to avoit exiting under debugger */
+
+  fflush(stderr);
 
   exit(EXIT_FAILURE);
 }
@@ -198,24 +205,15 @@ ecs_loc_def__strlen(const char  *chaine)
     else if (mode_utf8 == 1) {
 
       int ind;
-      bool       multibyte = false;
 
       for (ind = 0; ind < lng; ind++) {
 
         char c = chaine[ind];
 
-        if (multibyte == false || (c < 0x80 || c > 0xBF)) {
-
-          multibyte = false;
-
-          if (c <= 0x7F) {
-            retval++;
-          }
-          else if (c >= 0xC0 || c <= 0xFD) {
-            multibyte = true;
-            retval++;
-          }
+        if (c < 0x80 || c > 0xBF) { /* Single byte or first byte in UTF-8 */
+          retval++;
         }
+
       }
     }
   }
@@ -240,6 +238,7 @@ ecs_init_gestion_erreur(void)
   ecs_loc_def__sighup_sauve  = signal(SIGHUP, ecs_loc_def__sig_fatal);
 #endif
 
+  ecs_loc_def__sigabrt_sauve = signal(SIGABRT, ecs_loc_def__sig_fatal);
   ecs_loc_def__sigint_sauve  = signal(SIGINT, ecs_loc_def__sig_fatal);
   ecs_loc_def__sigterm_sauve = signal(SIGTERM, ecs_loc_def__sig_fatal);
   ecs_loc_def__sigfpe_sauve  = signal(SIGFPE, ecs_loc_def__sig_fatal);

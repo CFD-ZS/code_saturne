@@ -1,14 +1,14 @@
-#ifndef __CS_RESTART_DEFAULT_H__
-#define __CS_RESTART_DEFAULT_H__
+#ifndef CS_RESTART_DEFAULT_H
+#define CS_RESTART_DEFAULT_H
 
 /*============================================================================
  * Checkpoint/restart handling for default application.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,17 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-#include "cs_map.h"
-#include "cs_restart.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
+#include "base/cs_field.h"
+#include "base/cs_map.h"
+#include "base/cs_restart.h"
 
 /*=============================================================================
  * Macro definitions
@@ -64,7 +60,8 @@ typedef enum {
   CS_RESTART_1D_WALL_THERMAL = 5, /*!< save values in 1D wall thermal restart
                                        file */
   CS_RESTART_LES_INFLOW = 6,      /*!< save values in LES inflow restart file */
-  CS_RESTART_N_RESTART_FILES = 7  /*!< Number of types of restart file */
+  CS_RESTART_IBM = 7,             /*!< save values in porous restart file */
+  CS_RESTART_N_RESTART_FILES = 8  /*!< Number of types of restart file */
 
 } cs_restart_file_t ;
 
@@ -76,7 +73,7 @@ typedef enum {
  * Read field metadata from checkpoint.
  *
  * Old ids associated to each field are determined for future use.
- * Note that when reading legacy files (Code_Saturne version 3.3 and below),
+ * Note that when reading legacy files (code_saturne version 3.3 and below),
  * the old id will actually be the old scalar id (-1 for others).
  *
  * parameters:
@@ -106,7 +103,7 @@ cs_restart_write_field_info(cs_restart_t  *r);
  *   old_field_map <-- name to id map of fields in restart file
  *   t_id_flag     <-- -1: all time values; 0: current values;
  *                      > 0: previous values
- *   read_flag     <-- optional flag to track fields read, or NULL;
+ *   read_flag     <-- optional flag to track fields read, or null;
  *                     set to sum of 2^time_id for fields read (size: n_fields)
  *----------------------------------------------------------------------------*/
 
@@ -123,7 +120,7 @@ cs_restart_read_variables(cs_restart_t               *r,
  *   r          <-> associated restart file pointer
  *   t_id_flag  <-- -1: all time values; 0: current values;
  *                  > 0: previous values
- *   write_flag <-- optional flag to track fields written, or NULL;
+ *   write_flag <-- optional flag to track fields written, or null;
  *                  set to sum of 2^time_id for fields written (size: n_fields)
 *----------------------------------------------------------------------------*/
 
@@ -132,18 +129,40 @@ cs_restart_write_variables(cs_restart_t  *r,
                            int            t_id_flag,
                            int            write_flag[]);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Read notebook parameters from main checkpoint.
+ *
+ * \param[in, out]  r  associated restart file pointer
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_read_notebook_variables(cs_restart_t  *r);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Write notebook parameters to main checkpoint.
+ *
+ * \param[in, out]  r  associated restart file pointer
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_write_notebook_variables(cs_restart_t  *r);
+
 /*----------------------------------------------------------------------------
  * Read fields depending on others from checkpoint.
  *
  * Old ids associate to each field are determined for future use.
- * Note that when reading legacy files (Code_Saturne version 3.3 and below),
+ * Note that when reading legacy files (code_saturne version 3.3 and below),
  * the old id will actually be the old scalar id (-1 for others).
  *
  * parameters:
  *   r             <-> associated restart file pointer
  *   old_field_map <-- name to id map of fields in restart file
  *   key           <-- key for field association
- *   read_flag     <-- optional flag to track fields read, or NULL;
+ *   read_flag     <-- optional flag to track fields read, or null;
  *                     set to sum of 2^time_id for fields read, -1 for fields
  *                     failed to read (size: n_fields)
  *----------------------------------------------------------------------------*/
@@ -162,7 +181,7 @@ cs_restart_read_linked_fields(cs_restart_t               *r,
  * parameters:
  *   r          <-> associated restart file pointer
  *   key        <-- key for field association
- *   write_flag <-- optional flag to track fields written, or NULL;
+ *   write_flag <-- optional flag to track fields written, or null;
  *                  set to sum of 2^time_id for fields written (size: n_fields)
  *
  * returns:
@@ -269,7 +288,54 @@ cs_restart_read_fields(cs_restart_t       *r,
                        cs_restart_file_t   r_id);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief Set restart file values for fields when those values cannot
+ *        be determined at field definition time.
+ *
+ * This is needed when the need for restart data depends on various
+ * combinations of settings.
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_restart_set_auxiliary_field_options(void);
 
-#endif /* __CS_RESTART_DEFAULT_H__ */
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Initialize fields read status array
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_initialize_fields_read_status(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Finalize fields read status array
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_finalize_fields_read_status(void);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Get checkpoint read status for a field based on its id.
+ *
+ * If some time values were read and others not available, the returned
+ * value is that of the contiguous number of time values successfully read
+ * (i.e. if time values 0 and 2 were read, but not 1, only the firs value,
+ * 0 is considered usable, so the returned value would be 1).
+ *
+ * \param[in] f_id  field id
+ *
+ * \returns number of time values read for field.
+ */
+/*----------------------------------------------------------------------------*/
+
+int
+cs_restart_get_field_read_status(const int f_id);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_RESTART_DEFAULT_H */

@@ -9,7 +9,7 @@
   This file is part of the "Parallel Location and Exchange" library,
   intended to provide mesh or particle-based code coupling services.
 
-  Copyright (C) 2005-2020  EDF S.A.
+  Copyright (C) 2005-2024  EDF S.A.
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -115,23 +115,9 @@ _ptr = ple_mem_free(_ptr, #_ptr, __FILE__, __LINE__)
  * General C types such as size_t which should be known
  *----------------------------------------------------------------------------*/
 
-/*
- * Obtain definitions such as that of size_t through stddef.h (C99 standard)
- * if available (preferred method), or through stdlib.h (which defines
- * malloc() and family and so must define size_t some way) otherwise.
- * This must be done in ple_defs.h in a way independent of the private
- * configuration files, as size_t is used in many public FVM headers.
- */
+/* Obtain definitions such as that of size_t */
 
-#if defined(__STDC_VERSION__)
-# if (__STDC_VERSION__ >= 199901L)
-#   include <stddef.h>
-# else
-#   include <stdlib.h>
-# endif
-#else
-# include <stdlib.h>
-#endif
+#include <stddef.h>
 
 /*----------------------------------------------------------------------------
  * Basic types used by PLE.
@@ -140,7 +126,12 @@ _ptr = ple_mem_free(_ptr, #_ptr, __FILE__, __LINE__)
  *  - ple_lnum_t must be signed
  *----------------------------------------------------------------------------*/
 
-typedef int      ple_lnum_t;     /* Local integer index or number */
+#if defined(PLE_HAVE_LONG_LNUM)
+  typedef long     ple_lnum_t;     /* Local integer index or number */
+#else
+  typedef int      ple_lnum_t;     /* Local integer index or number */
+#endif
+
 typedef double   ple_coord_t;    /* Real number (coordinate value) */
 
 /*----------------------------------------------------------------------------
@@ -151,7 +142,12 @@ typedef double   ple_coord_t;    /* Real number (coordinate value) */
 
 #define PLE_MPI_TAG      (int)('P'+'L'+'E') /* MPI tag for PLE operations */
 
-#define PLE_MPI_LNUM     MPI_INT         /* MPI type for ple_lnum_t type */
+#if defined(PLE_HAVE_LONG_LNUM)
+#  define PLE_MPI_LNUM   MPI_LONG        /* MPI type for ple_lnum_t type */
+#else
+#  define PLE_MPI_LNUM   MPI_INT         /* MPI type for ple_lnum_t type */
+#endif
+
 #define PLE_MPI_COORD    MPI_DOUBLE      /* MPI type for ple_coord_t type */
 
 #endif

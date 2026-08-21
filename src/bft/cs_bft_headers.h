@@ -1,14 +1,14 @@
-#ifndef __BFT_HEADERS_H__
-#define __BFT_HEADERS_H__
+#ifndef BFT_HEADERS_H
+#define BFT_HEADERS_H
 
 /*============================================================================
- * Global Code_Saturne headers file for easier include
+ * Global code_saturne headers file for easier include
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -29,12 +29,10 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "bft_backtrace.h"
-#include "bft_error.h"
-#include "bft_mem.h"
-#include "bft_mem_usage.h"
-#include "bft_printf.h"
+#include "bft/bft_error.h"
+#include "bft/bft_mem.h"
+#include "bft/bft_printf.h"
 
 /*----------------------------------------------------------------------------*/
 
-#endif /* __BFT_HEADERS_H__ */
+#endif /* BFT_HEADERS_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_QUADRATURE_H__
-#define __CS_QUADRATURE_H__
+#ifndef CS_QUADRATURE_H
+#define CS_QUADRATURE_H
 
 /*============================================================================
- * Routines to handle quadrature rules
+ * Functions to handle quadrature rules
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,20 +26,15 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include <bft_error.h>
-
-#include "cs_base.h"
-#include "cs_defs.h"
-#include "cs_flag.h"
-#include "cs_math.h"
-#include "cs_param.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_defs.h"
+#include "base/cs_math.h"
+#include "base/cs_param_types.h"
+#include "bft/bft_error.h"
+#include "cdo/cs_flag.h"
 
 /*============================================================================
  * Macro definitions
@@ -48,6 +43,38 @@ BEGIN_C_DECLS
 /*============================================================================
  * Type definitions
  *============================================================================*/
+
+/*! \enum cs_quadrature_type_t
+ *  \brief Type of quadrature to use when computing an integral quantity. This
+ *  rationale is used for integrals along edges/lines, over faces/surfaces or
+ *  inside cells/volumes
+ *
+ * \var CS_QUADRATURE_NONE
+ * This is a P0-like approximation
+ *
+ * \var CS_QUADRATURE_BARY
+ * Use the value at the cell center (should be the barycenter to get linear
+ * exactness) and multiply by the measure of the related support (length or
+ * surface or volume according to the support)
+ *
+ * \var CS_QUADRATURE_BARY_SUBDIV
+ * Same as the \ref CS_QUADRATURE_BARY but the support is divided into
+ * simplices. The value at the barycenter of each sub-simplices is used.
+ *
+ * \var CS_QUADRATURE_HIGHER
+ * - For a triangle, this corresponds to a 4-points quadrature rule which is
+ * exact up to a polynomial of order 3
+ * - For a tetrahedron, this corresponds to a 4-points quadrature rule which is
+ * exact up to a polynomial of order 2
+ *
+ * \var CS_QUADRATURE_HIGHEST
+ * - For a triangle, this corresponds to a 7-points quadrature rule which is
+ * exact up to a polynomial of order 7
+ * - For a tetrahedron, this corresponds to a 5-points quadrature rule which is
+ * exact up to a polynomial of order 3. A 15-points quadrature rule is also
+ * available with HHO schemes. This latter quadrature is exact up to a
+ * polynomial of order 5.
+ */
 
 typedef enum {
 
@@ -62,8 +89,8 @@ typedef enum {
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief   Generic function pointer to compute the quadrature points for an
- *          edge from v1 -> v2
+ * \brief Generic function pointer to compute the quadrature points for an
+ *        edge from v1 -> v2
  *
  * \param[in]      v1       first vertex
  * \param[in]      v2       second vertex
@@ -82,8 +109,8 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief   Generic functoin pointer to compute the quadrature points for a
- *          triangle
+ * \brief Generic functoin pointer to compute the quadrature points for a
+ *        triangle
  *
  * \param[in]      v1        first vertex
  * \param[in]      v2        second vertex
@@ -104,7 +131,7 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Generic function to compute the quadrature points in a tetrehedra.
+ * \brief Generic function to compute the quadrature points in a tetrehedra.
  *
  * \param[in]       v1       first vertex
  * \param[in]       v2       second vertex
@@ -127,15 +154,15 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Compute the integral over an edge based on a specified
- *         quadrature rule and add it to \p results
+ * \brief Compute the integral over an edge based on a specified
+ *        quadrature rule and add it to \p results
  *
  * \param[in]      tcur     current physical time of the simulation
  * \param[in]      v1       first point of the edge
  * \param[in]      v2       second point of the edge
  * \param[in]      len      length of the edge
  * \param[in]      ana      pointer to the analytic function
- * \param[in]      input    NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input    null or pointer to a structure cast on-the-fly
  * \param[in, out] results  array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -151,8 +178,8 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Compute the integral over a triangle based on a specified
- *         quadrature rule and add it to \p results
+ * \brief Compute the integral over a triangle based on a specified
+ *        quadrature rule and add it to \p results
  *
  * \param[in]      tcur     current physical time of the simulation
  * \param[in]      v1       first point of the triangle
@@ -160,7 +187,7 @@ typedef void
  * \param[in]      v3       third point of the triangle
  * \param[in]      area     area of the triangle
  * \param[in]      ana      pointer to the analytic function
- * \param[in]      input    NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input    null or pointer to a structure cast on-the-fly
  * \param[in, out] results  array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -177,8 +204,8 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Compute the integral over a tetrahedron based on a specified
- *         quadrature rule and add it to \p results
+ * \brief Compute the integral over a tetrahedron based on a specified
+ *        quadrature rule and add it to \p results
  *
  * \param[in]      tcur     current physical time of the simulation
  * \param[in]      v1       first point of the tetrahedron
@@ -187,7 +214,7 @@ typedef void
  * \param[in]      v4       fourth point of the tetrahedron
  * \param[in]      vol      volume of the tetrahedron
  * \param[in]      ana      pointer to the analytic function
- * \param[in]      input    NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input    null or pointer to a structure cast on-the-fly
  * \param[in, out] results  array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -203,6 +230,30 @@ typedef void
                                  void                  *input,
                                  double                 results[]);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the integral over an orthogonal hexahedron based on a
+ * specified quadrature rule and add it to \p results
+ *
+ * \param[in]      tcur     current physical time of the simulation
+ * \param[in]      vb       barycenter
+ * \param[in]      hx       length along x-dir
+ * \param[in]      hy       length along y-dir
+ * \param[in]      hz       length along z-dir
+ * \param[in]      ana      pointer to the analytic function
+ * \param[in]      input    null or pointer to a structure cast on-the-fly
+ * \param[in, out] results  array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+typedef void(cs_quadrature_hexa_integral_t)(double              tcur,
+                                            const cs_real_3_t   vb,
+                                            const double        hx,
+                                            const double        hy,
+                                            const double        hz,
+                                            cs_analytic_func_t *ana,
+                                            void               *input,
+                                            double              results[]);
 
 /*============================================================================
  * Public function prototypes
@@ -210,7 +261,7 @@ typedef void
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief   Compute constant weights for all quadratures used
+ * \brief Compute constant weights for all quadratures used
  */
 /*----------------------------------------------------------------------------*/
 
@@ -219,9 +270,9 @@ cs_quadrature_setup(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Return th name associated to a type of quadrature
+ * \brief Return th name associated to a type of quadrature
  *
- * \param[in]     type     cs_quadrature_type_t
+ * \param[in] type     cs_quadrature_type_t
  *
  * \return the name associated to a given type of quadrature
  */
@@ -298,6 +349,76 @@ cs_quadrature_edge_3pts(const cs_real_3_t  v1,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief   Compute quadrature points for an orthogonal hexahedron
+ *          Exact for polynomial function up to order 1
+ *
+ * \param[in]      vb       barycenter
+ * \param[in]      hx       length along x-dir
+ * \param[in]      hy       length along y-dir
+ * \param[in]      hz       length along z-dir
+ * \param[in, out] gpts     gauss points
+ * \param[in, out] w        weight
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_hex_1pt(const cs_real_3_t vb,
+                      const double      hx,
+                      const double      hy,
+                      const double      hz,
+                      cs_real_3_t       gpts[],
+                      double           *w)
+{
+  gpts[0][0] = vb[0];
+  gpts[0][1] = vb[1];
+  gpts[0][2] = vb[2];
+  w[0]       = hx * hy * hz;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief   Compute quadrature points for an orthogonal hexahedron
+ *          Exact for polynomial function up to order 3
+ *
+ * \param[in]      vb       barycenter
+ * \param[in]      hx       length along x-dir
+ * \param[in]      hy       length along y-dir
+ * \param[in]      hz       length along z-dir
+ * \param[in, out] gpts     gauss points
+ * \param[in, out] w        weights
+ */
+/*----------------------------------------------------------------------------*/
+
+void cs_quadrature_hex_8pts(const cs_real_3_t vb,
+                            const double      hx,
+                            const double      hy,
+                            const double      hz,
+                            cs_real_3_t       gpts[],
+                            double           *w);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief   Compute quadrature points for an orthogonal hexahedron
+ *          Exact for polynomial function up to order 5
+ *
+ * \param[in]      vb       barycenter
+ * \param[in]      hx       length along x-dir
+ * \param[in]      hy       length along y-dir
+ * \param[in]      hz       length along z-dir
+ * \param[in, out] gpts     gauss points
+ * \param[in, out] w        weights
+ */
+/*----------------------------------------------------------------------------*/
+
+void cs_quadrature_hex_27pts(const cs_real_3_t vb,
+                             const double      hx,
+                             const double      hy,
+                             const double      hz,
+                             cs_real_3_t       gpts[],
+                             double            w[]);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief   Compute quadrature points for a triangle (1 point)
  *          Exact for polynomial function up to order 1 (barycentric approx.)
  *
@@ -318,10 +439,12 @@ cs_quadrature_tria_1pt(const cs_real_3_t   v1,
                        cs_real_3_t         gpts[],
                        double             *w)
 {
-  gpts[0][0] = cs_math_1ov3 * (v1[0] + v2[0] + v3[0]);
-  gpts[0][1] = cs_math_1ov3 * (v1[1] + v2[1] + v3[1]);
-  gpts[0][2] = cs_math_1ov3 * (v1[2] + v2[2] + v3[2]);
-  w[0] = area;
+  constexpr cs_real_t c_1ov3 = 1./3.;
+
+  gpts[0][0] = c_1ov3 * (v1[0] + v2[0] + v3[0]);
+  gpts[0][1] = c_1ov3 * (v1[1] + v2[1] + v3[1]);
+  gpts[0][2] = c_1ov3 * (v1[2] + v2[2] + v3[2]);
+  w[0]       = area;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -503,7 +626,7 @@ cs_quadrature_tet_15pts(const cs_real_3_t   v1,
  * \param[in]      v2           second point of the edge
  * \param[in]      len          length of the edge
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -543,7 +666,7 @@ cs_quadrature_edge_1pt_scal(double                 tcur,
  * \param[in]      v2           second point of the edge
  * \param[in]      len          length of the edge
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -581,7 +704,7 @@ cs_quadrature_edge_2pts_scal(double                tcur,
  * \param[in]      v2           second point of the edge
  * \param[in]      len          length of the edge
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -619,7 +742,7 @@ cs_quadrature_edge_3pts_scal(double                tcur,
  * \param[in]      v2          2nd point of the triangle
  * \param[in]      len         length of the edge
  * \param[in]      ana         pointer to the analytic function
- * \param[in]      input       NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input       null or pointer to a structure cast on-the-fly
  * \param[in, out] results     array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -661,7 +784,7 @@ cs_quadrature_edge_1pt_vect(double                 tcur,
  * \param[in]      v2          2nd point of the triangle
  * \param[in]      len         length of the edge
  * \param[in]      ana         pointer to the analytic function
- * \param[in]      input       NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input       null or pointer to a structure cast on-the-fly
  * \param[in, out] results     array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -701,7 +824,7 @@ cs_quadrature_edge_2pts_vect(double                 tcur,
  * \param[in]      v2           second point of the edge
  * \param[in]      len          length of the edge
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -744,7 +867,7 @@ cs_quadrature_edge_3pts_vect(double                tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -763,9 +886,11 @@ cs_quadrature_tria_1pt_scal(double                 tcur,
   double  evaluation;
 
   /* Copied from cs_quadrature_1pt */
-  xg[0] = cs_math_1ov3 * (v1[0] + v2[0] + v3[0]);
-  xg[1] = cs_math_1ov3 * (v1[1] + v2[1] + v3[1]);
-  xg[2] = cs_math_1ov3 * (v1[2] + v2[2] + v3[2]);
+  constexpr cs_real_t c_1ov3 = 1./3.;
+
+  xg[0] = c_1ov3 * (v1[0] + v2[0] + v3[0]);
+  xg[1] = c_1ov3 * (v1[1] + v2[1] + v3[1]);
+  xg[2] = c_1ov3 * (v1[2] + v2[2] + v3[2]);
 
   ana(tcur, 1, NULL, xg, false, input, &evaluation);
 
@@ -784,7 +909,7 @@ cs_quadrature_tria_1pt_scal(double                 tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -824,7 +949,7 @@ cs_quadrature_tria_3pts_scal(double                tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -853,6 +978,47 @@ cs_quadrature_tria_4pts_scal(double                tcur,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Compute the integral over a triangle with a quadrature rule using
+ *         7 Gauss points and 7 weights and add it to \p results
+ *         Case of a scalar-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      v1           first point of the triangle
+ * \param[in]      v2           second point of the triangle
+ * \param[in]      v3           third point of the triangle
+ * \param[in]      area         area of the triangle
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_tria_7pts_scal(double                tcur,
+                             const cs_real_3_t     v1,
+                             const cs_real_3_t     v2,
+                             const cs_real_3_t     v3,
+                             double                area,
+                             cs_analytic_func_t   *ana,
+                             void                 *input,
+                             double                results[])
+{
+  cs_real_3_t  gauss_pts[7];
+  double  evaluation[7], weights[7];
+
+  /* Compute Gauss points and its weights */
+  cs_quadrature_tria_7pts(v1, v2, v3, area, gauss_pts, weights);
+
+  ana(tcur, 7, NULL, (const cs_real_t *)gauss_pts, false, input, evaluation);
+
+  *results += weights[0] * evaluation[0] + weights[1] * evaluation[1] +
+              weights[2] * evaluation[2] + weights[3] * evaluation[3] +
+              weights[4] * evaluation[4] + weights[5] * evaluation[5] +
+              weights[6] * evaluation[6] ;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Compute the integral over a triangle using a barycentric quadrature
  *         rule and add it to \p results
  *         Case of a vector-valued function.
@@ -863,7 +1029,7 @@ cs_quadrature_tria_4pts_scal(double                tcur,
  * \param[in]      v3           3rd point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -882,9 +1048,11 @@ cs_quadrature_tria_1pt_vect(double                 tcur,
   double evaluation[3];
 
   /* Copied from cs_quadrature_1pt */
-  xg[0] = cs_math_1ov3 * (v1[0] + v2[0] + v3[0]);
-  xg[1] = cs_math_1ov3 * (v1[1] + v2[1] + v3[1]);
-  xg[2] = cs_math_1ov3 * (v1[2] + v2[2] + v3[2]);
+  constexpr cs_real_t c_1ov3 = 1./3.;
+
+  xg[0] = c_1ov3 * (v1[0] + v2[0] + v3[0]);
+  xg[1] = c_1ov3 * (v1[1] + v2[1] + v3[1]);
+  xg[2] = c_1ov3 * (v1[2] + v2[2] + v3[2]);
 
   ana(tcur, 1, NULL, xg, false, input, evaluation);
 
@@ -905,7 +1073,7 @@ cs_quadrature_tria_1pt_vect(double                 tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -947,7 +1115,7 @@ cs_quadrature_tria_3pts_vect(double                tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -979,6 +1147,48 @@ cs_quadrature_tria_4pts_vect(double                tcur,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Compute the integral over a triangle with a quadrature rule using
+ *         7 Gauss points and 7 weights and add it to \p results.
+ *         Case of a vector-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      v1           first point of the triangle
+ * \param[in]      v2           second point of the triangle
+ * \param[in]      v3           third point of the triangle
+ * \param[in]      area         area of the triangle
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_tria_7pts_vect(double                tcur,
+                             const cs_real_3_t     v1,
+                             const cs_real_3_t     v2,
+                             const cs_real_3_t     v3,
+                             double                area,
+                             cs_analytic_func_t   *ana,
+                             void                 *input,
+                             double                results[])
+{
+  cs_real_3_t  gauss_pts[7];
+  double  evaluation[3*7], weights[7];
+
+  /* Compute Gauss points and its weights */
+  cs_quadrature_tria_7pts(v1, v2, v3, area, gauss_pts, weights);
+
+  ana(tcur, 7, NULL, (const cs_real_t *)gauss_pts, false, input, evaluation);
+
+  for (int p = 0; p < 7; p++) {
+    results[0] += weights[p] * evaluation[3*p  ];
+    results[1] += weights[p] * evaluation[3*p+1];
+    results[2] += weights[p] * evaluation[3*p+2];
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Compute the integral over a triangle using a barycentric quadrature
  *         rule and add it to \p results.
  *         Case of a tensor-valued function.
@@ -989,7 +1199,7 @@ cs_quadrature_tria_4pts_vect(double                tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1008,9 +1218,11 @@ cs_quadrature_tria_1pt_tens(double                 tcur,
   double evaluation[9];
 
   /* Copied from cs_quadrature_1pt */
-  xg[0] = cs_math_1ov3 * (v1[0] + v2[0] + v3[0]);
-  xg[1] = cs_math_1ov3 * (v1[1] + v2[1] + v3[1]);
-  xg[2] = cs_math_1ov3 * (v1[2] + v2[2] + v3[2]);
+  constexpr cs_real_t c_1ov3 = 1./3.;
+
+  xg[0] = c_1ov3 * (v1[0] + v2[0] + v3[0]);
+  xg[1] = c_1ov3 * (v1[1] + v2[1] + v3[1]);
+  xg[2] = c_1ov3 * (v1[2] + v2[2] + v3[2]);
 
   ana(tcur, 1, NULL, xg, false, input, evaluation);
 
@@ -1030,7 +1242,7 @@ cs_quadrature_tria_1pt_tens(double                 tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1073,7 +1285,7 @@ cs_quadrature_tria_3pts_tens(double                tcur,
  * \param[in]      v3           third point of the triangle
  * \param[in]      area         area of the triangle
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1106,6 +1318,49 @@ cs_quadrature_tria_4pts_tens(double                tcur,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Compute the integral over a triangle with a quadrature rule using
+ *         7 Gauss points and 7 weights and add it to \p results.
+ *         Case of a tensor-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      v1           first point of the triangle
+ * \param[in]      v2           second point of the triangle
+ * \param[in]      v3           third point of the triangle
+ * \param[in]      area         area of the triangle
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_tria_7pts_tens(double                tcur,
+                             const cs_real_3_t     v1,
+                             const cs_real_3_t     v2,
+                             const cs_real_3_t     v3,
+                             double                area,
+                             cs_analytic_func_t   *ana,
+                             void                 *input,
+                             double                results[])
+{
+  cs_real_3_t  gauss_pts[7];
+  double  evaluation[9*7], weights[7];
+
+  /* Compute Gauss points and its weights */
+  cs_quadrature_tria_7pts(v1, v2, v3, area, gauss_pts, weights);
+
+  ana(tcur, 7, NULL, (const cs_real_t *)gauss_pts, false, input, evaluation);
+
+  for (int p = 0; p < 7; p++) {
+    const  double wp = weights[p];
+    double  *eval_p = evaluation + 9*p;
+    for (short int ij = 0; ij < 9; ij++)
+      results[ij] += wp * eval_p[ij];
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Compute the integral over a tetrahedron using a barycentric
  *         quadrature rule and add it to \p results.
  *         Case of a scalar-valued function.
@@ -1117,7 +1372,7 @@ cs_quadrature_tria_4pts_tens(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1159,7 +1414,7 @@ cs_quadrature_tet_1pt_scal(double                 tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1201,7 +1456,7 @@ cs_quadrature_tet_4pts_scal(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1243,7 +1498,7 @@ cs_quadrature_tet_5pts_scal(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1287,7 +1542,7 @@ cs_quadrature_tet_1pt_vect(double                 tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1331,7 +1586,7 @@ cs_quadrature_tet_4pts_vect(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1375,7 +1630,7 @@ cs_quadrature_tet_5pts_vect(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1418,7 +1673,7 @@ cs_quadrature_tet_1pt_tens(double                 tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1463,7 +1718,7 @@ cs_quadrature_tet_4pts_tens(double                tcur,
  * \param[in]      v4           fourth point of the tetrahedron
  * \param[in]      vol          volume of the tetrahedron
  * \param[in]      ana          pointer to the analytic function
- * \param[in]      input        NULL or pointer to a structure cast on-the-fly
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
  * \param[in, out] results      array of double
  */
 /*----------------------------------------------------------------------------*/
@@ -1492,6 +1747,130 @@ cs_quadrature_tet_5pts_tens(double                tcur,
     double *eval_p = evaluation + 9*p;
     for (short int ij = 0; ij < 9; ij++)
       results[ij] += wp * eval_p[ij];
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute the integral over a orthoganal hexahedron using a barycentric
+ *         quadrature rule and add it to \p results.
+ *         Case of a vector-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      vb           barycenter
+ * \param[in]      hx           length along x-dir
+ * \param[in]      hy           length along y-dir
+ * \param[in]      hz           length along z-dir
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_hex_1pt_vect(double              tcur,
+                           const cs_real_3_t   vb,
+                           const double        hx,
+                           const double        hy,
+                           const double        hz,
+                           cs_analytic_func_t *ana,
+                           void               *input,
+                           double              results[])
+{
+  cs_real_3_t xg[1];
+  double      weight[1], evaluation[3];
+
+  /* Copied from cs_quadrature_hew_1pt */
+  cs_quadrature_hex_1pt(vb, hx, hy, hz, xg, weight);
+
+  ana(tcur, 1, NULL, (const cs_real_t *)xg, false, input, evaluation);
+
+  results[0] += weight[0] * evaluation[0];
+  results[1] += weight[0] * evaluation[1];
+  results[2] += weight[0] * evaluation[2];
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute the integral over an orthoganal hexahedron with a quadrature
+ * rule using 8 Gauss points and a unique weight and add it to \p results. Case
+ * of a vector-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      vb           barycenter
+ * \param[in]      hx           length along x-dir
+ * \param[in]      hy           length along y-dir
+ * \param[in]      hz           length along z-dir
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_hex_8pts_vect(double              tcur,
+                            const cs_real_3_t   vb,
+                            const double        hx,
+                            const double        hy,
+                            const double        hz,
+                            cs_analytic_func_t *ana,
+                            void               *input,
+                            double              results[])
+{
+  cs_real_3_t gauss_pts[8];
+  double      evaluation[3 * 8], weights[8];
+
+  /* Compute Gauss points and its unique weight */
+  cs_quadrature_hex_8pts(vb, hx, hy, hz, gauss_pts, weights);
+
+  ana(tcur, 8, NULL, (const cs_real_t *)gauss_pts, false, input, evaluation);
+
+  for (int p = 0; p < 8; p++) {
+    results[0] += weights[p] * evaluation[3 * p];
+    results[1] += weights[p] * evaluation[3 * p + 1];
+    results[2] += weights[p] * evaluation[3 * p + 2];
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Compute the integral over an orthogonal hexahedron with a quadrature
+ * rule using 27 Gauss points add it to \p results. Case of a
+ * vector-valued function.
+ *
+ * \param[in]      tcur         current physical time of the simulation
+ * \param[in]      vb           barycenter
+ * \param[in]      hx           length along x-dir
+ * \param[in]      hy           length along y-dir
+ * \param[in]      hz           length along z-dir
+ * \param[in]      ana          pointer to the analytic function
+ * \param[in]      input        null or pointer to a structure cast on-the-fly
+ * \param[in, out] results      array of double
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline void
+cs_quadrature_hex_27pts_vect(double              tcur,
+                             const cs_real_3_t   vb,
+                             const double        hx,
+                             const double        hy,
+                             const double        hz,
+                             cs_analytic_func_t *ana,
+                             void               *input,
+                             double              results[])
+{
+  cs_real_3_t gauss_pts[27];
+  double      evaluation[3 * 27], weights[27];
+
+  /* Compute Gauss points and its weights */
+  cs_quadrature_hex_27pts(vb, hx, hy, hz, gauss_pts, weights);
+
+  ana(tcur, 27, NULL, (const cs_real_t *)gauss_pts, false, input, evaluation);
+
+  for (int p = 0; p < 27; p++) {
+    results[0] += weights[p] * evaluation[3 * p];
+    results[1] += weights[p] * evaluation[3 * p + 1];
+    results[2] += weights[p] * evaluation[3 * p + 2];
   }
 }
 
@@ -1586,9 +1965,9 @@ cs_quadrature_get_tria_integral(int                   dim,
     case CS_QUADRATURE_BARY_SUBDIV:
       return cs_quadrature_tria_1pt_scal;
     case CS_QUADRATURE_HIGHER:
-      return cs_quadrature_tria_3pts_scal;
-    case CS_QUADRATURE_HIGHEST:
       return cs_quadrature_tria_4pts_scal;
+    case CS_QUADRATURE_HIGHEST:
+      return cs_quadrature_tria_7pts_scal;
 
     default:
       bft_error(__FILE__, __LINE__, 0,
@@ -1604,9 +1983,9 @@ cs_quadrature_get_tria_integral(int                   dim,
     case CS_QUADRATURE_BARY_SUBDIV:
       return cs_quadrature_tria_1pt_vect;
     case CS_QUADRATURE_HIGHER:
-      return cs_quadrature_tria_3pts_vect;
-    case CS_QUADRATURE_HIGHEST:
       return cs_quadrature_tria_4pts_vect;
+    case CS_QUADRATURE_HIGHEST:
+      return cs_quadrature_tria_7pts_vect;
 
     default:
       bft_error(__FILE__, __LINE__, 0,
@@ -1622,9 +2001,9 @@ cs_quadrature_get_tria_integral(int                   dim,
     case CS_QUADRATURE_BARY_SUBDIV:
       return cs_quadrature_tria_1pt_tens;
     case CS_QUADRATURE_HIGHER:
-      return cs_quadrature_tria_3pts_tens;
-    case CS_QUADRATURE_HIGHEST:
       return cs_quadrature_tria_4pts_tens;
+    case CS_QUADRATURE_HIGHEST:
+      return cs_quadrature_tria_7pts_tens;
 
     default:
       bft_error(__FILE__, __LINE__, 0,
@@ -1727,6 +2106,55 @@ cs_quadrature_get_tetra_integral(int                   dim,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Retrieve the integral function according to the quadrature type
+ *         and the stride provided for an hexahedron
+ *
+ * \param[in]     dim          dimension of the function to integrate
+ * \param[in]     qtype        quadrature type
+ *
+ * \return a pointer to the integral function
+ */
+/*----------------------------------------------------------------------------*/
+
+static inline cs_quadrature_hexa_integral_t *
+cs_quadrature_get_hexa_integral(int dim, cs_quadrature_type_t qtype)
+{
+  switch (dim) {
+
+  case 3: /* Vector-valued case */
+
+    switch (qtype) {
+
+    case CS_QUADRATURE_BARY:
+    case CS_QUADRATURE_BARY_SUBDIV:
+      return cs_quadrature_hex_1pt_vect;
+    case CS_QUADRATURE_HIGHER:
+      return cs_quadrature_hex_8pts_vect;
+    case CS_QUADRATURE_HIGHEST:
+      return cs_quadrature_hex_27pts_vect;
+
+    default:
+      bft_error(
+        __FILE__, __LINE__, 0, " %s: Invalid quadrature type\n", __func__);
+    }
+    break;
+
+  default:
+    bft_error(__FILE__,
+              __LINE__,
+              0,
+              " %s: Invalid dimension value %d. Only 3 is valid.\n",
+              __func__,
+              dim);
+
+  } /* Switch on dim */
+
+  /* Avoid no return warning */
+  return NULL;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Get the flags adapted to the given quadrature type \p qtype and the
  *         location on which the quadrature should be performed
  *
@@ -1743,8 +2171,4 @@ cs_eflag_t
 cs_quadrature_get_flag(const cs_quadrature_type_t  qtype,
                        const cs_flag_t             loc);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_QUADRATURE_H__ */
+#endif /* CS_QUADRATURE_H */

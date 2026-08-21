@@ -1,14 +1,14 @@
-#ifndef __CS_RAD_TRANSFER_DOM_H__
-#define __CS_RAD_TRANSFER_DOM_H__
+#ifndef CS_RAD_TRANSFER_DOM_H
+#define CS_RAD_TRANSFER_DOM_H
 
 /*============================================================================
  * Radiation solver boundary conditions treatment.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -46,7 +42,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -54,30 +50,20 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Solve the radiative transfer equation.
  *
- *  Two types of method are available:
- *  - Discretes Ordinates Methods (DOM)
- *  - P-1 approximation (only recommended for pulverized coal)
+ * Two types of method are available:
+ * - Discrete Ordinates Methods (DOM)
+ * - P-1 approximation (only recommended for pulverized coal)
  *
- *  \param[in]       verbosity     verbosity level
- *  \param[in, out]  bc_type       boundary face types
- *  \param[in]       cp2fol        fuel oil liquid CP
- *  \param[in]       cp2ch         pulverized coal CP's
- *  \param[in]       ichcor        pulverized coal indirection
+ * \param[in, out]  bc_type  boundary face types
  */
 /*----------------------------------------------------------------------------*/
 
 void
-cs_rad_transfer_solve(int               verbosity,
-                      int               bc_type[],
-                      cs_real_t         cp2fol,
-                      const cs_real_t   cp2ch[],
-                      const int         ichcor[]);
+cs_rad_transfer_solve(int  bc_type[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RAD_TRANSFER_DOM_H__ */
+#endif /* CS_RAD_TRANSFER_DOM_H */

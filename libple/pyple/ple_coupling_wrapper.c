@@ -6,7 +6,7 @@
   This file is part of the "Parallel Location and Exchange" library,
   intended to provide mesh or particle-based code coupling services.
 
-  Copyright (C) 2005-2020  EDF S.A.
+  Copyright (C) 2005-2026  EDF S.A.
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -85,7 +85,6 @@ pyple_coupling_mpi_name_to_id(PyObject *self, PyObject *args)
   MPI_Comm *comm_p  = NULL;
 
   const char *group_name = "";
-  int         group_name_size = 0;
 
   /* We verify that the correct arguments are provided.
    * format is of the form "var1_typevar2_type..varn_type:function_name"
@@ -93,8 +92,10 @@ pyple_coupling_mpi_name_to_id(PyObject *self, PyObject *args)
    * know it failed here.
    * If a CPython function returns NULL, it means it failed.
    */
-  if (!PyArg_ParseTuple(args, "Os#:ple_coupling_mpi_name_to_id",
-                        &py_comm, &group_name, &group_name_size))
+  if (!PyArg_ParseTuple(args,
+                        "Os:ple_coupling_mpi_name_to_id",
+                        &py_comm,
+                        &group_name))
     return NULL;
 
   /* Retrieve the C MPI_Comm from the mpi4py.Comm */
@@ -364,8 +365,11 @@ pyple_coupling_mpi_set_get_status(PyObject *self, PyObject *args)
   const int n_apps = ple_coupling_mpi_set_n_apps(_mpi_sets[set_index]);
 
   PyObject *status_list = PyList_New(n_apps);
-  for (int i = 0; i < n_apps; i++)
-    PyList_SetItem(status_list, i, set_status[i]);
+  for (int i = 0; i < n_apps; i++) {
+    /* Need to construct a Python int before insertion inside the list */
+    PyObject *python_status = Py_BuildValue("i", set_status[i]);
+    PyList_SetItem(status_list, i, python_status);
+  }
 
   /* Return a Python list */
   return status_list;
@@ -404,6 +408,42 @@ pyple_coupling_mpi_set_get_timestep(PyObject *self, PyObject *args)
 
   /* Return a Python list */
   return dt_list;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute recommended time step for the current application based on
+ * provided flags and values of applications in a set.
+ *
+ * The flags and values used to compute this recommended time step value
+ * are update at each call to ple_coupling_mpi_set_synchronize().
+ *
+ * \param[in] s  PLE coupling MPI set info structure.
+ *
+ * \return number of application in set's common communicator.
+ */
+/*----------------------------------------------------------------------------*/
+
+static PyObject *
+pyple_coupling_mpi_set_compute_timestep(PyObject *self, PyObject *args)
+{
+  int set_index = 0;
+
+  /* We verify that the correct arguments are provided.
+   * format is of the form "var1_typevar2_type..varn_type:function_name"
+   * function_name is used so that in case of a traceback error Python will
+   * know it failed here.
+   * If a CPython function returns NULL, it means it failed.
+   */
+  if (!PyArg_ParseTuple(args, "i:ple_coupling_mpi_set_compute_timestep",
+                        &set_index))
+    return NULL;
+
+  /* Call the C function */
+  double dt = ple_coupling_mpi_set_compute_timestep(_mpi_sets[set_index]);
+
+  /* Return a Python value */
+  return Py_BuildValue("d", dt);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -600,6 +640,10 @@ pyple_coupling_methods[] = {
    (PyCFunction)pyple_coupling_mpi_set_get_timestep,
    METH_VARARGS,
    NULL},
+  {"coupling_mpi_set_compute_timestep",
+   (PyCFunction)pyple_coupling_mpi_set_compute_timestep,
+   METH_VARARGS,
+   NULL},
   {"coupling_mpi_set_dump",
    (PyCFunction)pyple_coupling_mpi_set_dump,
    METH_VARARGS,
@@ -657,6 +701,13 @@ static struct PyModuleDef libpyplecoupling_module = {
   NULL,                     /* m_clear */
   NULL                      /* m_free */
 };
+
+/* Prototype (to silence compiler warnings) */
+
+PyMODINIT_FUNC
+PyInit_libpyplecoupling(void);
+
+/* Function implementation */
 
 PyMODINIT_FUNC
 PyInit_libpyplecoupling(void)

@@ -1,14 +1,14 @@
-#ifndef __CS_SLES_DEFAULT_H__
-#define __CS_SLES_DEFAULT_H__
+#ifndef CS_SLES_DEFAULT_H
+#define CS_SLES_DEFAULT_H
 
 /*============================================================================
  * Sparse Linear Equation Solvers
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,13 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo_perio.h"
-#include "cs_matrix.h"
-#include "cs_sles.h"
+#include "base/cs_base.h"
+#include "base/cs_halo_perio.h"
+#include "alge/cs_matrix.h"
+#include "alge/cs_sles.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -49,7 +49,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*=============================================================================
@@ -101,6 +101,43 @@ int
 cs_sles_default_get_verbosity(int          f_id,
                               const char  *name);
 
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return pointer to matrix structure matching equation solve.
+ *
+ * Some matrix properties (such as assembly options and geometric
+ * association) are set immediately, but coefficients are not
+ * assigned at this stage.
+ *
+ * \param[in]  f_id       associated field id, or < 0
+ * \param[in]  name       associated name if f_id < 0, or nullptr
+ * \param[in]  db_size    block sizes for diagonal
+ * \param[in]  eb_size    block sizes for extra diagonal
+ * \param[in]  symmetric  indicate if matrix is symmetric
+ *
+ * \return  pointer to matrix structure
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_matrix_t *
+cs_sles_default_get_matrix(int          f_id,
+                           const char  *name,
+                           cs_lnum_t    db_size,
+                           cs_lnum_t    eb_size,
+                           bool         symmetric);
+
+/*----------------------------------------------------------------------------
+ * Release of destroy matrix depending on whether is is cached or not.
+ *
+ * Matrices built by assembler are destroyed.
+ *
+ * parameters:
+ *   matrix <-> pointer to matrix structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_sles_default_release_matrix(cs_matrix_t  **m);
+
 /*----------------------------------------------------------------------------
  * Default finalization for sparse linear equation solver API.
  *
@@ -111,60 +148,35 @@ void
 cs_sles_default_finalize(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Call sparse linear equation solver setup for systems with internal
- *        coupling.
+/*
+ * \brief Call sparse linear equation solver for general colocated
+ *        cell-centered finite volume scheme.
  *
- * \param[in]  f_id                   associated field id, or < 0
- * \param[in]  name                   associated name if f_id < 0, or NULL
- * \param[in]  symmetric              indicates if matrix coefficients
- *                                    are symmetric
- * \param[in]  diag_block_size        block sizes for diagonal, or NULL
- * \param[in]  extra_diag_block_size  block sizes for extra diagonal,
- *                                    or NULL
- * \param[in]  da                     diagonal values (NULL if zero)
- * \param[in]  xa                     extradiagonal values (NULL if zero)
+ * The initial solution is assumed to be 0 (and does not need to
+ * be initialized before calling this function).
+ *
+ * \param[in]       sc                     solver context
+ * \param[in]       a                      matrix
+ * \param[in]       precision              solver precision
+ * \param[in]       r_norm                 residual normalization
+ * \param[out]      n_iter                 number of "equivalent" iterations
+ * \param[out]      residual               residual
+ * \param[in]       rhs                    right hand side
+ * \param[out]      vx                     system solution
+ *
+ * \return  convergence state
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_sles_setup_native_coupling(int               f_id,
-                              const char       *name,
-                              bool              symmetric,
-                              const int        *diag_block_size,
-                              const int        *extra_diag_block_size,
-                              const cs_real_t  *da,
-                              const cs_real_t  *xa);
-
-/*----------------------------------------------------------------------------
- * Call sparse linear equation solver setup for convection-diffusion
- * systems
- *
- * parameters:
- *   f_id                   associated field id, or < 0
- *   name                   associated name if f_id < 0, or NULL
- *   diag_block_size        block sizes for diagonal, or NULL
- *   extra_diag_block_size  block sizes for extra diagonal, or NULL
- *   da                     diagonal values (NULL if zero)
- *   xa                     extradiagonal values (NULL if zero)
- *   da_conv                diagonal values (NULL if zero)
- *   xa_conv                extradiagonal values (NULL if zero)
- *   da_diff                diagonal values (NULL if zero)
- *   xa_diff                extradiagonal values (NULL if zero)
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_sles_setup_native_conv_diff(int                  f_id,
-                               const char          *name,
-                               const int           *diag_block_size,
-                               const int           *extra_diag_block_size,
-                               const cs_real_t     *da,
-                               const cs_real_t     *xa,
-                               const cs_real_t     *da_conv,
-                               const cs_real_t     *xa_conv,
-                               const cs_real_t     *da_diff,
-                               const cs_real_t     *xa_diff);
+cs_sles_convergence_state_t
+cs_sles_solve_ccc_fv(cs_sles_t           *sc,
+                     cs_matrix_t         *a,
+                     double               precision,
+                     double               r_norm,
+                     int                 *n_iter,
+                     double              *residual,
+                     const cs_real_t     *rhs,
+                     cs_real_t           *vx);
 
 /*----------------------------------------------------------------------------
  * Call sparse linear equation solver using native matrix arrays.
@@ -173,15 +185,14 @@ cs_sles_setup_native_conv_diff(int                  f_id,
  *   f_id                   <-- associated field id, or < 0
  *   name                   <-- associated name if f_id < 0, or NULL
  *   symmetric              <-- indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- block sizes for diagonal
+ *   extra_diag_block_size  <-- block sizes for extra diagonal
  *   da                     <-- diagonal values (NULL if zero)
  *   xa                     <-- extradiagonal values (NULL if zero)
- *   rotation_mode          <-- halo update option for rotational periodicity
  *   r_epsilon              <-- precision
- *   r_norm                 <-- residue normalization
+ *   r_norm                 <-- residual normalization
  *   n_iter                 --> number of iterations
- *   residue                --> residue
+ *   residual               --> residual
  *   rhs                    <-- right hand side
  *   vx                     <-> system solution
  *
@@ -193,15 +204,14 @@ cs_sles_convergence_state_t
 cs_sles_solve_native(int                  f_id,
                      const char          *name,
                      bool                 symmetric,
-                     const int           *diag_block_size,
-                     const int           *extra_diag_block_size,
+                     cs_lnum_t            diag_block_size,
+                     cs_lnum_t            extra_diag_block_size,
                      const cs_real_t     *da,
                      const cs_real_t     *xa,
-                     cs_halo_rotation_t   rotation_mode,
                      double               precision,
                      double               r_norm,
                      int                 *n_iter,
-                     double              *residue,
+                     double              *residual,
                      const cs_real_t     *rhs,
                      cs_real_t           *vx);
 
@@ -235,7 +245,6 @@ cs_sles_free_native(int          f_id,
  *   sles          <-> pointer to solver object
  *   state         <-- convergence status
  *   a             <-- matrix
- *   rotation_mode <-- halo update option for rotational periodicity
  *   rhs           <-- right hand side
  *   vx            <-> system solution
  *
@@ -247,7 +256,6 @@ bool
 cs_sles_default_error(cs_sles_t                    *sles,
                       cs_sles_convergence_state_t   state,
                       const cs_matrix_t            *a,
-                      cs_halo_rotation_t            rotation_mode,
                       const cs_real_t               rhs[],
                       cs_real_t                     vx[]);
 
@@ -255,4 +263,4 @@ cs_sles_default_error(cs_sles_t                    *sles,
 
 END_C_DECLS
 
-#endif /* __CS_SLES_DEFAULT_H__ */
+#endif /* CS_SLES_DEFAULT_H */

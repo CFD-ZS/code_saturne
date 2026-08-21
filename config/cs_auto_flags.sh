@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,14 +26,16 @@
 # environment variables corresponding to the recommended settings for a
 # given OS/CPU/compiler combination:
 #
-# cppflags_default       # Base CPPFLAGS                     (default: "")
+# cppflags_default       # Base CPPFLAGS                       (default: "")
 
-# cflags_default         # Base CFLAGS                       (default: "")
-# cflags_default_dbg     # Added to $CFLAGS for debugging    (default: "-g")
-# cflags_default_opt     # Added to $CFLAGS for optimization (default: "-O")
-# cflags_default_hot     # Optimization for specific files   (default: "-O")
-# cflags_default_prf     # Added to $CFLAGS for profiling    (default: "-g")
-# cflags_default_omp     # Added to $CFLAGS for OpenMP       (default: "")
+# cflags_default         # Base CFLAGS                         (default: "")
+# cflags_default_dbg     # Added to $CFLAGS for debugging      (default: "-g")
+# cflags_default_opt     # Added to $CFLAGS for optimization   (default: "-O")
+# cflags_default_hot     # Optimization for specific files     (default: "-O")
+# cflags_default_prf     # Added to $CFLAGS for profiling      (default: "-g")
+# cflags_default_omp     # Added to $CFLAGS for OpenMP         (default: "")
+# cflags_default_omp_ad  # Added to $CFLAGS for OpenMP offload (default: "")
+# cflags_default_shared  # Added to $CFLAGS for shared libs    (default: "-fPIC -DPIC")
 
 # cxxflags_default       # Base CXXFLAGS                       (default: "")
 # cxxflags_default_dbg   # Added to $CXXFLAGS for debugging    (default: "-g")
@@ -41,14 +43,15 @@
 # cxxflags_default_hot   # Optimization for specific files     (default: "-O")
 # cxxflags_default_prf   # Added to $CXXFLAGS for profiling    (default: "-g")
 # cxxflags_default_omp   # Added to $CXXFLAGS for OpenMP       (default: "")
-# cxxflags_default_std   # C++ standard variant                (default: "")
+# cxxflags_default_omp_ad  # Added to $CXXFLAGS for OpenMP offload (default: "")
+# cxxflags_default_shared  # Added to $CXXFLAGS for shared libs (default: "-fPIC -DPIC")
 
 # fcflags_default        # Base FCFLAGS                       (default: "")
 # fcflags_default_dbg    # Added to $FCFLAGS for debugging    (default: "-g")
 # fcflags_default_opt    # Added to $FCFLAGS for optimization (default: "-O")
-# fcflags_default_hot    # Optimization for specific files    (default: "-O")
 # fcflags_default_prf    # Added to $FCFLAGS for profiling    (default: "-g")
 # fcflags_default_omp    # Added to $FCFLAGS for OpenMP       (default: "")
+# fclags_default_shared  # Added to $FCFLAGS for shared libs  (default: "-fPIC -DPIC")
 #
 # ldflags_default        # Base LDFLAGS                       (default: "")
 # ldflags_default_dbg    # Added to $LDFLAGS for debugging    (default: "-g")
@@ -63,18 +66,29 @@
 
 # Two other environment variable strings are defined, containing possibly
 # more detailed compiler information:
-#
-# cs_ac_cc_version      # Compiler version string, 1 line max.
-# cs_ac_cc_version_full # Compiler version string, 10 lines max.
+
+# cs_ac_cc_version       # C compiler version string, 1 line max.
+# cs_ac_cc_version_full  # C compiler version string, 10 lines max.
+# cs_ac_cxx_version      # C++ compiler version string, 1 line max.
+# cs_ac_cxx_version_full # C++ compiler version string, 10 lines max.
+# cs_ac_fc_version       # Fortran compiler version string, 1 line max.
+# cs_ac_fc_version_full  # Fortran compiler version string, 10 lines max.
 
 # The sourcing approach and some tests are borrowed from the HDF5 configure
 # environment.
-#
+
+# Remarks:
+#--------
+
 # We choose to source this script rather than use a more classical m4 macro
 # for this functionality, so that a user may more easily modify
 # default compiler options or port to a new machine without requiring
 # any advanced knowledge of autoconf or m4 macros, or installation of
 # an autoconf environment on the target machine.
+
+# Some associated settings relative to library creation are also done in
+# `build-aux/cs_link_library.py`, which may also need to be adapted for
+# ports to some machines, using different linker options.
 
 # Initialize local variables
 #---------------------------
@@ -95,13 +109,39 @@ _______EOF
 save_LANG=$LANG
 unset LANG;
 
-# Libraries only added on special cases (such as IBM Blue Gene),
+# Libraries only added on special cases),
 # so initialize empty variables here
 
 libs_default=""
 libs_default_dbg=""
 libs_default_opt=""
 libs_default_prf=""
+
+############################
+#                          #
+#  Shared library options  #
+#                          #
+############################
+
+# Options to generate position-independent code for shared libraries.
+# can be modified later if necessary, but usually common to most compilers.
+
+case "$host_os" in
+  darwin*)
+    cflags_default_shared="-fPIC -DPIC"
+    fcflags_default_shared="-fPIC -DPIC"
+    cxxflags_default_shared="-fPIC -DPIC"
+    ldflags_default_shared="-dynamiclib -undefined dynamic_lookup"
+    ldflags_default_soname="-install_name @rpath/"
+    ;;
+  *)
+    cflags_default_shared="-fPIC -DPIC"
+    fcflags_default_shared="-fPIC -DPIC"
+    cxxflags_default_shared="-fPIC -DPIC"
+    ldflags_default_shared="-shared"
+    ldflags_default_soname="-Wl,-soname -Wl,"
+    ;;
+esac
 
 ##################
 #                #
@@ -138,15 +178,26 @@ cs_gcc=no
 
 if test "x$GCC" = "xyes"; then
 
-  # Intel and Pathscale compilers may pass as GCC but
+  # Intel and LLVM compilers may pass as GCC but
   # may be recognized by version string
+  # NVIDIA compiler calls gcc on host, so defines __GNUC__ which confuses configure
 
-  if test -n "`$CC --version | grep icc`" ; then
+  cs_ac_cc_version=`$CC $user_CFLAGS --version 2>&1 | head -1`
+
+  if test -n "`echo $cs_ac_cc_version | grep ICC`" ; then
     cs_gcc=icc
-  elif test -n "`$CC --version | grep clang`" ; then
+  elif test -n "`echo $cs_ac_cc_version | grep -e DPC++ -e oneAPI`" ; then
+    cs_gcc=oneAPI
+  elif test -n "`echo $cs_ac_cc_version | grep clang`" ; then
     cs_gcc=clang
-  elif test -n "`$CC --version 2>&1 | grep PathScale`" ; then
-    cs_gcc=pathcc
+  elif test -n "`echo $cs_ac_cc_version | grep Cray | grep -v GCC`" ; then
+    cs_gcc=cray
+  elif test -n "`echo $cs_ac_cc_version | grep FCC`" ; then
+    cs_gcc=fujitsu
+  elif test -n "`echo $cs_ac_cc_version | grep Arm`" ; then
+    cs_gcc=arm
+  elif test -n "`$CC $user_CFLAGS --version 2>&1 | grep NVIDIA`" ; then
+    cs_gcc=no
   else
     cs_gcc=gcc
   fi
@@ -157,7 +208,6 @@ if test "x$cs_gcc" = "xgcc"; then
 
   # Version strings for logging purposes and known compiler flag
   $CC -v > $outfile 2>&1
-  cs_ac_cc_version=`$CC --version 2>&1 | head -1`
   cs_cc_compiler_known=yes
 
   # Practical version info for option setting
@@ -182,7 +232,7 @@ if test "x$cs_gcc" = "xgcc"; then
   test -n "$cs_cc_vers_patch" || cs_cc_vers_patch=0
 
   # Default compiler flags
-  cflags_default="-std=c99 -fms-extensions -funsigned-char -W -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Wunused -Wfloat-equal -Werror=implicit-function-declaration"
+  cflags_default="-funsigned-char -W -Wall -Werror=shadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wstrict-prototypes -Werror=missing-prototypes -Wmissing-declarations -Wnested-externs -Wunused -Wfloat-equal -Werror=implicit-function-declaration"
   cflags_default_dbg="-g"
   cflags_default_opt="-O2"
   cflags_default_hot="-O3"
@@ -207,7 +257,10 @@ if test "x$cs_gcc" = "xgcc"; then
   # may not handle all flags)
 
   case "$cs_cc_vendor-$cs_cc_version" in
-    gcc-[45]*)
+    gcc-[4]*)
+      cflags_default="$cflags_default -std=c11"
+      ;;
+    gcc-[5]*)
       ;;
     *)
       cflags_default="$cflags_default -Wmisleading-indentation -Wduplicated-cond"
@@ -237,24 +290,16 @@ if test "x$cs_gcc" = "xgcc"; then
       ;;
   esac
 
-  case "$host_os" in
-    mingw64)
-      cflags_default="`echo $cflags_default | sed -e 's/-std=c99/-std=gnu99/g'`"
-      ;;
-  esac
+# Otherwise, are we using ICC Classic ?
+#--------------------------------------
 
-# Otherwise, are we using icc ?
-#------------------------------
+elif test "x$cs_gcc" = "xicc" ; then
 
-elif test "x$cs_gcc" = "xicc"; then
-
-  cs_cc_version=`echo $CC --version | grep icc |sed 's/[a-zA-Z()]//g'`
-
-  echo "compiler '$CC' is Intel ICC"
+  cs_cc_version=`echo $cs_ac_cc_version | grep ICC |sed 's/[a-zA-Z()]//g'`
+  echo "compiler '$CC' is Intel ICC Classic"
 
   # Version strings for logging purposes and known compiler flag
-  $CC -V conftest.c > $outfile 2>&1
-  cs_ac_cc_version=`$CC --version 2>&1 | head -1`
+  $CC $user_CFLAGS -V conftest.c > $outfile 2>&1
   cs_cc_compiler_known=yes
 
   # Some version numbers
@@ -267,7 +312,7 @@ elif test "x$cs_gcc" = "xicc"; then
 
   # Default compiler flags
   # (temporarily disable "operands evaluated in unspecified order" remark -- 981)
-  cflags_default="-std=c99 -restrict -funsigned-char -Wall -Wcheck -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused -wd981"
+  cflags_default="-std=c11 -restrict -funsigned-char -Wall -Wcheck -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused -wd981"
   cflags_default_dbg="-g -O0 -traceback -w2 -Wp64 -ftrapuv"
   cflags_default_opt="-O2"
   cflags_default_hot="-O3"
@@ -277,6 +322,34 @@ elif test "x$cs_gcc" = "xicc"; then
       cflags_default_omp="-openmp"
       ;;
   esac
+
+# Otherwise, are we using Intel LLVM DPC++/C++ Compiler ?
+#--------------------------------------------------------
+
+elif test "x$cs_gcc" = "xoneAPI" ; then
+
+  cs_cc_version=`echo $cs_ac_cc_version | grep -e DPC++ -e oneAPI |sed 's/[a-zA-Z()+/]//g'`
+  echo "compiler '$CC' is oneAPI DPC++/C++ Compiler"
+
+  # Version strings for logging purposes and known compiler flag
+  $CC $user_CFLAGS -V conftest.c > $outfile 2>&1
+  cs_cc_compiler_known=yes
+
+  # Some version numbers
+  cs_cc_vers_major=`echo $cs_ac_cc_version | cut -f 5 -d" " | cut -f1 -d.`
+  cs_cc_vers_minor=`echo $cs_ac_cc_version | cut -f 5 -d" " | cut -f2 -d.`
+  cs_cc_vers_patch=`echo $cs_ac_cc_version | cut -f 5 -d" " | cut -f3 -d.`
+  test -n "$cs_cc_vers_major" || cs_cc_vers_major=0
+  test -n "$cs_cc_vers_minor" || cs_cc_vers_minor=0
+  test -n "$cs_cc_vers_patch" || cs_cc_vers_patch=0
+
+  # Default compiler flags
+  cflags_default="-funsigned-char -Wall -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused -Wno-unused-command-line-argument"
+  cflags_default_dbg="-g -O0"
+  cflags_default_opt="-O2"
+  cflags_default_hot="-O3"
+  cflags_default_omp="-fiopenmp"
+  cflags_default_omp_ad="-fopenmp-targets=spir64"
 
 # Otherwise, are we using clang ?
 #--------------------------------
@@ -293,115 +366,48 @@ elif test "x$cs_gcc" = "xclang"; then
   cs_cc_compiler_known=yes
 
   # Default compiler flags
-  # (temporarily disable "operands evaluated in unspecified order" remark -- 981)
-  cflags_default="-std=c99 -funsigned-char -Wall -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
+  cflags_default="-funsigned-char -Wall -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
   cflags_default_dbg="-g -O0"
   cflags_default_opt="-O2"
   cflags_default_hot="-O3"
   cflags_default_omp="-fopenmp=libomp"
 
-# Otherwise, are we using pathcc ?
+fi
+
+# Otherwise, are we using nvc/pgcc ?
 #---------------------------------
 
-elif test "x$cs_gcc" = "xpathcc"; then
-
-  $CC --version 2>&1 | grep 'PathScale' > /dev/null
-  if test "$?" = "0" ; then
-
-    echo "compiler '$CC' is PathScale C compiler"
-
-    # Version strings for logging purposes and known compiler flag
-    $CC --version > $outfile 2>&1
-    cs_ac_cc_version=`grep -i Compiler $outfile`
-    cs_cc_compiler_known=yes
-
-    # Default compiler flags
-    cflags_default="-c99 -noswitcherror"
-    cflags_default="-std=c99 -funsigned-char -W -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Wunused -Wunused-value"
-    cflags_default_dbg="-g"
-    cflags_default_opt="-O2"
-    cflags_default_hot="-Ofast"
-    cflags_default_omp="-openmp"
-
-  fi
-
-fi
-
-# Otherwise, are we using pgcc ?
-#-------------------------------
-
 if test "x$cs_cc_compiler_known" != "xyes" ; then
 
-  $CC -V 2>&1 | grep 'The Portland Group' > /dev/null
+  $CC --version 2>&1 | grep 'NVIDIA' > /dev/null
   if test "$?" = "0" ; then
-
-    echo "compiler '$CC' is Portland Group pgcc"
-
-    # Version strings for logging purposes and known compiler flag
-    $CC -V > $outfile 2>&1
-    cs_ac_cc_version=`grep -i pgcc $outfile`
-    cs_cc_compiler_known=yes
-
-    # Default compiler flags
-    cflags_default="-c99 -noswitcherror"
-    cflags_default_dbg="-g -Mbounds"
-    cflags_default_opt="-O2"
-    cflags_default_hot="-fast"
-    cflags_default_omp="-mp"
-
-  fi
-
-fi
-
-# Otherwise, are we using xlc ?
-#------------------------------
-
-if test "x$cs_cc_compiler_known" != "xyes" ; then
-
-  $CC -qversion 2>&1 | grep 'XL C' > /dev/null
-  if test "$?" = "0" ; then
-
-    echo "compiler '$CC' is IBM XL C compiler"
-
-    # Version strings for logging purposes and known compiler flag
-    $CC -qversion > $outfile 2>&1
-    cs_ac_cc_version=`grep 'XL C' $outfile`
-    cs_cc_compiler_known=yes
-    cs_linker_set=yes
-
-    # Default compiler flags
-    cflags_default="-qlanglvl=stdc99 -q64"
-    cflags_default_opt="-O3"
-    cflags_default_hot="-O3"
-    cflags_default_dbg="-g -qfullpath"
-    cflags_default_omp="-qsmp=omp -qthreaded"
-
-    # Default  linker flags
-    ldflags_default=""
-    ldflags_default_opt="-O3"
-    ldflags_default_dbg="-g -qfullpath"
-    ldflags_rpath="-R"
-
-    # Adjust options for IBM Blue Gene cross-compiler
-
-    grep 'Blue Gene' $outfile > /dev/null
+    $CC -V 2>&1 | grep 'Compilers and Tools' > /dev/null
     if test "$?" = "0" ; then
-      # Default compiler flags (we assume that MPI wrappers are used)
-      if test -f /bgsys/drivers/ppcfloor/cnk/bin/bgq_kernel.elf ; then
-        cs_ibm_bg_type="Q"
-        cppflags_default=""
-        cflags_default=""                    # "-qlanglvl=extc99" by default
-        cflags_default_opt="-g -O3"
-        cflags_default_hot="-g -O3 -qhot"
-        cflags_default_dbg="-g"
-      fi
-    fi
 
+      echo "compiler '$CC' is NVIDIA compiler"
+
+      # Version strings for logging purposes and known compiler flag
+      $CC -V > $outfile 2>&1
+      cs_ac_cc_version=`grep pgcc $outfile | head -1`
+      if test "$cs_ac_cc_version" = "" ; then
+        cs_ac_cc_version=`grep nvc $outfile | head -1`
+      fi
+      cs_cc_compiler_known=yes
+
+      # Default compiler flags
+      cflags_default=""
+      cflags_default_dbg="-g -Mbounds"
+      cflags_default_opt="-O2"
+      cflags_default_hot="-fast"
+      cflags_default_omp="-mp"
+
+    fi
   fi
+
 fi
 
 # Otherwise, are we using the Cray compiler ?
-#------------------------------------------
+#--------------------------------------------
 
 if test "x$cs_cc_compiler_known" != "xyes" ; then
 
@@ -416,11 +422,71 @@ if test "x$cs_cc_compiler_known" != "xyes" ; then
     cs_linker_set=yes
 
     # Default compiler flags
-    cflags_default=""                        # "-h c99" by default
+    cflags_default="-h std=c11"
     cflags_default_opt="-O2"
     cflags_default_hot="-O3"
     cflags_default_dbg="-g"
     cflags_default_omp="-h omp"              # default: use "-h noomp" to disable
+
+    # Default  linker flags
+    ldflags_default=""
+    ldflags_default_opt="-O2"
+    ldflags_default_dbg="-g"
+
+  fi
+fi
+
+# Otherwise, are we using the Fujitsu compiler ?
+#-----------------------------------------------
+
+if test "x$cs_cc_compiler_known" != "xyes" ; then
+
+  $CC -V 2>&1 | grep 'Fujitsu C/C++' > /dev/null
+  if test "$?" = "0" ; then
+
+    echo "compiler '$CC' is Fujitsu C compiler"
+
+    # Version strings for logging purposes and known compiler flag
+    cs_ac_cc_version=`$CC -V 2>&1 | grep "Fujitsu C/C++" | head -1`
+    cs_cc_compiler_known=yes
+    cs_linker_set=yes
+
+    # Default compiler flags
+    cflags_default="-x c11 -fPIC"
+    cflags_default_opt="-O2"
+    cflags_default_hot="-O3"
+    cflags_default_dbg="-g"
+    cflags_default_omp="-Kopenmp"
+
+    # Default  linker flags
+    ldflags_default=""
+    ldflags_default_opt="-O2"
+    ldflags_default_dbg="-g"
+
+  fi
+fi
+
+# Otherwise, are we using the Arm compiler ?
+#-------------------------------------------
+
+if test "x$cs_cc_compiler_known" != "xyes" ; then
+
+  $CC -v 2>&1 | grep 'Arm C/C++/Fortran' > /dev/null
+  if test "$?" = "0" ; then
+
+    echo "compiler '$CC' is Arm C compiler"
+
+    # Version strings for logging purposes and known compiler flag
+    cs_ac_cc_version=`$CC -v 2>&1 | grep "Arm C/C++/Fortran" | head -1`
+    cs_cc_compiler_known=yes
+    cs_linker_set=yes
+
+    # Default compiler flags
+    cflags_default="-std=c11 -fPIC"
+    cflags_default_opt="-O2"
+    cflags_default_hot="-O3"
+    cflags_default_dbg="-g"
+    cflags_default_omp="-fopenmp"
 
     # Default  linker flags
     ldflags_default=""
@@ -480,17 +546,25 @@ cs_gxx=no
 
 if test "x$GXX" = "xyes"; then
 
-  # Intel and Pathscale compilers may pass as GXX but
+  # Intel and LLVM compilers may pass as GXX but
   # may be recognized by version string
 
-  if test -n "`$CXX --version | grep icpc`" ; then
+  cs_ac_cxx_version=`$CXX $user_CXXFLAGS --version 2>&1 | head -1`
+
+  if test -n "`echo $cs_ac_cxx_version | grep ICC`" ; then
     cs_gxx=icpc
-  elif test -n "`$CXX --version | grep icc`" ; then
-    cs_gxx=icc
-  elif test -n "`$CXX --version | grep clang`" ; then
+  elif test -n "`echo $cs_ac_cxx_version | grep -e DPC++ -e oneAPI`" ; then
+    cs_gxx=oneAPI
+  elif test -n "`echo $cs_ac_cxx_version | grep clang`" ; then
     cs_gxx=clang
-  elif test -n "`$CXX --version 2>&1 | grep PathScale`" ; then
-    cs_gxx=pathCC
+  elif test -n "`echo $cs_ac_cxx_version | grep Cray | grep -v GCC`" ; then
+    cs_gxx=cray
+  elif test -n "`echo $cs_ac_cxx_version | grep FCC`" ; then
+    cs_gxx=fujitsu
+  elif test -n "`echo $cs_ac_cxx_version | grep Arm`" ; then
+    cs_gxx=arm
+  elif test -n "`$CXX $user_CFLAGS --version 2>&1 | grep NVIDIA`" ; then
+    cs_gxx=no
   else
     cs_gxx=g++
   fi
@@ -501,13 +575,12 @@ if test "x$cs_gxx" = "xg++"; then
 
   # Version strings for logging purposes and known compiler flag
   $CXX -v > $outfile 2>&1
-  cs_ac_cxx_version=`$CXX --version 2>&1 | head -1`
   cs_cxx_compiler_known=yes
 
   # Practical version info for option setting
   cs_cxx_version="`$CXX -v 2>&1 |grep 'gcc version' |\
                   sed 's/.*gcc version \([-a-z0-9\.]*\).*/\1/'`"
-  cs_cxx_vendor=`echo $cxx_version |sed 's/\([a-z]*\).*/\1/'`
+  cs_cxx_vendor=`echo $cs_cxx_version |sed 's/\([a-z]*\).*/\1/'`
   cs_cxx_version=`echo $cs_cxx_version |sed 's/[-a-z]//g'`
 
   if test "x" = "x$cs_cxx_vendor" -a "x" != "x$cs_cxx_version"; then
@@ -526,12 +599,11 @@ if test "x$cs_gxx" = "xg++"; then
   test -n "$cs_cxx_vers_patch" || cs_cxx_vers_patch=0
 
   # Default compiler flags
-  cxxflags_default="-W -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wunused -Wfloat-equal"
+  cxxflags_default="-funsigned-char -W -Wall  -Werror=shadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wunused -Wfloat-equal"
   cxxflags_default_dbg="-g"
   cxxflags_default_opt="-O2"
   cxxflags_default_hot="-O3"
   cxxflags_default_omp="-fopenmp"
-  cxxflags_default_std="-funsigned-char"
 
   # Modify default flags on certain systems
 
@@ -552,10 +624,21 @@ if test "x$cs_gxx" = "xg++"; then
   # may not handle all flags)
 
   case "$cs_cxx_vendor-$cs_cxx_version" in
+    g++-4.[012345678]*)
+      cxxflags_default="$cxxflags_default -std=c++1y"
+      ;;
+    g++-[56789]*|g++-10*)
+      cxxflags_default="$cxxflags_default -std=c++17"
+      ;;
+  esac
+
+  # Warning flags as are available by compiler version
+
+  case "$cs_cxx_vendor-$cs_cxx_version" in
     g++-[45]*)
       ;;
     *)
-      cxxflags_default="$cxxflags_default -std=c++11 -Wmisleading-indentation -Wduplicated-cond"
+      cxxflags_default="$cxxflags_default -Wmisleading-indentation -Wduplicated-cond"
       ;;
   esac
 
@@ -567,28 +650,24 @@ if test "x$cs_gxx" = "xg++"; then
       ;;
   esac
 
+  # No OpenMP in very old gcc versions
+
   case "$cs_cxx_vendor-$cs_cxx_version" in
     g++-2.*|g++-3*|g++-4.[012]*)
       cxxflags_default_omp=""
       ;;
   esac
 
-# Otherwise, are we using icc ?
-#------------------------------
+# Otherwise, are we using ICPC Classic ?
+#---------------------------------------
 
-elif test "x$cs_gxx" = "xicpc" -o "x$cs_gxx" = "xicc"; then
+elif test "x$cs_gxx" = "xicpc"; then
 
-  if test "x$cs_gxx" = "xicpc"; then
-    cs_cxx_version=`echo $CXX --version | grep icpc |sed 's/[a-zA-Z()]//g'`
-  else
-    cs_cxx_version=`echo $CXX --version | grep icc |sed 's/[a-zA-Z()]//g'`
-  fi
-
-  echo "compiler '$CXX' is Intel ICC"
+  cs_cxx_version=`echo $cs_ac_cxx_version | grep ICC |sed 's/[a-zA-Z()]//g'`
+  echo "compiler '$CXX' is Intel ICPC Classic"
 
   # Version strings for logging purposes and known compiler flag
-  $CXX -V conftest.c > $outfile 2>&1
-  cs_ac_cxx_version=`$CXX --version 2>&1 | head -1`
+  $CXX $user_CXXFLAGS -V conftest.c > $outfile 2>&1
   cs_cxx_compiler_known=yes
 
   cs_cxx_vers_major=`echo $cs_ac_cxx_version | cut -f 3 -d" " | cut -f1 -d.`
@@ -599,16 +678,54 @@ elif test "x$cs_gxx" = "xicpc" -o "x$cs_gxx" = "xicc"; then
   test -n "$cs_cxx_vers_patch" || cs_cxx_vers_patch=0
 
   # Default compiler flags
-  cxxflags_default="-std=c++11 -Wall -Wcheck -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
+  cxxflags_default="-std=c++17 -funsigned-char -Wall -Wcheck -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
   cxxflags_default_dbg="-g -O0 -traceback -w2 -Wp64 -ftrapuv"
   cxxflags_default_opt="-O2"
   cxxflags_default_hot="-O3"
   cxxflags_default_omp="-qopenmp"
-  cxxflags_default_std="-funsigned-char"
 
   case "$cs_cxx_vers_major" in
     1[0123456])
       cxxflags_default_omp="-openmp"
+      ;;
+  esac
+
+# Otherwise, are we using Intel LLVM DPC++/C++ Compiler ?
+#--------------------------------------------------------
+
+elif test "x$cs_gxx" = "xoneAPI"; then
+
+  cs_cxx_version=`echo $cs_ac_cxx_version | grep -e DPC++ -e oneAPI |sed 's/[a-zA-Z()+/]//g'`
+  echo "compiler '$CXX' is oneAPI DPC++/C++ Compiler"
+
+  # Version strings for logging purposes and known compiler flag
+  $CXX $user_CXXFLAGS -V conftest.c > $outfile 2>&1
+  cs_cxx_compiler_known=yes
+
+  cs_cxx_vers_major=`echo $cs_ac_cxx_version | cut -f 5 -d" " | cut -f1 -d.`
+  cs_cxx_vers_minor=`echo $cs_ac_cxx_version | cut -f 5 -d" " | cut -f2 -d.`
+  CS_cxx_vers_patch=`echo $cs_ac_cxx_version | cut -f 5 -d" " | cut -f3 -d.`
+  test -n "$cs_cxx_vers_major" || cs_cxx_vers_major=0
+  test -n "$cs_cxx_vers_minor" || cs_cxx_vers_minor=0
+  test -n "$cs_cxx_vers_patch" || cs_cxx_vers_patch=0
+
+  # Default compiler flags
+  cxxflags_default="-funsigned-char -Wall -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused -Wno-unused-command-line-argument"
+  cxxflags_default_dbg="-g -O0"
+  cxxflags_default_opt="-O2"
+  cxxflags_default_hot="-O3"
+  cxxflags_default_omp="-fiopenmp"
+  cxxflags_default_omp_ad="-fopenmp-targets=spir64"
+
+  case "$cs_cxx_vers_major" in
+    202[12])
+      cxxflags_default="$cxxflags_default -std=c++17"
+      ;;
+  esac
+
+  case "$cs_cxx_vers_major" in
+    202[23456789])
+      cxxflags_default="$cxxflags_default  -Wno-non-c-typedef-for-linkage"
       ;;
   esac
 
@@ -617,7 +734,7 @@ elif test "x$cs_gxx" = "xicpc" -o "x$cs_gxx" = "xicc"; then
 
 elif test "x$cs_gxx" = "xclang"; then
 
-  cs_cc_version=`echo $CXX --version | grep clang | cut -f 3 -d ' '`
+  cs_cxx_version=`$CXX --version | grep clang | cut -f 3 -d ' '`
 
   echo "compiler '$CXX' is clang"
 
@@ -627,77 +744,54 @@ elif test "x$cs_gxx" = "xclang"; then
   cs_cxx_compiler_known=yes
 
   # Default compiler flags
-  # (temporarily disable "operands evaluated in unspecified order" remark -- 981)
-  cxxlags_default="-Wall -Wshadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
+  cxxflags_default="-funsigned-char -Wall  -Werror=shadow -Wpointer-arith -Wmissing-prototypes -Wuninitialized -Wunused"
   cxxflags_default_dbg="-g -O0"
   cxxflags_default_opt="-O2"
   cxxflags_default_hot="-O3"
   cxxflags_default_omp="-fopenmp=libomp"
-  cxxflags_default_std="-funsigned-char"
 
-# Otherwise, are we using pgcc ?
-#-------------------------------
+  cs_clangpp_version_number=`echo $cs_ac_cxx_version | sed -e "s/^.*version //"`
+  case "$cs_clangpp_version_number" in
+    14* | 15*)
+      cxxflags_default="$cxxflags_default  -std=c++17"
+      ;;
+  esac
+  case "$cs_clangpp_version_number" in
+    14* | 15* | 16* | 17* | 18* | 19* | 2*)
+      cxxflags_default="$cxxflags_default  -Wno-non-c-typedef-for-linkage"
+      ;;
+  esac
+
+# Otherwise, are we using pgc++/nvc++ or nvcc ?
+#----------------------------------------------
 
 else
 
-  $CXX -V 2>&1 | grep 'The Portland Group' > /dev/null
+  $CXX -V 2>&1 | grep 'NVIDIA' > /dev/null
   if test "$?" = "0" ; then
-
-    echo "compiler '$CXX' is Portland Group pgCC"
-
-    # Version strings for logging purposes and known compiler flag
-    $CXX -V conftest.c > $outfile 2>&1
-    cs_ac_cxx_version=`grep -i pgcc $outfile`
-    cs_cxx_compiler_known=yes
-
-    # Default compiler flags
-    cxxflags_default="-noswitcherror"
-    cxxflags_default_dbg="-g -Mbounds"
-    cxxflags_default_opt="-fast -fastsse"
-    cxxflags_default_omp="-mp"
-    cxxflags_default_std="-Xa"
-
-  fi
-
-fi
-
-# Otherwise, are we using xlc++ ?
-#--------------------------------
-
-if test "x$cs_cxx_compiler_known" != "xyes" ; then
-
-  $CXX -qversion 2>&1 | grep 'XL C' > /dev/null
-  if test "$?" = "0" ; then
-
-    echo "compiler '$CXX' is IBM XL C/C++ compiler"
-
-    # Version strings for logging purposes and known compiler flag
-    $CXX -qversion > $outfile 2>&1
-    cs_ac_cxx_version=`grep 'XL C' $outfile`
-    cs_cxx_compiler_known=yes
-
-    # Default compiler flags
-    cxxflags_default="-q64 -qlanglvl=redefmac"
-    cxxflags_default_opt="-O3"
-    cxxflags_default_hot="-O3"
-    cxxflags_default_dbg="-g"
-    cxxflags_default_omp="-qsmp=omp -qthreaded"
-    cxxflags_default_std=""
-
-    # Adjust options for IBM Blue Gene cross-compiler
-
-    grep 'Blue Gene' $outfile > /dev/null
+    $CXX -V 2>&1 | grep 'Compilers and Tools' > /dev/null
     if test "$?" = "0" ; then
-      # Default compiler flags (we assume that MPI wrappers are used)
-      if test -f /bgsys/drivers/ppcfloor/cnk/bin/bgq_kernel.elf ; then
-        cxxflags_default="-qlanglvl=redefmac"
-        cxxflags_default_opt="-g -O3"
-        cxxflags_default_hot="-g -O3 -qhot"
-        cxxflags_default_dbg="-g"
-      fi
-    fi
 
+      echo "compiler '$CXX' is NVIDIA compiler"
+
+      # Version strings for logging purposes and known compiler flag
+      $CXX -V conftest.c > $outfile 2>&1
+      cs_ac_cxx_version=`grep pgc++ $outfile | head -1`
+      if test "$cs_ac_cxx_version" = "" ; then
+        cs_ac_cxx_version=`grep nvc++ $outfile | head -1`
+      fi
+      cs_cxx_compiler_known=yes
+
+      # Default compiler flags
+      cxxflags_default="-std=c++17"
+      cxxflags_default_dbg="-g -Mbounds"
+      cxxflags_default_opt="-O2"
+      cxxflags_default_hot="-fast"
+      cxxflags_default_omp="-mp"
+
+    fi
   fi
+
 fi
 
 # Otherwise, are we using the Cray compiler ?
@@ -715,42 +809,60 @@ if test "x$cs_cxx_compiler_known" != "xyes" ; then
     cs_cxx_compiler_known=yes
 
     # Default compiler flags
-    cxxflags_default=""                        # "-h c99" by default
+    cxxflags_default="-h std=c++17"
     cxxflags_default_opt="-O2"
     cxxflags_default_hot="-O3"
     cxxflags_default_dbg="-g"
     cfxxlags_default_omp="-h omp"              # default: use "-h noomp" to disable
-    cxxflags_default_std=""
 
   fi
 
 fi
 
-# Otherwise, are we using pathcc ?
-#---------------------------------
+# Otherwise, are we using the Fujitsu compiler ?
+#------------------------------------------
 
 if test "x$cs_cxx_compiler_known" != "xyes" ; then
 
-  $CXX --version 2>&1 | grep 'PathScale' > /dev/null
+  $CXX -V 2>&1 | grep 'Fujitsu C/C++' > /dev/null
   if test "$?" = "0" ; then
 
-    echo "compiler '$CXX' is PathScale C++ compiler"
+    echo "compiler '$CXX' is Fujitsu C++"
 
     # Version strings for logging purposes and known compiler flag
-    $CXX --version > $outfile 2>&1
-    cs_ac_cxx_version=`grep -i Compiler $outfile`
+    cs_ac_cxx_version=`$CXX -V 2>&1 | grep "Fujitsu C/C++" | head -1`
     cs_cxx_compiler_known=yes
 
     # Default compiler flags
-    cxxflags_default="-W -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Wunused -Wunused-value"
-    cxxflags_default_dbg="-g"
+    cxxflags_default="-x c++17 -fPIC"
     cxxflags_default_opt="-O2"
-    cxxflags_default_hot="-Ofast"
-    cxxflags_default_omp="-openmp"
-    cxxflags_default_std=""
-
+    cxxflags_default_hot="-O3"  # Bug observed when -O3 is used
+    cxxflags_default_dbg="-g"
+    cfxxlags_default_omp="-Kopenmp"
   fi
+fi
 
+# Otherwise, are we using the Arm compiler ?
+#------------------------------------------
+
+if test "x$cs_cxx_compiler_known" != "xyes" ; then
+
+  $CXX -v 2>&1 | grep 'Arm C/C++/Fortran' > /dev/null
+  if test "$?" = "0" ; then
+
+    echo "compiler '$CXX' is Arm C++"
+
+    # Version strings for logging purposes and known compiler flag
+    cs_ac_cxx_version=`$CXX -v 2>&1 | grep "Arm C/C++/Fortran" | head -1`
+    cs_cxx_compiler_known=yes
+
+    # Default compiler flags
+    cxxflags_default="-fPIC"
+    cxxflags_default_opt="-O2"
+    cxxflags_default_hot="-O3"
+    cxxflags_default_dbg="-g"
+    cfxxlags_default_omp="-fopenmp"
+  fi
 fi
 
 # Compiler still not identified
@@ -769,7 +881,6 @@ if test "x$cs_cxx_compiler_known" != "xyes" ; then
       cxxflags_default_opt="-O"
       cxxflags_default_dbg="-g"
       cxxflags_default_omp=""
-      cxxflags_default_std=""
       ;;
 
   esac
@@ -784,7 +895,6 @@ if test -f $outfile ; then
   cs_ac_cxx_version_full=`sed -e '11,$d' $outfile`
   rm -f $outfile
 fi
-
 
 ######################
 #                    #
@@ -802,10 +912,12 @@ fcflags_default_prf="-g"
 
 cs_gfortran=no
 
+cs_ac_fc_version=`$FC $user_FCFLAGS --version 2>&1 | head -1`
+
 # Are we using gfortran ?
 #------------------------
 
-$FC --version 2>&1 | grep 'GNU Fortran' > /dev/null
+echo $cs_ac_fc_version | grep 'GNU Fortran' > /dev/null
 
 if test "$?" = "0" ; then
 
@@ -818,7 +930,6 @@ if test "$?" = "0" ; then
 
   # Version strings for logging purposes and known compiler flag
   $FC -v > $outfile 2>&1
-  cs_ac_fc_version=`$FC --version 2>&1 | head -1`
   cs_fc_compiler_known=yes
 
   # Practical version info for option setting
@@ -845,10 +956,9 @@ if test "$?" = "0" ; then
   test -n "$cs_fc_vers_patch" || cs_fc_vers_patch=0
 
   # Default compiler flags
-  fcflags_default="-x f95-cpp-input -Wall -pedantic-errors -std=f2003"
+  fcflags_default="-x f95-cpp-input -Wall -pedantic-errors -std=f2008"
   fcflags_default_dbg="-g -fcheck=bounds"
   fcflags_default_opt="-O"
-  fcflags_default_hot="-O2"
   fcflags_default_omp="-fopenmp"
 
   if test "xgfortran" = "x$cs_fc_vendor"; then
@@ -868,19 +978,19 @@ fi
 
 if test "x$cs_fc_compiler_known" != "xyes" ; then
 
-  # Are we using ifort ?
-  #---------------------
+  # Are we using IFORT Classic ?
+  #-----------------------------
 
-  $FC --version 2>&1 | grep 'IFORT' > /dev/null
+  echo $cs_ac_fc_version | grep 'ifort' > /dev/null
   if test "$?" = "0" ; then
 
-    cs_fc_version=`echo $FC --version | grep ifort |sed 's/[a-zA-Z()]//g'`
+    cs_fc_version=`echo $cs_ac_fc_version | sed 's/[a-zA-Z()]//g'`
+    cs_fc_vendor='Intel IFORT Classic'
 
-    echo "compiler '$FC' is Intel Fortran"
+    echo "compiler '$FC' is Intel Fortran Classic"
 
     # Version strings for logging purposes and known compiler flag
-    $FC -V > $outfile 2>&1
-    cs_ac_fc_version=`$FC --version 2>&1 | head -1`
+    $FC $user_FCLAGS -V > $outfile 2>&1
     cs_fc_compiler_known=yes
 
     cs_fc_vers_major=`echo $cs_ac_fc_version | cut -f 3 -d" " | cut -f1 -d.`
@@ -895,7 +1005,6 @@ if test "x$cs_fc_compiler_known" != "xyes" ; then
     fcflags_default="-cpp -fpic -warn -diag-disable 7712"
     fcflags_default_dbg="-g -O0 -traceback -check all -check nopointer -fpe0 -ftrapuv"
     fcflags_default_opt="-O2"
-    fcflags_default_hot="-O3"
     fcflags_default_omp="-qopenmp"
 
     case "$cs_cxx_vers_major" in
@@ -909,67 +1018,69 @@ fi
 
 if test "x$cs_fc_compiler_known" != "xyes" ; then
 
-  # Are we using pgf95 ?
-  #---------------------
+  # Are we using Intel LLVM FORTRAN Compiler ?
+  #-------------------------------------------
 
-  $FC -V 2>&1 | grep 'The Portland Group' > /dev/null
+  echo $cs_ac_fc_version | grep 'ifx' > /dev/null
   if test "$?" = "0" ; then
 
-    echo "compiler '$FC' is Portland Group Fortran compiler"
+    cs_fc_version=`echo $cs_ac_fc_version | sed 's/[a-zA-Z()+/]//g'`
+
+    echo "compiler '$FC' is Intel oneAPI Fortran"
 
     # Version strings for logging purposes and known compiler flag
-    $FC -V > $outfile 2>&1
-    cs_ac_cc_version=`grep -i pgf $outfile`
+    $FC $user_FCLAGS -V > $outfile 2>&1
     cs_fc_compiler_known=yes
 
+    cs_fc_vers_major=`echo $cs_ac_fc_version | cut -f 3 -d" " | cut -f1 -d.`
+    cs_fc_vers_minor=`echo $cs_ac_fc_version | cut -f 3 -d" " | cut -f2 -d.`
+    cs_fc_vers_patch=`echo $cs_ac_fc_version | cut -f 3 -d" " | cut -f3 -d.`
+
+    test -n "$cs_fc_vers_major" || cs_fc_vers_major=0
+    test -n "$cs_fc_vers_minor" || cs_fc_vers_minor=0
+    test -n "$cs_fc_vers_patch" || cs_fc_vers_patch=0
+
     # Default compiler flags
-    fcflags_default="-Mpreprocess -noswitcherror"
-    fcflags_default_dbg="-g -Mbounds"
+    # (temporarily disable "unused variable" remark -- 7712)
+    fcflags_default="-cpp -fpic -warn -diag-disable 7712"
+    fcflags_default_dbg="-g -O0 -traceback -check all -check nopointer -fpe0 -ftrapuv -check nouninit"
     fcflags_default_opt="-O2"
-    fcflags_default_hot="-fast"
-    fcflags_default_omp="-mp"
+    fcflags_default_omp="-fiopenmp"
 
   fi
-
 fi
 
 if test "x$cs_fc_compiler_known" != "xyes" ; then
 
-  # Are we using xlf ?
-  #-------------------
+  cs_ac_fc_version=""
 
-  $FC -qversion 2>&1 | grep 'XL Fortran' > /dev/null
+  # Are we using pgfortran/nvfortran ?
+  #-----------------------------------
 
+  $FC -V 2>&1 | grep 'NVIDIA' > /dev/null
   if test "$?" = "0" ; then
-
-    echo "compiler '$FC' is IBM XL Fortran compiler"
-
-    # Version strings for logging purposes and known compiler flag
-    $FC -qversion > $outfile 2>&1
-    cs_ac_fc_version=`grep 'XL Fortran' $outfile`
-    cs_fc_compiler_known=yes
-
-    fcflags_default="-q64 -qextname -qsuffix=cpp=f90"
-    fcflags_default_dbg="-g"
-    fcflags_default_opt="-O3"
-    fcflags_default_omp="-qsmp=omp -qthreaded"
-
-    # Adjust options for IBM Blue Gene cross-compiler
-
-    grep 'Blue Gene' $outfile > /dev/null
-
+    $FC -V 2>&1 | grep 'Compilers and Tools' > /dev/null
     if test "$?" = "0" ; then
 
-      # Default compiler flags (we assume that MPI wrappers are used)
-      if test -f /bgsys/drivers/ppcfloor/cnk/bin/bgq_kernel.elf ; then
-        fcflags_default="-qextname -qsuffix=cpp=f90"
-        fcflags_default_dbg="-g -qcheck"
-        fcflags_default_opt="-g -O3"
-        fcflags_default_hot="-g -O3 -qhot"
-      fi
-    fi
+      echo "compiler '$FC' is NVIDIA compiler"
 
+      # Version strings for logging purposes and known compiler flag
+      $FC -V > $outfile 2>&1
+      cs_ac_fc_version=`grep pgf $outfile | head -1`
+      if test "$cs_ac_fc_version" = "" ; then
+        cs_ac_fc_version=`grep nvfortran $outfile | head -1`
+      fi
+      cs_fc_compiler_known=yes
+
+      # Default compiler flags
+      fcflags_default="-Mpreprocess -noswitcherror"
+      fcflags_default_dbg="-g -Mbounds"
+      fcflags_default_opt="-O2"
+      fcflags_default_omp="-mp"
+
+    fi
   fi
+
 fi
 
 if test "x$cs_fc_compiler_known" != "xyes" ; then
@@ -997,25 +1108,46 @@ fi
 
 if test "x$cs_fc_compiler_known" != "xyes" ; then
 
-  # Are we using pathf95 ?
-  #---------------------
+  # Are we using the Fujitsu compiler ?
+  #-------------------------------
 
-  $FC --version 2>&1 | grep 'PathScale' > /dev/null
+  $FC -V 2>&1 | grep 'Fujitsu Fortran' > /dev/null
 
   if test "$?" = "0" ; then
 
-    echo "compiler '$FC' is PathScale Fortran compiler"
+    echo "compiler '$FC' is Fujitsu Fortran compiler"
 
     # Version strings for logging purposes and known compiler flag
-    $FC --version > $outfile 2>&1
-    cs_ac_fc_version=`grep 'PathScale' $outfile`
+    cs_ac_fc_version=`$FC -V 2>&1 | grep "Fujitsu Fortran" | head -1`
     cs_fc_compiler_known=yes
 
-    fcflags_default="-Wall -Wno-unused -cpp"
-    fcflags_default_dbg="-g -ffortran-bounds-check"
-    fcflags_default_opt="-O"
-    fcflags_default_hot="-fast"
-    fcflags_default_omp="-openmp"
+    fcflags_default="-cpp -fPIC"
+    fcflags_default_dbg="-g"
+    fcflags_default_opt="-O2"
+    fcflags_default_omp="-Kopenmp"
+
+  fi
+fi
+
+if test "x$cs_fc_compiler_known" != "xyes" ; then
+
+  # Are we using the Arm compiler ?
+  #--------------------------------
+
+  $FC -v 2>&1 | grep 'Arm C/C++/Fortran' > /dev/null
+
+  if test "$?" = "0" ; then
+
+    echo "compiler '$FC' is Arm Fortran compiler"
+
+    # Version strings for logging purposes and known compiler flag
+    cs_ac_fc_version=`$FC -v 2>&1 | grep "Arm C/C++/Fortran" | head -1`
+    cs_fc_compiler_known=yes
+
+    fcflags_default="-cpp -fPIC"
+    fcflags_default_dbg="-g"
+    fcflags_default_opt="-O2"
+    fcflags_default_omp="-fopenmp"
 
   fi
 fi
@@ -1031,16 +1163,11 @@ if test "x$cs_fc_compiler_known" != "xyes" ; then
 
       fcflags_default=""
       fcflags_default_opt="-O"
-      fcflags_default_hot="-O"
       fcflags_default_dbg="-g"
       ;;
 
   esac
 
-fi
-
-if test "x$fcflags_default_hot" = "x" ; then
-  fcflags_default_hot=$fcflags_default_opt
 fi
 
 if test -f $outfile ; then
@@ -1054,24 +1181,157 @@ fi
 #                 #
 ###################
 
-# Practical version info
-cs_nvcc_version="`$NVCC -version 2>&1 |grep 'release' |\
-                  sed 's/.*release \([-a-z0-9\.]*\).*/\1/'`"
+if test "x$NVCC" != "x" ; then
 
-echo "compiler '${NVCC}' version ${cs_nvcc_version}"
+  # Practical version info
+  cs_nvcc_version="`$NVCC --version 2>&1 |grep 'release' |\
+                    sed 's/.*release \([-a-z0-9\.]*\).*/\1/'`"
 
-# Default compiler flags
-nvccflags_default=""
-nvccflags_default_dbg="-g"
-nvccflags_default_opt="-O2"
-nvccflags_default_prf="-g"
+  echo "compiler '${NVCC}' version ${cs_nvcc_version}"
+
+  cs_ac_nvcc_version="`$NVCC --version 2>&1 |grep 'release' | head -1`"
+
+  # Host compiler version info
+
+  cs_nvcc_hc="unknown"
+  cs_nvcc_hc_version=""
+
+  # try GCC first, then clang, then nvc
+
+  cs_nvcc_hc_version="`$NVCC -E -x cu --compiler-options -v - \
+                       < /dev/null 2>&1 | grep 'gcc version' |\
+                       sed 's/.*gcc version \([-a-z0-9\.]*\).*/\1/'`"
+
+  if test "x" != "x$cs_nvcc_hc_version" ; then
+    cs_nvcc_hc="gcc"
+  else
+    cs_nvcc_hc_version="`$NVCC -E -x cu --compiler-options -v - \
+                         < /dev/null 2>&1 | grep 'clang version' |\
+                         sed 's/.*clang version \([-a-z0-9\.]*\).*/\1/'`"
+    if test "x" != "x$cs_nvcc_hc_version" ; then
+      cs_nvcc_hc="clang"
+    fi
+
+    if test "x" = "x$cs_nvcc_hc_version" ; then
+      cs_nvcc_hc_version="`$NVCC -E -x cu --compiler-options -v - \
+                           < /dev/null 2>&1 | grep -c 'D__PGI'`"
+      if test "0" != "$cs_nvcc_hc_version" ; then
+        cs_nvcc_hc="nvc"
+        cs_nvcc_hc_version="nvc"
+      fi
+      cs_nvcc_hc_version=""
+    fi
+  fi
+
+  if test "x" != "x$cs_nvcc_hc_version" ; then
+    cs_nvcc_hc_version="$cs_nvcc_hc $cs_nvcc_hc_version"
+  else
+    cs_nvcc_hc_version="$cs_nvcc_hc."
+  fi
+  echo "${NVCC} host compiler is $cs_nvcc_hc_version."
+
+  # Default compiler flags
+
+  nvccflags_default="-std=c++17 --expt-extended-lambda -Werror-cross-execution-space-call"
+  nvccflags_default_dbg="-g -G"
+  nvccflags_default_opt="-O2"
+  nvccflags_default_prf="-O2 -g -lineinfo"
+  nvccflags_default_cpp_omp=""
+  nvccflags_default_cpp=" --x cu -forward-unknown-to-host-compiler -funsigned-char"
+
+  case "$cs_nvcc_hc" in
+    gcc)
+      nvccflags_default="-std=c++17 --expt-extended-lambda -Xcompiler -Wall,-Wshadow,-Wpointer-arith,-Wcast-qual,-Wcast-align,-Wwrite-strings,-Wunused,-Wfloat-equal"
+      nvccflags_default_cpp_omp="-fopenmp"
+      ;;
+    clang)
+      nvccflags_default="-std=c++17 --expt-extended-lambda -Xcompiler -Wall,-Wshadow,-Wpointer-arith,-Wmissing-prototypes,-Wuninitialized -Wunused"
+      nvccflags_default_cpp_omp="-fopenmp=libomp"
+      ;;
+    nvc)
+      nvccflags_default_cpp_omp="-mp"
+      ;;
+    *)
+      ;;
+  esac
+
+fi
+
+###################
+#                 #
+#  HIP compiler   #
+#                 #
+###################
+
+if test "x$HIPCC" != "x" ; then
+
+  # Practical version info
+  cs_hipcc_version="`$HIPCC --version 2>&1 |grep 'release' |\
+                    sed 's/.*release \([-a-z0-9\.]*\).*/\1/'`"
+
+  echo "compiler '${HIPCC}' version ${cs_hipcc_version}"
+
+  cs_ac_hipcc_version="`$HIPCC --version 2>&1 |grep 'release' | head -1`"
+
+  # Host compiler version info
+
+  cs_hipcc_hc="unknown"
+  cs_hipcc_hc_version=""
+
+  # try GCC first, then clang, then nvc
+
+  cs_hipcc_hc_version="`$HIPCC -E --x hip --compiler-options -v - \
+                       < /dev/null 2>&1 | grep 'gcc version' |\
+                       sed 's/.*gcc version \([-a-z0-9\.]*\).*/\1/'`"
+
+  if test "x" != "x$cs_hipcc_hc_version" ; then
+    cs_hipcc_hc="gcc"
+  else
+    cs_hipcc_hc_version="`$HIPCC -E --x hip --compiler-options -v - \
+                         < /dev/null 2>&1 | grep 'clang version' |\
+                         sed 's/.*clang version \([-a-z0-9\.]*\).*/\1/'`"
+    if test "x" != "x$cs_hipcc_hc_version" ; then
+      cs_hipcc_hc="clang"
+    fi
+
+  fi
+
+  if test "x" != "x$cs_hipcc_hc_version" ; then
+    cs_hipcc_hc_version="$cs_hipcc_hc $cs_hipcc_hc_version"
+  else
+    cs_hipcc_hc_version="$cs_hipcc_hc."
+  fi
+  echo "${HIPCC} host compiler is $cs_hipcc_hc_version."
+
+  # Default compiler flags
+
+  hipccflags_default=""
+  hipccflags_default_dbg="-g "
+  hipccflags_default_opt="-O2"
+  hipccflags_default_prf="-O2 -g -lineinfo"
+  hipccflags_default_cpp_omp=""
+  hipccflags_default_cpp="-funsigned-char"
+
+  case "$cs_hipcc_hc" in
+    gcc)
+      hipccflags_default="-Xcompiler -Wall,-Wshadow,-Wpointer-arith,-Wcast-qual,-Wcast-align,-Wwrite-strings,-Wunused,-Wfloat-equal"
+      hipccflags_default_cpp_omp=""
+      ;;
+    clang)
+      hipccflags_default="-Xcompiler -Wall,-Wshadow,-Wpointer-arith,-Wmissing-prototypes,-Wuninitialized -Wunused"
+      hipccflags_default_cpp_omp=""
+      ;;
+    *)
+      ;;
+  esac
+
+fi
 
 ############
 #          #
 #  Linker  #
 #          #
 ############
-
 
 # Default linker flags
 #---------------------
@@ -1084,7 +1344,11 @@ if test "x$cs_linker_set" != "xyes" ; then
 
     linux*)
       ldflags_default=""
-      ldflags_default_opt="-O"
+      if test "x$cs_cxx_compiler_is_nvcc" = "xyes"; then
+        ldflags_default_opt="-O2"
+      else
+        ldflags_default_opt="-O"
+      fi
       ldflags_default_dbg="-g"
       ldflags_rpath="-Wl,-rpath -Wl,"
       if test "x$cs_gfortran" = "xgfortran"; then
@@ -1092,16 +1356,23 @@ if test "x$cs_linker_set" != "xyes" ; then
         libgfortran_dir=`dirname $libgfortran_path`
         unset libgfortran_path
         if test "`echo $libgfortran_dir | cut -c1-4`" != "/usr" ; then
-          ldflags_rpath="${ldflags_rpath}${libgfortran_dir}"
+          ldflags_rpath_add="${ldflags_rpath}${libgfortran_dir}"
         fi
         libgfortran_path=`$FC --print-file-name=libgfortran.so`
         libgfortran_dir=`dirname $libgfortran_path`
         unset libgfortran_path
         if test "`echo $libgfortran_dir | cut -c1-4`" != "/usr" ; then
-          ldflags_rpath="${ldflags_rpath}${libgfortran_dir}"
+          ldflags_rpath_add="${ldflags_rpath}${libgfortran_dir}"
         fi
         unset libgfortran_dir
       fi
+      ;;
+
+    darwin*)
+      ldflags_default=""
+      ldflags_default_opt="-O"
+      ldflags_default_dbg="-g"
+      ldflags_rpath="-Wl,-rpath -Wl,"
       ;;
 
     *)

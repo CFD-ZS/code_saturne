@@ -1,14 +1,14 @@
-#ifndef __CS_CDO_BC_H__
-#define __CS_CDO_BC_H__
+#ifndef CS_CDO_BC_H
+#define CS_CDO_BC_H
 
 /*============================================================================
  * Manage the low-level structure dedicated to boundary conditions
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -26,18 +26,14 @@
 */
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_cdo_quantities.h"
-#include "cs_param.h"
-#include "cs_time_step.h"
-#include "cs_xdef.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_param_types.h"
+#include "base/cs_time_step.h"
+#include "cdo/cs_cdo_quantities.h"
+#include "cdo/cs_xdef.h"
 
 /*============================================================================
  * Macro definitions
@@ -56,20 +52,41 @@ BEGIN_C_DECLS
  * @{
  */
 
-/*!  1: Neumann boundary conditions */
+/*!  1: Neumann boundary conditions (scalar/vector-valued) */
+
 #define CS_CDO_BC_NEUMANN               (1 << 0)
-/*!  2: Homogeneous Neumann boundary conditions */
-#define CS_CDO_BC_HMG_NEUMANN           (1 << 1)
-/*!  4: Dirichlet boundary conditions */
-#define CS_CDO_BC_DIRICHLET             (1 << 2)
-/*!  8: Homogeneous Dirichlet boundary conditions */
-#define CS_CDO_BC_HMG_DIRICHLET         (1 << 3)
-/*! 16: Robin boundary conditions */
-#define CS_CDO_BC_ROBIN                 (1 << 4)
-/*! 32: Apply a sliding condition (for vector-valued equations) */
-#define CS_CDO_BC_SLIDING               (1 << 5)
+
+/*!  2: Neumann boundary conditions (vector/tenors-valued) */
+
+#define CS_CDO_BC_FULL_NEUMANN          (1 << 1)
+
+/*!  4: Homogeneous Neumann boundary conditionsè */
+
+#define CS_CDO_BC_HMG_NEUMANN           (1 << 2)
+
+/*!  8: Dirichlet boundary conditions */
+
+#define CS_CDO_BC_DIRICHLET             (1 << 3)
+
+/*!  16: Homogeneous Dirichlet boundary conditions */
+
+#define CS_CDO_BC_HMG_DIRICHLET         (1 << 4)
+
+/*!  32: Robin boundary conditions */
+
+#define CS_CDO_BC_ROBIN                 (1 << 5)
+
 /*! 64: Apply a Dirichlet on the tangential part of a vector-valued quantity */
+
 #define CS_CDO_BC_TANGENTIAL_DIRICHLET  (1 << 6)
+
+/*! 128: Apply a wall function/law to prescribe the value at a wall */
+
+#define CS_CDO_BC_WALL_PRESCRIBED       (1 << 7)
+
+/*! 256: Apply a sliding condition (for vector-valued equations) */
+
+#define CS_CDO_BC_SYMMETRY              (1 << 8)
 
 /*! @} */
 
@@ -82,20 +99,22 @@ BEGIN_C_DECLS
  *
  * For of scalar-valued equations, only some the classical (Dirichlet, Neumann
  * and Robin types are available. Other types of boundary conditions are
- * possible for vector-valued equations
+ * possible for vector-valued equations.
  */
 
-typedef struct {
+struct cs_cdo_bc_face_t {
 
   bool         is_steady;    /* Do we need to update BC faces during the
                                 computation */
   cs_lnum_t    n_b_faces;    /* Number of boundary faces */
 
   /* Type of boundary conditions associated to a face. Size: n_b_faces */
+
   cs_flag_t   *flag;
 
   /* Id of the boundary condition definition or CS_BC_DEFAULT (=-1) if this face
      is related to the default boundary condition. Size = n_b_faces */
+
   short int   *def_ids;
 
   /* List of face ids by type of boundary conditions. Homogeneous types don't
@@ -104,30 +123,35 @@ typedef struct {
    */
 
   /* Dirichlet */
+
   cs_lnum_t    n_hmg_dir_faces;
   cs_lnum_t   *hmg_dir_ids;
   cs_lnum_t    n_nhmg_dir_faces;
   cs_lnum_t   *nhmg_dir_ids;
 
   /* Neumann */
+
   cs_lnum_t    n_hmg_neu_faces;
   cs_lnum_t   *hmg_neu_ids;
   cs_lnum_t    n_nhmg_neu_faces;
   cs_lnum_t   *nhmg_neu_ids;
 
   /* Robin */
+
   cs_lnum_t    n_robin_faces;
   cs_lnum_t   *robin_ids;
 
   /* Sliding wall */
+
   cs_lnum_t    n_sliding_faces;
   cs_lnum_t   *sliding_ids;
 
   /* Circulation */
+
   cs_lnum_t    n_circulation_faces;
   cs_lnum_t   *circulation_ids;
 
-} cs_cdo_bc_face_t;
+};
 
 /*============================================================================
  * Global variables
@@ -162,20 +186,26 @@ cs_cdo_bc_get_desc(cs_flag_t   bc_flag,
   case CS_CDO_BC_DIRICHLET:
     sprintf(desc, "%s", "Dirichlet");
     break;
+  case CS_CDO_BC_SYMMETRY:
+    sprintf(desc, "%s", "Sliding for vectors");
+    break;
   case CS_CDO_BC_HMG_NEUMANN:
     sprintf(desc, "%s", "Homogeneous Neumann");
     break;
   case CS_CDO_BC_NEUMANN:
     sprintf(desc, "%s", "Neumann");
     break;
+  case CS_CDO_BC_FULL_NEUMANN:
+    sprintf(desc, "%s", "Full Neumann");
+    break;
   case CS_CDO_BC_ROBIN:
     sprintf(desc, "%s", "Robin");
     break;
-  case CS_CDO_BC_SLIDING:
-    sprintf(desc, "%s", "Sliding");
-    break;
   case CS_CDO_BC_TANGENTIAL_DIRICHLET:
     sprintf(desc, "%s", "Dirichlet on the tangential component");
+    break;
+  case CS_CDO_BC_WALL_PRESCRIBED:
+    sprintf(desc, "%s", "Prescribed wall with wall functions");
     break;
 
   default:
@@ -202,32 +232,45 @@ cs_cdo_bc_get_flag(cs_param_bc_type_t   bc_type)
   cs_flag_t  ret_flag;
 
   switch (bc_type) {
-  case CS_PARAM_BC_HMG_DIRICHLET:
+
+  case CS_BC_HMG_DIRICHLET:
     ret_flag = CS_CDO_BC_HMG_DIRICHLET;
     break;
-  case CS_PARAM_BC_DIRICHLET:
+  case CS_BC_DIRICHLET:
     ret_flag = CS_CDO_BC_DIRICHLET;
     break;
-  case CS_PARAM_BC_HMG_NEUMANN:
-    ret_flag = CS_CDO_BC_HMG_NEUMANN;
+  case CS_BC_SYMMETRY:
+    ret_flag = CS_CDO_BC_SYMMETRY;
     break;
-  case CS_PARAM_BC_NEUMANN:
+  case CS_BC_NEUMANN:
     ret_flag = CS_CDO_BC_NEUMANN;
     break;
-  case CS_PARAM_BC_ROBIN:
+  case CS_BC_NEUMANN_FULL:
+    ret_flag = CS_CDO_BC_FULL_NEUMANN;
+    break;
+  case CS_BC_HMG_NEUMANN:
+    ret_flag = CS_CDO_BC_HMG_NEUMANN;
+    break;
+  case CS_BC_GENERALIZED_SYM:
+    bft_error(__FILE__, __LINE__, 0,
+              _("invalid boundary condition CS_BC_GENERALIZED_SYM for CDO"));
+    ret_flag = 0;
+    break;
+  case CS_BC_ROBIN:
     ret_flag = CS_CDO_BC_ROBIN;
     break;
-  case CS_PARAM_BC_SLIDING:
-    ret_flag = CS_CDO_BC_SLIDING;
-    break;
-  case CS_PARAM_BC_CIRCULATION:
+  case CS_BC_CIRCULATION:
     ret_flag = CS_CDO_BC_TANGENTIAL_DIRICHLET;
+    break;
+  case CS_BC_WALL_MODELLED:
+    ret_flag = CS_CDO_BC_WALL_PRESCRIBED; /* TO BE CHECKED */
     break;
 
   default:
     ret_flag = 0;               /* Not handle automatically */
     break;
   }
+
   return ret_flag;
 }
 
@@ -270,8 +313,10 @@ cs_cdo_bc_is_neumann(cs_flag_t    flag)
     return true;
   else if (flag & CS_CDO_BC_HMG_NEUMANN)
     return true;
-  else
-    return false;
+  else if (flag & CS_CDO_BC_FULL_NEUMANN)
+    return true;
+
+  return false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -287,7 +332,7 @@ cs_cdo_bc_is_neumann(cs_flag_t    flag)
 static inline bool
 cs_cdo_bc_is_sliding(cs_flag_t    flag)
 {
-  if (flag & CS_CDO_BC_SLIDING)
+  if (flag & CS_CDO_BC_SYMMETRY)
     return true;
   else
     return false;
@@ -348,15 +393,11 @@ cs_cdo_bc_face_define(cs_param_bc_type_t    default_bc,
  *
  * \param[in, out]  face_bc   pointer to a cs_cdo_bc_face_t structure
  *
- * \return a NULL pointer
+ * \return a null pointer
  */
 /*----------------------------------------------------------------------------*/
 
 cs_cdo_bc_face_t *
 cs_cdo_bc_free(cs_cdo_bc_face_t   *face_bc);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDO_BC_H__ */
+#endif /* CS_CDO_BC_H */

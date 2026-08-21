@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_H__
-#define __CS_LAGR_H__
+#ifndef CS_LAGR_H
+#define CS_LAGR_H
 
 /*============================================================================
  * Functions and types for the Lagrangian module
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,26 +27,22 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include "assert.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_field.h"
+#include "base/cs_base.h"
+#include "base/cs_field.h"
 
-#include "cs_lagr_injection.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "lagr/cs_lagr_injection.h"
 
 /*============================================================================
  * Type definitions
@@ -56,7 +52,7 @@ BEGIN_C_DECLS
 /*!
  * \brief Function pointer for computation of particle injection profile.
  *
- * Note: if the input pointer is non-NULL, it must point to valid data
+ * Note: if the input pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * not be temporary (i.e. local);
  *
@@ -93,21 +89,31 @@ typedef enum {
   CS_LAGR_FOULING,       /*!< fouling (combustion) */
   CS_LAGR_BC_USER        /*!< user-defined */
 
-} cs_lagr_bc_type_t;
+} cs_lagr_bc_type;
 
-  /*! Lagrangian module status.
-     the different values correspond to the following coupling:
-     - CS_LAGR_OFF: Lagrangian module off
-     - CS_LAGR_ONEWAY_COUPLING: Lagrangian two-phase flow in one-way coupling
-         (no influence of the particles on the continuous phase)
-     - CS_LAGR_TWOWAY_COUPLING: Lagrangian two-phase flow with two-way coupling
-         (influence of the particles on the dynamics of the continuous phase).
-         Dynamics, temperature and mass may be coupled independently.
-     - CS_LAGR_FROZEN_CONTINUOUS_PHASE: Lagrangian two-phase flow on frozen i
-         continuous phase. This option
-         only only be used in case of a calculation restart. All the
-         Eulerian fields are frozen (including the scalar fields).
-         This option automatically implies \ref iccvfg = 1 */
+/*! Lagrangian injection condition types */
+/*---------------------------------------*/
+
+enum {
+  CS_LAGR_IN_IMPOSED_FLUID_VALUE = -1,  /*!< impose fluid value
+                                          for the injected particles */
+  CS_LAGR_IN_IMPOSED_NORM = 0,          /*!< impose norm */
+  CS_LAGR_IN_IMPOSED_COMPONENTS = 1     /*!< impose components (for vectors) */
+};
+
+/*! Lagrangian module status.
+   the different values correspond to the following coupling:
+   - CS_LAGR_OFF: Lagrangian module off
+   - CS_LAGR_ONEWAY_COUPLING: Lagrangian two-phase flow in one-way coupling
+       (no influence of the particles on the continuous phase)
+   - CS_LAGR_TWOWAY_COUPLING: Lagrangian two-phase flow with two-way coupling
+       (influence of the particles on the dynamics of the continuous phase).
+       Dynamics, temperature and mass may be coupled independently.
+   - CS_LAGR_FROZEN_CONTINUOUS_PHASE: Lagrangian two-phase flow on frozen i
+       continuous phase. This option
+       only only be used in case of a calculation restart. All the
+       Eulerian fields are frozen (including the scalar fields).
+       This option automatically implies \ref iccvfg = 1 */
 
 typedef enum {
   CS_LAGR_OFF = 0,
@@ -115,6 +121,32 @@ typedef enum {
   CS_LAGR_TWOWAY_COUPLING = 2,
   CS_LAGR_FROZEN_CONTINUOUS_PHASE = 3
 } cs_lagr_module_status_t;
+
+/*! Particle shape condition types */
+/*---------------------------------*/
+
+typedef enum {
+
+  /*! Impose spherical particles */
+  CS_LAGR_SHAPE_SPHERE_MODEL = 0,
+
+  /*! Impose spheroids (stochastic model for transport) */
+  CS_LAGR_SHAPE_SPHEROID_STOC_MODEL = 1,
+
+  /*< Impose spheroids (Jeffery equations for transport) */
+  CS_LAGR_SHAPE_SPHEROID_JEFFERY_MODEL = 2,
+
+} cs_lagr_module_shape_t;
+
+/*! Lagrangian additional physical model */
+/*---------------------------------------*/
+
+enum {
+  CS_LAGR_PHYS_OFF = 0,
+  CS_LAGR_PHYS_HEAT = 1,
+  CS_LAGR_PHYS_COAL = 2,
+  CS_LAGR_PHYS_CTWR = 3
+};
 
 /*! Fixed maximum sizes */
 /*----------------------*/
@@ -136,7 +168,6 @@ typedef struct {
 
 typedef struct {
 
-  int   ntersl;  /*!< number of source terms for return coupling */
   int   n_boundary_stats;  /*!< number of boundary statistics */
 
 } cs_lagr_dim_t;
@@ -154,8 +185,8 @@ typedef struct {
          (influence of the particles on the dynamics of the continuous phase).
          Dynamics, temperature and mass may be coupled independently.
      - CS_LAGR_FROZEN_CONTINUOUS_PHASE: Lagrangian two-phase flow on frozen i
-         continuous phase. This option
-         only only be used in case of a calculation restart. All the
+         continuous phase. This option may
+         only be used in the case of a calculation restart. All the
          Eulerian fields are frozen (including the scalar fields).
          This option automatically implies \ref iccvfg = 1 */
   int  iilagr;
@@ -164,7 +195,8 @@ typedef struct {
       continuous phase flow
       in particular, \ref isttio = 1 is needed in order to:
       calculate steady statistics in the volume or at the boundaries
-      (starting respectively from the iterations \ref nstist)
+      (starting respectively from the iterations
+      \ref cs_lagr_stat_options_t::nstist "nstist")
       and calculate time-averaged two-way coupling source terms (from the
       time step \ref nstits).
       Useful if \ref iilagr = CS_LAGR_ONEWAY_COUPLING
@@ -175,7 +207,7 @@ typedef struct {
 
   /*! activation (=1) or not (=0) of a Lagrangian calculation restart.
     The calculation restart file read when this option is activated
-    only contains the data related to the particles (see also \ref isuist)
+    only contains the data related to the particles;
     the global calculation must also be a restart calculation
   */
   int  isuila;
@@ -183,30 +215,13 @@ typedef struct {
   /*! trajectory algorithm order in time */
   int  t_order;
 
-  /*! activates (>0) or not (=0) the complete turbulent dispersion model.
-    When \ref modcpl is strictly positive, its value is interpreted as the
-    absolute Lagrangian time step number (including restarts) after which the
-    complete model is applied.
-    Since the complete model uses volume statistics, \ref modcpl must
-    either be 0 or be larger than \ref idstnt. */
-  int     modcpl;
+  /*! Extended exponential scheme taking into account the gradient of T_lag
+   * (0 off, 1 on) */
+  int  extended_t_scheme;
 
-  /*!  direction (1=x, 2=y, 3=z, 4=local_max) of the complete model.
-    it corresponds to the main directions of the flow.
-    Useful if \ref modcpl > 0 */
-  int     idirla;
-
-  /*!  activation (=1) or not (=0) of the particle turbulent dispersion.
-    The turbulent dispersion is compatible only with the RANS turbulent models
-    (\f$k-\varepsilon\f$, \f$R_{ij}-\varepsilon\f$, v2f or \f$k-\omega\f$).
-    (\ref iturb=20, 21, 30, 31, 50 or 60). */
-  int     idistu;
-
-  /*! \ref idiffl=1 suppresses the crossing trajectory effect, making
-    turbulent dispersion for the particles identical to the turbulent
-    diffusion of fluid particles.
-    Useful if \ref idistu=1 */
-  int     idiffl;
+  /*! activation (=1) or not (=0) of P1 interpolation of mean carrier velocity
+   *  at the location of the particles */
+  int interpol_field;
 
   /*! activation (=1) or not (=0) of the solution of a Poisson's equation for
     the correction of the particle instantaneous velocities
@@ -235,6 +250,17 @@ typedef struct {
   /*! Added-mass constant (\f$ C_A = 1\f$) */
   cs_real_t        added_mass_const;
 
+  /*! 0 no reintegration in the trajecto
+   *  1 Use cell-wise alogorithm (see Balvet et al. 2023)*/
+  int cell_wise_integ;
+
+  /* maximum number of tracking in _local_propagation for each particle
+   * (without change of rank or periodicity)*/
+  cs_lnum_t max_track_propagation_loops;
+
+  /* maximum number of change of rank or periodicity crossing over a time step*/
+  int max_perio_or_rank_crossed;
+
 } cs_lagr_time_scheme_t;
 
 /*! Main physical model parameters for the Lagrangian module */
@@ -244,20 +270,49 @@ typedef struct {
 
   /*! activates (>0) or deactivates (=0) the physical models associated to the
     particles:
-    - 1: allows to associate with the particles evolution equations on
-         their temperature (in degrees Celsius), their diameter and
-         their mass
-    - = 2: the particles are pulverised coal particles.
-    Evolution equations on temperature (in degree Celsius), mass of
-    reactive coal, mass of char and diameter of the shrinking core are
-    associated with the particles. This option is available only if the
-    continuous phase represents a pulverised coal flame. */
-  int  physical_model;  /* FIXME: => enum: CS_LAGR_PHYS_STD,
-                                           CS_LAGR_PHYS_COAL,
-                                           CS_LAGR_PHYS_HEAT... */
+    - CS_LAGR_PHYS_HEAT: allows to associate with the particles evolution
+      equations on  their temperature (in degrees Celsius), their diameter and
+      their mass
+    - CS_LAGR_PHYS_COAL: the particles are pulverised coal particles.
+      Evolution equations on temperature (in degree Celsius), mass of
+      reactive coal, mass of char and diameter of the shrinking core are
+      associated with the particles. This option is available only if the
+      continuous phase represents a pulverised coal flame.
+    - CS_LAGR_PHYS_CTWR: cooling tower model in the context
+      of an Lagrangian formulation.*/
+  int  physical_model;
   int  n_temperature_layers;
 
+  /*! Activates (1) or not (0) the assumption that we are using code_saturne or not.
+    When set to 0 the lagrangian is used within neptune_cfd. When equal to 1, the Lagrangian
+    is used within code_saturne. */
+  int cs_used;
+
+  /*! Activates (1) or not (0) the assumption that we have regular particles.
+    When set to, 0 then the particles are assumed to be fluid particles
+    (and only the turbulence dispersion model is taken into account by default,
+    but not crossing trajectory effects).
+    Since this model uses volume statistics, is use forces their
+    activation even if not otherwise requested
+    (see \ref cs_lagr_stat_options_t::idstnt "idstnt"). */
+  int modcpl;
+
+  /*! Activation of the turbulent dispersion (on: 1; off).
+     Default is on;
+     This is compatible with RANS  and LES turbulent models
+     (\f$k-\varepsilon\f$, \f$R_{ij}-\varepsilon\f$, v2f or \f$k-\omega\f$). */
+  int idistu;
+
+  /*! Suppress the crossing trajectory effect (if set to 1), making
+    turbulent dispersion for the particles identical to the turbulent
+    diffusion of fluid particles.
+    Default is off if \ref modcpl = 1, on if \ref modcpl = 0). */
+  int idiffl;
+
+  /*!- 0: no deposition model
+     - 1: depositionion model */
   int  deposition;
+
   int  dlvo;
 
   /*! - 0: no DLVO conditions with roughness surface
@@ -277,8 +332,8 @@ typedef struct {
      - 2: ellipsoids */
   int  shape;
 
-  /* - 0: no consolidation model
-     - 1: consolidation model */
+  /*! - 0: no consolidation model
+      - 1: consolidation model */
   int  consolidation;
 
   int  precipitation;
@@ -296,6 +351,24 @@ typedef struct {
 
   int  n_user_variables;
 
+  /* Handle transport with a generic GLM */
+  bool transport_GLM_rotated;
+
+  /*! Take viscous terms into account */
+  bool viscous_terms;
+
+  /*! Failsafe mode:
+      - 0: continue calculation with warning if tracking error occurs
+      - 1: stop calculation if tracking error occurs */
+  int  failsafe_mode;
+
+  /*! Verbosity level:
+      - 0: standard output (default)
+      - 1: log basic physical and numerical initialization parameters
+           (DLVO, Roughness, Clogging)
+      - 2: log full diagnostic and structured dumps of event/particle sets
+           (creation, sync, displacement) */
+  int  verbosity;
 } cs_lagr_model_t;
 
 /*! Particle counters for the Lagrangian module */
@@ -361,43 +434,74 @@ typedef struct {
 /*! Specific physical model options for the Lagrangian module */
 /* ---------------------------------------------------------- */
 
-typedef struct {
+struct cs_lagr_specific_physics_t {
+
+  /*--------------------------------------------------------------------------*/
+  /*!
+   * \brief Default constructor with suppression of deprecated declarations,
+   *        needed to hide warnings simply induced by including this header
+   *        file.
+   */
+  /*--------------------------------------------------------------------------*/
+
+  DISABLE_WARNING_PUSH
+  DISABLE_WARNING(-Wdeprecated-declarations)
+
+  cs_lagr_specific_physics_t(){}
+
+  DISABLE_WARNING_POP
+
+  /*  activation (=1) or not (=0) of an evolution equation on the particle
+      temperature seen (in degrees Celsius).
+      Useful if \ref physical_model=1 and if there is a thermal scalar
+      associated with the continuous phase.
+  */
+  int   solve_temperature_seen{0};
 
   /*  activation (=1) or not (=0) of an evolution equation on the particle
       temperature (in degrees Celsius).
       Useful if \ref physical_model=1 and if there is a thermal scalar
       associated with the continuous phase.
   */
-  int   itpvar;
+  int   solve_temperature{0};
+
+  [[deprecated("renamed to solve_temperature")]] \
+  int&  itpvar{solve_temperature};
 
   /*  activation (=1) or not (=0) of an evolution equation on the particle
       diameter. Useful if \ref physical_model = 1.
   */
-  int   idpvar;
+  int   solve_diameter{0};
+  [[deprecated("renamed to solve_diameter")]] \
+  int&   idpvar{solve_diameter};
 
   /*  activation (=1) or not (=0) of an evolution equation on the particle mass
       Useful if \ref physical_model = 1
   */
-  int   impvar;
+  int   solve_mass{0};
+  [[deprecated("renamed to solve_mass")]] \
+  int&   impvar{solve_mass};
 
   /*  initialization temperature (in degree Celsius) for the particles already
       present in the calculation domain when an evolution equation on
       the particle temperature is activated during a calculation
-      (\ref physical_model = 1 and \ref itpvar = 1).
-      Useful if \ref isuila = 1 and \ref itpvar = 0 in the previous calculation.
+      (\ref physical_model = 1 and \ref solve_temperature = 1).
+      Useful if \ref isuila = 1 and \ref solve_temperature = 0 in the previous
+      calculation.
   */
-  cs_real_t          tpart;
+  cs_real_t          tpart{-999.};
 
   /* initialization value for the specific heat (\f$ J.kg^{-1}.K^{-1} \f$)
      of the particles already present
      in the calculation domain when an evolution equation
      on the particle temperature is activated during a calculation
-     (\ref physical_model = 1 and \ref itpvar = 1).
-     Useful if \ref isuila = 1 and \ref itpvar = 0 in the previous calculation
+     (\ref physical_model = 1 and \ref solve_temperature = 1).
+     Useful if \ref isuila = 1 and \ref solve_temperature = 0 in the previous
+     calculation
   */
-  cs_real_t          cppart;
+  cs_real_t          cppart{-999.};
 
-} cs_lagr_specific_physics_t;
+};
 
 /*! Parameters of the reentrainment model */
 /* -------------------------------------- */
@@ -503,9 +607,6 @@ typedef struct {
 
 typedef struct {
 
-  /* current step id (for 2nd order scheme) */
-  int    nor;
-
   /* duration of a Lagrangian iteration */
   cs_real_t          dtp;
 
@@ -542,12 +643,13 @@ typedef struct {
   int         velocity_profile;
 
   /*! temperature condition type:
-    - 0 fluid temperature
+    - 0 temperature seen
     - 1 imposed temperature */
   int         temperature_profile;
 
-  int         coal_number;          /*!< particle coal number
-                                      (if \ref physical_model=2) */
+  int         coal_number;          /*!< particle coal number (if
+                                      \ref cs_lagr_model_t::physical_model "physical_model"
+                                      =2) */
 
   int         cluster;              /*!< statistical cluster id */
 
@@ -563,19 +665,19 @@ typedef struct {
   cs_real_t   diameter_variance;    /*!< particle diameter variance */
 
   cs_real_t   shape;                /*!< particle shape for spheroids
-                                        (if \ref shape_model is activated */
+                                        (if shape model is activated */
   cs_real_t   orientation[3];       /*!< particle orintation for spheroids */
   cs_real_t   radii[3];             /*!< particle radii for ellispoids */
   cs_real_t   angular_vel[3];       /*!< particle angular velocity
-                                         (if \ref shape_model is activated */
+                                         (if shape model is activated */
 
   cs_real_t   euler[4];             /*!< particle four Euler parameters
-                                         (if \ref shape_model is activated */
+                                         (if shape model is activated */
   cs_real_t   shape_param[4];       /*!< particle shape parameters
                                          for ellispoids
                                          (alpha_0, beta_0, gamma_0, chi _0)
                                          in Brenner 1964
-                                         (if \ref shape_model is activated */
+                                         (if shape model is activated */
   cs_real_t   density;              /*!< particle density */
 
   cs_real_t   fouling_index;        /*!< fouling index */
@@ -602,10 +704,11 @@ typedef struct {
 
   /*! activation (=1) or not (=0) of the two-way coupling on the mass.
     Useful if \ref iilagr = CS_LAGR_TWOWAY_COUPLING,
-    \ref physical_model = 1 and \ref impvar = 1 */
+    \ref cs_lagr_model_t::physical_model "physical_model" = 1 and
+    \ref cs_lagr_specific_physics_t::solve_mass "solve_mass" = 1 */
   int  ltsmas;
 
-  /*  if \ref physical_model = 1 and \ref itpvar = 1, \ref ltsthe
+  /*  if \ref physical_model = 1 and \ref solve_temperature = 1, \ref ltsthe
    activates (=1) or not (=0) the two-way coupling on temperature.
    if \ref physical_model = 2, \ref ltsthe activates (=1) or not (=0) the
    two-way coupling on the eulerian variables related to pulverised
@@ -613,67 +716,60 @@ typedef struct {
    Useful if \ref iilagr = CS_LAGR_TWOWAY_COUPLING */
   int  ltsthe;
 
-  /*! implicit source term for the continuous phase velocity and
-    for the turbulent energy if the \f$k-\varepsilon\f$ model is used */
-  int  itsli;
-
-  /*  explicit source term for the turbulent dissipation and the
-   turbulent energy if the \f$k-\varepsilon\f$ turbulence model is used
-   for the continuous phase */
-  int  itske;
-
-  /*! explicit thermal source term for the thermal scalar of
-    the continuous phase */
-  int  itste;
-
-  /*! implicit thermal source term for the thermal scalar of
-    the continuous phase */
-  int  itsti;
-
-  /*! mass source term */
-  int  itsmas;
-
-  /*  source term for the light volatile matters */
-  int  *itsmv1;  //ncharm2
-
-  /*  source term for the heavy volatile matters */
-  int  *itsmv2;  //ncharm2
-
-  /*! source term for the carbon released during heterogeneous combustion */
-  int  itsco;
-
-  /*! variance of the air scalar */
-  int  itsfp4;
-
   /*! number of absolute time steps (including the restarts)
     after which a time-average of the two-way coupling source terms is
     calculated.
-    indeed, if the flow is steady (\ref isttio=1), the average quantities
-    that appear in the two-way coupling source terms can be calculated over
-    different time steps, in order to get a better precision.
+    Indeed, if the flow is steady (\ref cs_lagr_time_scheme_t::isttio "isttio"=1),
+    the average quantities that appear in the two-way coupling source terms can
+    be calculated over different time steps, in order to get a better precision.
     if the number of absolute time steps is strictly inferior to
     \ref nstits, the code considers that the flow has not yet reached its
     steady state (transition period) and the averages appearing in the source
     terms are reinitialized at each time step, as it is the case for unsteady
-    flows (\ref isttio=0).
-    Useful if \ref iilagr = CS_LAGR_TWOWAY_COUPLING and \ref isttio = 1 */
+    flows (\ref cs_lagr_time_scheme_t::isttio "isttio"=0).
+    Useful if \ref iilagr = CS_LAGR_TWOWAY_COUPLING and
+    \ref cs_lagr_time_scheme_t::isttio "isttio"=1 */
   int  nstits;
 
   /*! number of time steps for source terms accumulations */
   int  npts;
 
-  /*! number of cells, whose vulumetric rate DODO
-      (concentration ?)is greather than 0.8 */
+  /*! number of cells, whose volumetric rate DODO
+      (concentration ?)is greater than 0.8 */
   int  ntxerr;
 
   /*! maximum volumetric concentration reached */
   cs_real_t      vmax;
 
-  /*! maximum massic concentration reached */
+  /*! maximum mass concentration reached */
   cs_real_t      tmamax;
 
-  /*! source term values */
-  cs_real_t     *st_val;
+  /* volume occupied by the particles in each cell*/
+  cs_real_t     *volp;
+
+  /* mass of particle in each cell*/
+  cs_real_t     *volm;
+
+  /* Langrangian source term for the pressure over one time step */
+  cs_real_t     *t_st_p;
+
+  /* explicit Langrangian source term for the velocity over one time step */
+  cs_real_3_t   *t_st_vel;
+
+  /* implicit Langrangian source term for the velocity over one time step */
+  cs_real_t     *t_st_imp_vel;
+
+  /* Langrangian source term for the TKE over one time step */
+  cs_real_t     *t_st_k;
+
+  /* Langrangian source term for the Reynolds tensor over one time step */
+  cs_real_6_t   *t_st_rij;
+
+  /* explicit Langrangian source term for the temperature over one time step */
+  cs_real_t     *t_st_t_e;
+
+  /* implicit Langrangian source term for the temperature over one time step */
+  cs_real_t     *t_st_t_i;
 
 } cs_lagr_source_terms_t;
 
@@ -695,7 +791,11 @@ typedef struct {
   char                       *elt_type;            /*! zone type per
                                                        element, or NULL */
 
-  cs_real_t                  *particle_flow_rate;  /*!< particle flow rate
+  cs_real_t                  *particle_mass_flow;  /*!< particle mass flow
+                                                        per zone per
+                                                        statistical class */
+
+  cs_real_t                  *particle_heat_flow;  /*!< particle heat flow
                                                         per zone per
                                                         statistical class */
 
@@ -789,7 +889,8 @@ typedef struct {
 
   /*! Number of iterations during which steady boundary statistics have
     been accumulated.
-    Useful if \ref isttio=1 and \ref nstist inferior
+    Useful if \ref cs_lagr_time_scheme_t::isttio "isttio"=1 and
+    \ref cs_lagr_stat_options_t::nstist "nstist" inferior
     or equal to the current time step.
     \ref npstf is initialized and updated automatically by the code,
     its value is not to be modified by the user */
@@ -854,7 +955,7 @@ typedef struct {
   /*!  name of the boundary statistics, displayed in the log
     and the post-processing files.
     Warning: this name is also used to reference information in the restart
-    file (\ref isuist =1). If the name of a variable is changed between two
+    file. If the name of a variable is changed between two
     calculations, it will not be possible to read its value from the restart
     file */
   char  **nombrd;
@@ -865,15 +966,18 @@ typedef struct {
 /*-----------------------------------------------*/
 
 typedef struct {
+  /* number of carrier phases */
+  int n_phases;
 
   /* Turbulence model */
   int iturb;
   int itytur;
+  int turb_model;
 
   /* cpincl */
   int ncharb;
 
-  /* ppppar */
+  /* cs_coal.h */
   int ncharm;
 
   /* radiation */
@@ -881,9 +985,6 @@ typedef struct {
 
   /* icp */
   int icp;
-
-  /* diftl0 */
-  cs_real_t diftl0;
 
   /* cmu */
   cs_real_t cmu;
@@ -897,16 +998,27 @@ typedef struct {
   /* wall ustar */
   cs_field_t *ustar;
 
+  /* alpha: fluid volume fraction */
+  cs_field_t *alpha;
+
+  /* wall tstar */
+  cs_field_t *tstar;
+
   /* Fluid density */
   cs_field_t *cromf;
 
   /* Fluid pressure */
   cs_field_t *pressure;
 
-  /* Fluid temparature */
+  /* Fluid temperature */
   cs_field_t *scal_t;
   cs_field_t *temperature;
-  cs_field_t *t_gaz;
+
+  /* Fluid temperature variance */
+  cs_field_t *temperature_variance;
+
+  /* Turbulent heat flux */
+  cs_field_t *temperature_turbulent_flux;
 
   /* Fluid velocity */
   cs_field_t *vel;
@@ -920,8 +1032,8 @@ typedef struct {
   /* Fluid specific heat capacity */
   cs_field_t *cpro_cp;
 
-  /* Radiat.       */
-  cs_field_t *luminance;
+  /* Radiative energy */
+  cs_field_t *rad_energy;
 
   /* Combustion    */
   cs_field_t *x_oxyd;
@@ -932,21 +1044,20 @@ typedef struct {
   /* Turbulent intensity */
   cs_field_t *cvar_k;
 
+  /* gradient turbulent intensity */
+  cs_field_t *cvar_gradk;
+
   /* Turbulent dissipation */
   cs_field_t *cvar_ep;
 
   /* Omega from k-omega SST model*/
   cs_field_t *cvar_omg;
 
-  /* Reynolds stress component Rxx */
-  cs_field_t *cvar_r11;
-  /* Reynolds stress component Ryy */
-  cs_field_t *cvar_r22;
-  /* Reynolds stress component Rzz */
-  cs_field_t *cvar_r33;
-
   /* Reynolds Stress Tensor */
   cs_field_t *cvar_rij;
+
+  /* Reynolds gradient Stress Tensor */
+  cs_field_t *cvar_gradrij;
 
   /* Total pressure gradient */
   cs_real_3_t *grad_pr;
@@ -954,45 +1065,36 @@ typedef struct {
   /* velocity gradient */
   cs_real_33_t *grad_vel;
 
+  /* fluid temperature gradient */
+  cs_real_3_t *grad_tempf;
+
+  /* Lagrangian time field */
+  cs_field_t *lagr_time;
+
+  /* (if extended_t_scheme) gradient of Lagrangien time */
+  cs_real_3_t *grad_lagr_time;
+
+  /* fluid seen/fluid seen covariance gradient */
+  cs_real_3_t *grad_cov_skp[9];
+
+  /* fluid seen/particle velocity covariance gradient */
+  cs_real_3_t *grad_cov_sk[6];
+
+  /* (if modcpl) anistropic Lagrangian time gradient tlag / bbi */
+  cs_real_3_t *anisotropic_lagr_time;
+
+  /* (if modcpl) anistropic diffusion term */
+  cs_real_3_t *anisotropic_bx;
+
+  /* (if extended_t_scheme && modcpl) gradient of anistropic Lagrangien time
+   * int the relative basis used to compute beta */
+  cs_real_3_t *grad_lagr_time_r_et;
+
+  /* (if transport_GLM_generic) save the Euler parameters associated to the
+   * eigenvectors for the rotation matrix (where G is diagonal) */
+  cs_real_4_t *anisotropic_euler;
+
 } cs_lagr_extra_module_t;
-
-/*! External data relative to coal combustion */
-/*--------------------------------------------*/
-
-typedef struct {
-
-  int         ih2o;   // cpincl
-  int         io2;    // cpincl
-  int         ico;    // cpincl
-
-  int         iatc;   // ppthch
-  cs_real_t   prefth; // ppthch
-  cs_real_t   trefth; // ppthch
-
-  int         natom;  // = 5;
-  cs_real_t  *wmolat; // dim = natom
-
-  int         ngazem; // = 20;
-  cs_real_t  *wmole;  // ngazem
-  int        *iym1;
-
-  int         ncharm;  // cpincl
-  cs_real_t  *a1ch;   // ncharm
-  cs_real_t  *h02ch;
-  cs_real_t  *e1ch;   //
-  cs_real_t  *a2ch;   //
-  cs_real_t  *e2ch;   //
-  cs_real_t  *y1ch;   //
-  cs_real_t  *y2ch;   //
-  cs_real_t  *cp2ch;  //
-  cs_real_t  *ahetch; //
-  cs_real_t  *ehetch; //
-  cs_real_t  *rho0ch; //
-  cs_real_t  *xwatch; //
-  cs_real_t  *xashch; //
-  cs_real_t  *thcdch; //
-
-} cs_lagr_coal_comb_t;
 
 /*============================================================================
  * Global variables
@@ -1041,7 +1143,6 @@ extern cs_lagr_brownian_t                    *cs_glob_lagr_brownian;
 extern cs_lagr_boundary_interactions_t       *cs_glob_lagr_boundary_interactions;
 
 extern cs_lagr_extra_module_t                *cs_glob_lagr_extra_module;
-extern cs_lagr_coal_comb_t                   *cs_glob_lagr_coal_comb;
 
 extern const cs_lagr_zone_data_t             *cs_glob_lagr_boundary_conditions;
 extern const cs_lagr_zone_data_t             *cs_glob_lagr_volume_conditions;
@@ -1053,6 +1154,15 @@ extern cs_real_33_t  *cs_glob_lagr_b_face_proj;
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Map specific phyical model features to Lagrangian structures.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_lagr_map_specific_physics(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -1244,7 +1354,9 @@ cs_lagr_get_volume_conditions(void);
 /*!
  * \brief Return pointer to the main internal conditions structure.
  *
- * \return pointer to current internal conditions structure
+ * The structure is allocated on demand, when this function is first called.
+ *
+ * \return pointer to current internal_conditions structure
  */
 /*----------------------------------------------------------------------------*/
 
@@ -1295,6 +1407,38 @@ cs_get_lagr_extra_module(void);
 void
 cs_lagr_solve_initialize(const cs_real_t  *dt);
 
+/*----------------------------------------------------------------------------
+ * Initialize lagrangian arrays
+ *----------------------------------------------------------------------------*/
+
+void
+cs_lagr_init_arrays(void);
+
+/*----------------------------------------------------------------------------
+ * Free lagrangian arrays
+ *----------------------------------------------------------------------------*/
+
+void
+cs_lagr_finalize(void);
+
+/*----------------------------------------------------------------------------*/
+
+void
+cs_lagr_initialize_extra(cs_lnum_t n_continuous_phases);
+
+/*!
+ * \brief Create additional fields needed by the Lagrangien model
+ *
+ * Most additional fields can be defined directly in
+ * \ref cs_lagr_options_definition, but some fields may be mapped to
+ * different fields based on the calling module (i.e. code_saturne or
+ * neptune_cfd), and possibly defined after that call.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_lagr_add_fields(void);
+
 /*--------------------------------------------------------------------
  * Execute one time step of the Lagrangian model.
  *
@@ -1309,31 +1453,6 @@ void
 cs_lagr_solve_time_step(const int         itypfb[],
                         const cs_real_t  *dt);
 
-/*----------------------------------------------------------------------------
- * Return pointers to lagrangian arrays
- *
- * This function is intended for use by Fortran wrappers.
- *
- * parameters:
- *   dim_bound_stat   --> dimensions for bound_stat pointer
- *   p_bound_stat     --> bound_stat pointer
- *----------------------------------------------------------------------------*/
-
-void
-cs_lagr_init_c_arrays(int          dim_cs_glob_lagr_source_terms[2],
-                      cs_real_t  **p_cs_glob_lagr_source_terms);
-
-/*----------------------------------------------------------------------------
- * Free lagrangian arrays
- *
- * This function is intended for use by Fortran wrappers.
- *----------------------------------------------------------------------------*/
-
-void
-cs_lagr_finalize(void);
-
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_H__ */
+#endif /* CS_LAGR_H */

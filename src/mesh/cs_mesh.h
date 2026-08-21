@@ -1,14 +1,14 @@
-#ifndef __CS_MESH_H__
-#define __CS_MESH_H__
+#ifndef CS_MESH_H
+#define CS_MESH_H
 
 /*============================================================================
  * Main structure associated to a mesh
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,45 +28,65 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "fvm_group.h"
-#include "fvm_selector.h"
-#include "fvm_periodicity.h"
+#include "fvm/fvm_group.h"
+#include "fvm/fvm_selector.h"
+#include "fvm/fvm_periodicity.h"
 
-#include "cs_base.h"
-#include "cs_halo.h"
-#include "cs_interface.h"
-#include "cs_numbering.h"
-#include "cs_range_set.h"
+#include "base/cs_base.h"
+#include "base/cs_halo.h"
+#include "base/cs_interface.h"
+#include "base/cs_numbering.h"
+#include "base/cs_parall.h"
+#include "base/cs_range_set.h"
 
-#include "cs_mesh_builder.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh_builder.h"
 
 /*=============================================================================
  * Macro definitions
  *============================================================================*/
 
+/*
+ * Mesh modification type flags
+ */
+
+/*! Any type of mesh modification */
+#define CS_MESH_MODIFIED (1 << 0)
+
+/*! Mesh modification has changed mesh distribution balance */
+#define CS_MESH_MODIFIED_BALANCE (1 << 1)
+
 /*============================================================================
  * Type definitions
  *============================================================================*/
 
-/* Mesh structure definition */
-/* ------------------------- */
+/*! Mesh time dependency */
+/*  -------------------- */
+
+typedef enum {
+
+  CS_MESH_FIXED,              /*!< Mesh definitions do not change with time */
+  CS_MESH_TRANSIENT_COORDS,   /*!< Vertex coordinates may change with time */
+  CS_MESH_TRANSIENT_CONNECT   /*!< Mesh connectivity may change with time */
+
+} cs_mesh_time_dep_t;
+
+/*! Mesh structure definition */
+/*  ------------------------- */
 
 typedef struct {
 
   /* General features */
 
   cs_lnum_t  dim;                /*!< space dimension */
-  cs_lnum_t  domain_num;         /*!< local domain number */
-  cs_lnum_t  n_domains;          /*!< number of domains */
+  int        domain_num;         /*!< local domain number */
+  int        n_domains;          /*!< number of domains */
+
+  cs_mesh_time_dep_t  time_dep;  /*!< time dependency */
 
   /* Local dimensions */
 
@@ -178,12 +198,24 @@ typedef struct {
 
   /* Refinement features */
 
+  bool        have_r_gen;          /*!< has mesh refinement information */
   char       *i_face_r_gen;        /*!< interior face refinement generation */
+  char       *b_face_r_c_idx;      /*!< local index in root cell id for
+                                     boundary faces */
+  char       *vtx_r_gen;           /*!< vertex refinement generation */
 
   /* Status flags */
 
   cs_gnum_t n_g_free_faces;        /*!< global number of boundary faces
                                      which are in fact isolated */
+
+  int64_t   n_g_b_faces_appended;  /*!< global number of appended boundary
+                                     faces (negative in case of hidden faces) */
+  cs_lnum_t n_b_faces_appended;    /*!< number of appended boundary faces
+                                     (not part of normal connectivity);
+                                     negative when faces which are part of
+                                     the connectivity are hidden. */
+
   int verbosity;                   /*!< current verbosity level */
   int modified;                    /*!< modification status */
   int save_if_modified;            /*!< flag for mesh saving behavior:
@@ -198,177 +230,6 @@ typedef struct {
  *============================================================================*/
 
 extern cs_mesh_t *cs_glob_mesh; /* Pointer to main mesh structure */
-
-/*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Update a scalar array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine synsca(var)
- * *****************
- *
- * var   : <-> : scalar array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synsca, SYNSCA)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a scalar array in case of parallelism and/or periodicity,
- * using an extended halo.
- *
- * Fortran interface:
- *
- * subroutine synsce(var)
- * *****************
- *
- * var   : <-> : scalar array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synsce, SYNSCE)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a scalar array in case of parallelism and/or periodicity,
- * ignoring periodicity of rotation
- *
- * Fortran interface:
- *
- * subroutine syncmp(var)
- * *****************
- *
- * var   : <-> : scalar array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(syncmp, SYNCMP)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine synvec(var)
- * *****************
- *
- * var1   : <-> : vector component 1 array
- * var2   : <-> : vector component 2 array
- * var3   : <-> : vector component 3 array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synvec, SYNVEC)
-(
- cs_real_t  var1[],
- cs_real_t  var2[],
- cs_real_t  var3[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine synvin(var)
- * *****************
- *
- * var   : <-> : interleaved vector (of dimension 3)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synvin, SYNVIN)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity,
- * using an extended halo.
- *
- * Fortran interface:
- *
- * subroutine synvin(var)
- * *****************
- *
- * var   : <-> : interleaved vector (of dimension 3)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synvie, SYNVIE)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a tensor array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine synten(var)
- * *****************
- *
- * var11   : <-> : tensor component 11 array
- * var12   : <-> : tensor component 12 array
- * var13   : <-> : tensor component 13 array
- * var21   : <-> : tensor component 21 array
- * var22   : <-> : tensor component 22 array
- * var23   : <-> : tensor component 23 array
- * var31   : <-> : tensor component 31 array
- * var32   : <-> : tensor component 32 array
- * var33   : <-> : tensor component 33 array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(synten, SYNTEN)
-(
- cs_real_t  var11[],
- cs_real_t  var12[],
- cs_real_t  var13[],
- cs_real_t  var21[],
- cs_real_t  var22[],
- cs_real_t  var23[],
- cs_real_t  var31[],
- cs_real_t  var32[],
- cs_real_t  var33[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a tensor array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine syntin(var)
- * *****************
- *
- * var   : <-> : interleaved tensor (of dimension 3x3)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(syntin, SYNTIN)
-(
- cs_real_t  var[]
-);
-
-/*----------------------------------------------------------------------------
- * Update a symmetric tensor array in case of parallelism and/or periodicity.
- *
- * Fortran interface:
- *
- * subroutine syntis(var)
- * *****************
- *
- * var   : <-> : interleaved symmetric tensor (of dimension 6)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(syntis, SYNTIS)
-(
- cs_real_t  var[]
-);
 
 /*=============================================================================
  * Public function prototypes
@@ -390,11 +251,21 @@ cs_mesh_create(void);
  * mesh       <->  pointer to a mesh structure
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 cs_mesh_t *
 cs_mesh_destroy(cs_mesh_t  *mesh);
+
+/*----------------------------------------------------------------------------
+ * Reinitialize mesh structure.
+ *
+ * returns:
+ *   pointer to created mesh structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_reinit(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------
  * Update (compactify) an array of global numbers.
@@ -424,6 +295,15 @@ cs_mesh_free_rebuildable(cs_mesh_t  *mesh,
                          bool        free_halos);
 
 /*----------------------------------------------------------------------------
+ * Remove boundary arrays and structures that may be rebuilt.
+ *
+ * mesh       <-> pointer to a mesh structure
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_free_b_rebuildable(cs_mesh_t  *mesh);
+
+/*----------------------------------------------------------------------------
  * Discard free (isolated) faces from a mesh.
  *
  * This should always be done before using the mesh for computation.
@@ -446,6 +326,20 @@ cs_mesh_discard_free_faces(cs_mesh_t  *mesh);
 
 void
 cs_mesh_discard_free_vertices(cs_mesh_t  *mesh);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Discard mesh refinement info.
+ *
+ * This information is used only for mesh coarsening or post-processing output
+ * of the refinement level, so can be discarded in other cases.
+ *
+ * \param[in, out]  mesh  pointer to mesh structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_discard_refinement_info(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------
  * Generate or update list of mesh boundary cells.
@@ -481,22 +375,28 @@ void
 cs_mesh_init_interfaces(cs_mesh_t          *mesh,
                         cs_mesh_builder_t  *mb);
 
-/*----------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/*!
  * Creation and initialization of halo structures.
  *
  * Treatment of parallel and/or periodic halos for standard and extended
  * ghost cells according to halo type requested by global options.
  *
- * parameters:
- *   mesh       <->  pointer to mesh structure
- *   mb         <->  pointer to mesh builder (in case of periodicity)
- *   halo_type  <->  type of halo (standard or extended)
- *----------------------------------------------------------------------------*/
+ * \param[in, out]  mesh                   pointer to mesh structure
+ * \param[in, out]  mb                     pointer to mesh builder
+ *                                         (for periodicity)
+ * \param[in]       halo_type              type of halo (standard or extended)
+ * \param[in]       verbosity              verbosity
+ * \param[in]       rebuild_vtx_interface  also rebuild vertex interfaces ?
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 cs_mesh_init_halo(cs_mesh_t          *mesh,
                   cs_mesh_builder_t  *mb,
-                  cs_halo_type_t      halo_type);
+                  cs_halo_type_t      halo_type,
+                  int                 verbosity,
+                  bool                rebuild_vtx_interace);
 
 /*----------------------------------------------------------------------------
  * Get the global number of ghost cells.
@@ -524,141 +424,6 @@ cs_mesh_n_g_ghost_cells(cs_mesh_t  *mesh);
 
 void
 cs_mesh_sync_var_scal(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a scalar array in case of parallelism and/or periodicity,
- * using an extended halo.
- *
- * Note: this function is only present so that a C equivalent to the
- *       Fortran wrappers is available. In C code, directly using the
- *       cs_halo_sync_var() is preferred.
- *
- * parameters:
- *   var  <->  scalar array
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_scal_ext(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a component of a vector for parallelism and/or periodicity,
- * ignoring periodicity of rotation.
- *
- * Note: this function is only present so that a C equivalent to the
- *       Fortran wrappers is available. In C code, directly using the
- *       cs_halo_sync_var() is preferred.
- *
- * parameters:
- *   var  <->  scalar array
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_component(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var1  <->  vector component 1 array
- *   var2  <->  vector component 2 array
- *   var3  <->  vector component 3 array
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_vect_ni(cs_real_t  *var1,
-                         cs_real_t  *var2,
-                         cs_real_t  *var3);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var  <->  interleaved vector (of dimension 3)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_vect(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a vector array in case of parallelism and/or periodicity,
- * using an extended halo.
- *
- * parameters:
- *   var  <->  interleaved vector (of dimension 3)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_vect_ext(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a components of a vector for parallelism and/or periodicity,
- * ignoring periodicity of rotation.
- *
- *   var                  <-> gradient components (interleaved)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_vect_no_rotation(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a diagonal tensor array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var11  <->  diagonal tensor component 11 array
- *   var22  <->  diagonal tensor component 22 array
- *   var33  <->  diagonal tensor component 33 array
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_diag_ni(cs_real_t  *var11,
-                         cs_real_t  *var22,
-                         cs_real_t  *var33);
-
-/*----------------------------------------------------------------------------
- * Update a tensor array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var11  <->  tensor component 11 array
- *   var12  <->  tensor component 12 array
- *   var13  <->  tensor component 13 array
- *   var21  <->  tensor component 21 array
- *   var22  <->  tensor component 22 array
- *   var23  <->  tensor component 23 array
- *   var31  <->  tensor component 31 array
- *   var32  <->  tensor component 32 array
- *   var33  <->  tensor component 33 array
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_tens_ni(cs_real_t  *var11,
-                         cs_real_t  *var12,
-                         cs_real_t  *var13,
-                         cs_real_t  *var21,
-                         cs_real_t  *var22,
-                         cs_real_t  *var23,
-                         cs_real_t  *var31,
-                         cs_real_t  *var32,
-                         cs_real_t  *var33);
-
-/*----------------------------------------------------------------------------
- * Update a tensor array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var  <->  interleaved tensor (of dimension 3x3)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_tens(cs_real_t  *var);
-
-/*----------------------------------------------------------------------------
- * Update a symmetric tensor array in case of parallelism and/or periodicity.
- *
- * parameters:
- *   var  <->  symmetric interleaved tensor (of dimension 6)
- *----------------------------------------------------------------------------*/
-
-void
-cs_mesh_sync_var_sym_tens(cs_real_t  *var);
 
 /*----------------------------------------------------------------------------
  * Order family numbers and remove duplicates
@@ -703,6 +468,33 @@ void
 cs_mesh_init_selectors(void);
 
 /*----------------------------------------------------------------------------
+ * Assign cell selector to global mesh.
+ *
+ * Should be called once the mesh is fully built.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_init_cell_selector(void);
+
+/*----------------------------------------------------------------------------
+ * Assign boundary selector to global mesh.
+ *
+ * Should be called once the mesh is fully built.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_init_b_selector(void);
+
+/*----------------------------------------------------------------------------
+ * Assign internal selector to global mesh.
+ *
+ * Should be called once the mesh is fully built.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_init_i_selector(void);
+
+/*----------------------------------------------------------------------------
  * Update selector and associated structures.
  *
  * parameters:
@@ -711,6 +503,20 @@ cs_mesh_init_selectors(void);
 
 void
 cs_mesh_update_selectors(cs_mesh_t  *mesh);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Complete mesh numbering substructures.
+ *
+ * If mesh numbering structures from upstream renumbering operations have
+ * not been defined yet for some mesh entities, assign defaults.
+ *
+ * \param[in, out]  mesh  pointer to global mesh structure
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_complete_numbering(cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------
  * Get global lists of periodic face couples.
@@ -766,8 +572,27 @@ void
 cs_mesh_get_face_perio_num(const cs_mesh_t  *mesh,
                            int               perio_num[]);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Mark cells adjacent to boundary, through faces or vertices.
+ *
+ * Note that cells adjacent through a boundary face can be accessed
+ * directly through the mesh->b_cells member, but the set of cells flagged
+ * by this function is more complete.
+ *
+ * \param[in]   mesh         pointer to a mesh structure
+ * \param[out]  cell_b_flag  1 for cells adjacent to boundary, 0 for others
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_tag_boundary_cells(cs_mesh_t  *mesh,
+                           int         cell_b_flag[]);
+
 /*----------------------------------------------------------------------------
  * Print information on a mesh structure.
+ *
+ * This includes printing element counts by cs_mesh_print_element_counts.
  *
  * parameters:
  *   mesh  <--  pointer to mesh structure.
@@ -777,6 +602,18 @@ cs_mesh_get_face_perio_num(const cs_mesh_t  *mesh,
 void
 cs_mesh_print_info(const cs_mesh_t  *mesh,
                    const char       *name);
+
+/*----------------------------------------------------------------------------
+ * Print element counts on a mesh structure.
+ *
+ * parameters:
+ *   mesh  <--  pointer to mesh structure.
+ *   name  <--  associated name.
+ *----------------------------------------------------------------------------*/
+
+void
+cs_mesh_print_element_counts(const cs_mesh_t  *mesh,
+                             const char       *name);
 
 /*----------------------------------------------------------------------------
  * Compute global face connectivity size.
@@ -816,7 +653,101 @@ void
 cs_mesh_dump(const cs_mesh_t  *mesh);
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Determine number of blocks and associated groups to be used
+ *        for loops on interior faces.
+ *
+ * Blocks from a same group may be processed in parallel, while blocks from
+ * separate groups must not run simultaneously to avoid race conditions.
+ *
+ * \param[in]   m           pointer to mesh
+ * \param[in]   e2n         associated indexed sum algorithm type.
+ * \param[in]   block_size  size of thread blocks (chunks) if > 0,
+ *                          ignored (recomputed) if 0.
+ * \param[out]  n_groups    number of associated block groups
+ * \param[out]  n_blocks    number of associated blocks
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_mesh_i_faces_thread_block_count(const cs_mesh_t     *m,
+                                   const cs_e2n_sum_t   e2n,
+                                   int                  block_size,
+                                   int                 *n_groups,
+                                   int                 *n_blocks);
 
-#endif /* __CS_MESH_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute array index bounds for a block of interior faces
+ *        associated to a thread or task.
+ *
+ * When the CS_E2N_SUM_SCATTER indexed sum algorithmm is used and mesh
+ * interior faces are renumbered for threads, the bounds provided are
+ * those based on the matching group and thread.
+ *
+ * In other cases, if block_size < 1 (i.e. not specified), the start and
+ * past-the-end indexes are defined so as to evenly distribute values
+ * to threads, in a manner similar to OpenMP <tt>schedule(static)</tt>.
+ * With a block size larger than zero, indexes will be simply based on
+ * the block's start and past-the end index.
+ *
+ * \param[in]       m            pointer to mesh
+ * \param[in]       e2n          associated indexed sum algorithm type.
+ * \param[in]       group_id     group id
+ * \param[in]       block_id     block id (relative to group)
+ * \param[in]       block_count  number of blocks
+ * \param[in]       block_size   size of blocks (chunks) if > 0,
+ *                               ignored (recomputed) if 0
+ * \param[in, out]  s_id         start index for the current block
+ * \param[in, out]  e_id         past-the-end index for the current block
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_mesh_i_faces_thread_block_range(const cs_mesh_t     *m,
+                                   const cs_e2n_sum_t   e2n,
+                                   int                  group_id,
+                                   int                  block_id,
+                                   int                  block_count,
+                                   int                  block_size,
+                                   cs_lnum_t           *s_id,
+                                   cs_lnum_t           *e_id);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Get the local number of true boundary faces.
+ *
+ * Hidden boundary faces are accounted for, while appended faces are not,
+ * so that the number returned matches that of the actual connectivity.
+ *
+ * \param[in]   m  pointer to mesh
+ *
+ * \return  number of true boundary faces
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_gnum_t
+cs_mesh_n_g_b_faces_true(const cs_mesh_t  *m);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get the local number of true boundary faces.
+ *
+ * Hidden boundary faces are accounted for, while appended faces are not,
+ * so that the number returned matches that of the actual connectivity.
+ *
+ * \param[in]   m  pointer to mesh
+ *
+ * \return  number of true boundary faces
+ */
+/*----------------------------------------------------------------------------*/
+
+inline cs_lnum_t
+cs_mesh_n_b_faces_true(const cs_mesh_t  *m)
+{
+  return  (m->n_b_faces - m->n_b_faces_appended);
+}
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_MESH_H */

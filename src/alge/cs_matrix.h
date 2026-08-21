@@ -1,14 +1,14 @@
-#ifndef __CS_MATRIX_H__
-#define __CS_MATRIX_H__
+#ifndef CS_MATRIX_H
+#define CS_MATRIX_H
 
 /*============================================================================
- * Sparse Matrix Representation and Operations
+ * Sparse Matrix Representation and Operations.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_halo.h"
-#include "cs_numbering.h"
-#include "cs_halo_perio.h"
-#include "cs_matrix_assembler.h"
+#include "base/cs_dispatch.h"
 
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_halo.h"
+#include "base/cs_numbering.h"
+#include "alge/cs_matrix_assembler.h"
 
 /*============================================================================
  * Macro definitions
@@ -56,9 +53,11 @@ typedef enum {
 
   CS_MATRIX_NATIVE,           /*!< Native (edge-based) matrix storage */
   CS_MATRIX_CSR,              /*!< Compressed Sparse Row storage */
-  CS_MATRIX_CSR_SYM,          /*!< Compressed Symmetric Sparse Row storage */
   CS_MATRIX_MSR,              /*!< Modified Compressed Sparse Row storage
-                                (separate diagonal) */
+                                   (separate diagonal) */
+  CS_MATRIX_DIST,             /*!< Distributed matrix storage
+                                   (separate diagonal, off-diagonal, and
+                                   distant coefficients) */
 
   CS_MATRIX_N_BUILTIN_TYPES,  /*!< Number of known and built-in matrix types */
 
@@ -84,6 +83,21 @@ typedef enum {
   CS_MATRIX_N_FILL_TYPES      /* Number of possible matrix fill types */
 
 } cs_matrix_fill_type_t;
+
+/*! SpMV operation types.
+ *
+ * Assuming a matrix is a sum of a diagonal (D), and extra-diagonal (E) part
+ * - A = D + E
+ */
+
+typedef enum {
+
+  CS_MATRIX_SPMV,             /*!< y ← A.x (full matrix)*/
+  CS_MATRIX_SPMV_E,           /*!< y ← E.x (extra-diagonal only) */
+
+  CS_MATRIX_SPMV_N_TYPES      /*!< Number of handled SpMV operations */
+
+} cs_matrix_spmv_type_t;
 
 /* Structure associated with opaque matrix structure object */
 
@@ -111,20 +125,67 @@ typedef struct {
 } cs_matrix_row_info_t;
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
-/* Short names for matrix types */
-
-extern const char  *cs_matrix_type_name[];
-
-/* Full names for matrix types */
-
-extern const char  *cs_matrix_type_fullname[];
-
-/* Fill type names for matrices */
+/*! Fill type names for matrices */
 
 extern const char  *cs_matrix_fill_type_name[];
+
+/*! Operation type type names for partial SpMV functions */
+
+extern const char  *cs_matrix_spmv_type_name[];
+
+/*=============================================================================
+ * Public C++ function prototypes
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Matrix.vector product y = A.x
+ *
+ * This function includes a halo update of x prior to multiplication by A.
+ *
+ * \param[in, out]  ctx      reference to dispatch context
+ * \param[in]       matrix   pointer to matrix structure
+ * \param[in, out]  x        multiplying vector values
+ *                           (ghost values updated)
+ * \param[out]      y        resulting vector
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_vector_multiply([[maybe_unused]] cs_dispatch_context  &ctx,
+                          const            cs_matrix_t          *matrix,
+                          cs_real_t                              x[],
+                          cs_real_t                              y[]);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Partial matrix.vector product.
+ *
+ * This function includes a halo update of x prior to multiplication,
+ * except for the CS_MATRIX_SPMV_L operation type, which does not require it,
+ * as halo adjacencies are only present and useful in the upper-diagonal part..
+ *
+ * \param[in, out]  ctx      reference to dispatch context
+ * \param[in]       matrix   pointer to matrix structure
+ * \param[in]       op_type  SpMV operation type
+ * \param[in, out]  x        multiplying vector values
+ *                           (ghost values updated)
+ * \param[out]      y        resulting vector
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_vector_multiply_partial
+(
+  [[maybe_unused]] cs_dispatch_context  &ctx,
+  const cs_matrix_t                     *matrix,
+  cs_matrix_spmv_type_t                  op_type,
+  cs_real_t                              x[],
+  cs_real_t                              y[]
+);
 
 /*=============================================================================
  * Public function prototypes
@@ -138,21 +199,20 @@ extern const char  *cs_matrix_fill_type_name[];
  * structure, so it must be destroyed before they are freed
  * (usually along with the code's main face -> cell structure).
  *
- * Note that the resulting matrix structure will contain either a full or
- * an empty main diagonal, and that the extra-diagonal structure is always
+ * Note that the resulting matrix structure will contain a full main
+ * main diagonal, and that the extra-diagonal structure is always
  * symmetric (though the coefficients my not be, and we may choose a
  * matrix format that does not exploit this symmetry). If the edges
- * connectivity argument is NULL, the matrix will be purely diagonal.
+ * connectivity argument is null, the matrix will be purely diagonal.
  *
  * parameters:
  *   type        <-- type of matrix considered
- *   have_diag   <-- indicates if the diagonal structure contains nonzeroes
  *   n_rows      <-- local number of rows
  *   n_cols_ext  <-- number of columns + ghosts
  *   n_edges     <-- local number of (undirected) graph edges
  *   edges       <-- edges (symmetric row <-> column) connectivity
- *   halo        <-- halo structure associated with cells, or NULL
- *   numbering   <-- vectorization or thread-related numbering info, or NULL
+ *   halo        <-- halo structure associated with cells, or nullptr
+ *   numbering   <-- vectorization or thread-related numbering info, or nullptr
  *
  * returns:
  *   pointer to created matrix structure;
@@ -160,7 +220,6 @@ extern const char  *cs_matrix_fill_type_name[];
 
 cs_matrix_structure_t *
 cs_matrix_structure_create(cs_matrix_type_t       type,
-                           bool                   have_diag,
                            cs_lnum_t              n_rows,
                            cs_lnum_t              n_cols_ext,
                            cs_lnum_t              n_edges,
@@ -176,7 +235,7 @@ cs_matrix_structure_create(cs_matrix_type_t       type,
  * col_id is sorted row by row during the creation of this structure.
  *
  * In case the property of the row index and col_id arrays are transferred
- * to the structure, the arrays pointers passed as arguments are set to NULL,
+ * to the structure, the arrays pointers passed as arguments are set to nullptr,
  * to help ensure the caller does not use the original arrays directly after
  * this call.
  *
@@ -184,14 +243,15 @@ cs_matrix_structure_create(cs_matrix_type_t       type,
  *   type       <-- type of matrix considered
  *   transfer   <-- transfer property of row_index and col_id
  *                  if true, map them otherwise
+ *   ordered    <-- indicates if column ids are already ordered
  *   have_diag  <-- indicates if the structure includes the
  *                  diagonal (should be the same for all rows)
  *   n_rows     <-- local number of rows
  *   n_cols_ext <-- local number of columns + ghosts
  *   row_index  <-> pointer to index on rows
  *   col_id     <-> pointer to array of colum ids related to the row index
- *   halo       <-- halo structure for synchronization, or NULL
- *   numbering  <-- vectorization or thread-related numbering info, or NULL
+ *   halo       <-- halo structure for synchronization, or nullptr
+ *   numbering  <-- vectorization or thread-related numbering info, or nullptr
  *
  * returns:
  *   a pointer to a created matrix structure
@@ -201,6 +261,7 @@ cs_matrix_structure_t *
 cs_matrix_structure_create_msr(cs_matrix_type_t        type,
                                bool                    transfer,
                                bool                    have_diag,
+                               bool                    ordered,
                                cs_lnum_t               n_rows,
                                cs_lnum_t               n_cols_ext,
                                cs_lnum_t             **row_index,
@@ -217,24 +278,21 @@ cs_matrix_structure_create_msr(cs_matrix_type_t        type,
  * (usually along with the code's main face -> cell structure).
  *
  * parameters:
- *   have_diag        <-- indicates if the structure includes the
- *                        diagonal (should be the same for all rows)
  *   direct_assembly  <-- true if each value corresponds to a unique face
  *   n_rows           <-- local number of rows
  *   n_cols_ext       <-- local number of columns + ghosts
  *   row_index        <-- pointer to index on rows
  *   col_id           <-- pointer to array of colum ids related to the row index
- *   halo             <-- halo structure for synchronization, or NULL
+ *   halo             <-- halo structure for synchronization, or nullptr
  *   numbering        <-- vectorization or thread-related numbering
- *                        info, or NULL
+ *                        info, or nullptr
  *
  * returns:
  *   a pointer to a created matrix structure
  *----------------------------------------------------------------------------*/
 
 cs_matrix_structure_t *
-cs_matrix_structure_create_msr_shared(bool                    have_diag,
-                                      bool                    direct_assmbly,
+cs_matrix_structure_create_msr_shared(bool                    direct_assmbly,
                                       cs_lnum_t               n_rows,
                                       cs_lnum_t               n_cols_ext,
                                       const cs_lnum_t        *row_index,
@@ -251,7 +309,7 @@ cs_matrix_structure_create_msr_shared(bool                    have_diag,
  * \param[in]  type  type of matrix considered
  * \param[in]  ma    pointer to matrix assembler structure
  *
- * \return  a pointer to a created matrix structure
+ * \return a pointer to a created matrix structure
  */
 /*----------------------------------------------------------------------------*/
 
@@ -268,6 +326,56 @@ cs_matrix_structure_create_from_assembler(cs_matrix_type_t        type,
 
 void
 cs_matrix_structure_destroy(cs_matrix_structure_t  **ms);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Release arrays describing an MSR matrix structure.
+ *
+ * Ownership is provided back to the caller, if pointers are provided.
+ * If the matrix does not own a given array, a nullptr value is returned
+ * for that array.
+ *
+ * This function only works for an MSR matrix (i.e. there is
+ * no automatic conversion from another matrix type).
+ *
+ * \param[in, out]   ms         pointer to matrix structure
+ * \param[out]       row_index  MSR row index, or null
+ * \param[out]       col_id     MSR column id, or null
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_structure_release_msr_arrays(cs_matrix_structure_t   *ms,
+                                       cs_lnum_t              **row_index,
+                                       cs_lnum_t              **col_id);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Query matrix structure allocation mode.
+ *
+ * \param[in]  ms  pointer to matrix structure
+ *
+ * \return  host/device allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_alloc_mode_t
+cs_matrix_structure_get_alloc_mode(const cs_matrix_structure_t  *ms);
+
+/*----------------------------------------------------------------------------*/
+/*
+ *\brief Set matrix structure allocation mode.
+ *
+ * The allocation mode will be changed only for arrays owned by the structure.
+ *
+ * \param[in, out]  ms          pointer to matrix structure
+ * \param[in]       alloc_mode  host/device allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_structure_set_alloc_mode(cs_matrix_structure_t  *ms,
+                                   cs_alloc_mode_t         alloc_mode);
 
 /*----------------------------------------------------------------------------
  * Create a matrix container using a given structure.
@@ -360,105 +468,204 @@ cs_matrix_type_t
 cs_matrix_get_type(const cs_matrix_t  *matrix);
 
 /*----------------------------------------------------------------------------
- * Return number of columns in matrix.
+ * Return matrix type name.
  *
  * parameters:
  *   matrix --> pointer to matrix structure
  *----------------------------------------------------------------------------*/
+
+const char *
+cs_matrix_get_type_name(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------
+ * Return matrix type full name.
+ *
+ * parameters:
+ *   matrix --> pointer to matrix structure
+ *----------------------------------------------------------------------------*/
+
+const char *
+cs_matrix_get_type_fullname(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return number of columns in a matrix.
+ *
+ * \param[in] matrix  pointer to matrix structure
+ *
+ * \return the number of columns
+ */
+/*----------------------------------------------------------------------------*/
 
 cs_lnum_t
 cs_matrix_get_n_columns(const cs_matrix_t  *matrix);
 
-/*----------------------------------------------------------------------------
- * Return number of rows in matrix.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the number of rows in matrix.
  *
- * parameters:
- *   matrix --> pointer to matrix structure
- *----------------------------------------------------------------------------*/
+ * \param[in] matrix  pointer to matrix structure
+ *
+ * \return the number of rows
+ */
+/*----------------------------------------------------------------------------*/
 
 cs_lnum_t
 cs_matrix_get_n_rows(const cs_matrix_t  *matrix);
 
-/*----------------------------------------------------------------------------
- * Return number of entries in matrix.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the number of entries in matrix.
  *
  * When the block size is > 1, the number reported is the number of
  * entry blocks, not individual entries.
  *
- * parameters:
- *   matrix --> pointer to matrix structure
- *----------------------------------------------------------------------------*/
+ * \param[in] matrix  pointer to matrix structure
+ *
+ * \return the number of entries
+ */
+/*----------------------------------------------------------------------------*/
 
 cs_lnum_t
 cs_matrix_get_n_entries(const cs_matrix_t  *matrix);
 
-/*----------------------------------------------------------------------------
- * Return matrix diagonal block sizes.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the size of the diagonal block for the given matrix
  *
- * Block sizes are defined by a array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
+ * \param[in] matrix  pointer to matrix structure
  *
- * parameters:
- *   matrix <-- pointer to matrix structure
- *
- * returns:
- *   pointer to block sizes
- *----------------------------------------------------------------------------*/
+ * \return the of the diagonal block
+ */
+/*----------------------------------------------------------------------------*/
 
-const cs_lnum_t *
+cs_lnum_t
 cs_matrix_get_diag_block_size(const cs_matrix_t  *matrix);
 
-/*----------------------------------------------------------------------------
- * Return matrix extra-diagonal block sizes.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the size of the extra-diagonal block for the given matrix
  *
- * Block sizes are defined by a array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
+ * \param[in] matrix  pointer to matrix structure
  *
- * parameters:
- *   matrix <-- pointer to matrix structure
- *
- * returns:
- *   pointer to block sizes
- *----------------------------------------------------------------------------*/
+ * \return the size of the extra-diagonal block
+ */
+/*----------------------------------------------------------------------------*/
 
-const cs_lnum_t *
+cs_lnum_t
 cs_matrix_get_extra_diag_block_size(const cs_matrix_t  *matrix);
 
-/*----------------------------------------------------------------------------
- * Return pointer to matrix halo structure.
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Return matrix assembler if present.
  *
- * parameters:
- *   matrix <-- pointer to matrix structure
+ * \param[in]  matrix  pointer to matrix structure
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_matrix_assembler_t  *
+cs_matrix_get_assembler(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return the pointer to the halo structure for the given matrix
  *
- * returns:
- *   pointer to halo strucuture
- *----------------------------------------------------------------------------*/
+ * \param[in] matrix  pointer to matrix structure
+ *
+ * \return pointer to the associated halo structure
+ */
+/*----------------------------------------------------------------------------*/
 
 const cs_halo_t *
 cs_matrix_get_halo(const cs_matrix_t  *matrix);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Return a pointer to local global row range associated with a
+ *        matrix, if available
+ *
+ * \param[in] matrix   pointer to matrix structure
+ *
+ * \return pointer to local range, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+const cs_gnum_t *
+cs_matrix_get_l_range(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Query matrix allocation mode.
+ *
+ * \param[in]  matrix  pointer to matrix structure
+ *
+ * \return  host/device allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+cs_alloc_mode_t
+cs_matrix_get_alloc_mode(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ *\brief Set matrix allocation mode.
+ *
+ * When coefficients are already present, their allocation mode will be
+ * changed only when owned directly by this matrix, not shared with another.
+ * Also, a matrix's allocation mode should ne be changed if some of its
+ * coefficients are already shared by another.
+ *
+ * \param[in, out]  matrix      pointer to matrix structure
+ * \param[in]      alloc_mode  host/device allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_set_alloc_mode(cs_matrix_t       *matrix,
+                         cs_alloc_mode_t   alloc_mode);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Query matrix allocation mode.
+ *
+ * \param[in]  matrix  pointer to matrix structure
+ *
+ * \return  host/device allocation mode
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+cs_matrix_get_need_xa(const cs_matrix_t  *matrix);
+
+/*----------------------------------------------------------------------------*/
+/*
+ *\brief Indicate whether matrix will need xa coefficients.
+ *
+ * \param[in, out]  matrix      pointer to matrix structure
+ * \param[in]       need_xa     is thr face-based xa array needed ?
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_set_need_xa(cs_matrix_t  *matrix,
+                      bool          need_xa);
+
 /*----------------------------------------------------------------------------
  * Get matrix fill type, depending on block sizes.
  *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
- *
  * parameters:
  *   symmetric              <-- indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- block sizes for diagonal
+ *   extra_diag_block_size  <-- block sizes for extra diagonal
  *
  * returns:
  *   matrix fill type
  *----------------------------------------------------------------------------*/
 
 cs_matrix_fill_type_t
-cs_matrix_get_fill_type(bool              symmetric,
-                        const cs_lnum_t  *diag_block_size,
-                        const cs_lnum_t  *extra_diag_block_size);
+cs_matrix_get_fill_type(bool       symmetric,
+                        cs_lnum_t  diag_block_size,
+                        cs_lnum_t  extra_diag_block_size);
 
 /*----------------------------------------------------------------------------
  * Set matrix coefficients defined relative to a "native" edge graph,
@@ -471,19 +678,15 @@ cs_matrix_get_fill_type(bool              symmetric,
  * Depending on current options and initialization, values will be copied
  * or simply mapped.
  *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
- *
  * parameters:
  *   matrix                 <-> pointer to matrix structure
  *   symmetric              <-- indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- block sizes for diagonal
+ *   extra_diag_block_size  <-- block sizes for extra diagonal
  *   n_edges                <-- local number of graph edges
  *   edges                  <-- edges (row <-> column) connectivity
- *   da                     <-- diagonal values (NULL if zero)
- *   xa                     <-- extradiagonal values (NULL if zero)
+ *   da                     <-- diagonal values (nullptr if zero)
+ *   xa                     <-- extradiagonal values (nullptr if zero)
  *                              casts as:
  *                                xa[n_edges]    if symmetric,
  *                                xa[n_edges][2] if non symmetric
@@ -492,46 +695,39 @@ cs_matrix_get_fill_type(bool              symmetric,
 void
 cs_matrix_set_coefficients(cs_matrix_t        *matrix,
                            bool                symmetric,
-                           const cs_lnum_t    *diag_block_size,
-                           const cs_lnum_t    *extra_diag_block_size,
+                           cs_lnum_t           diag_block_size,
+                           cs_lnum_t           extra_diag_block_size,
                            const cs_lnum_t     n_edges,
                            const cs_lnum_2_t   edges[],
                            const cs_real_t    *da,
                            const cs_real_t    *xa);
 
 /*----------------------------------------------------------------------------
- * Set matrix coefficients, copying values to private arrays.
- *
- * With private arrays, the matrix becomes independant from the
- * arrays passed as arguments.
- *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
+ * Transfer matrix coefficients defined relative to a "native" edge graph.
  *
  * parameters:
  *   matrix                 <-> pointer to matrix structure
  *   symmetric              <-- indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- block sizes for diagonal
+ *   extra_diag_block_size  <-- block sizes for extra diagonal
  *   n_edges                <-- local number of graph edges
  *   edges                  <-- edges (row <-> column) connectivity
- *   da                     <-- diagonal values (NULL if zero)
- *   xa                     <-- extradiagonal values (NULL if zero)
+ *   da                     <-- diagonal values (nullptr if zero)
+ *   xa                     <-- extradiagonal values (nullptr if zero)
  *                              casts as:
  *                                xa[n_edges]    if symmetric,
  *                                xa[n_edges][2] if non symmetric
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_copy_coefficients(cs_matrix_t        *matrix,
-                            bool                symmetric,
-                            const cs_lnum_t    *diag_block_size,
-                            const cs_lnum_t    *extra_diag_block_size,
-                            const cs_lnum_t     n_edges,
-                            const cs_lnum_2_t   edges[],
-                            const cs_real_t    *da,
-                            const cs_real_t    *xa);
+cs_matrix_transfer_coefficients(cs_matrix_t         *matrix,
+                                bool                symmetric,
+                                cs_lnum_t           diag_block_size,
+                                cs_lnum_t           extra_diag_block_size,
+                                const cs_lnum_t     n_edges,
+                                const cs_lnum_2_t   edges[],
+                                cs_real_t          **d_val,
+                                cs_real_t          **x_val);
 
 /*----------------------------------------------------------------------------
  * Set matrix coefficients in an MSR format, transferring the
@@ -540,33 +736,56 @@ cs_matrix_copy_coefficients(cs_matrix_t        *matrix,
  * If the matrix is also in MSR format, this avoids an extra copy.
  * If it is in a different format, values are copied to the structure,
  * and the original arrays freed. In any case, the arrays pointers passed as
- * arguments are set to NULL, to help ensure the caller does not use the
+ * arguments are set to nullptr, to help ensure the caller does not use the
  * original arrays directly after this call.
- *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
  *
  * parameters:
  *   matrix                 <-> pointer to matrix structure
  *   symmetric              <-- indicates if matrix coefficients are symmetric
- *   diag_block_size        <-- block sizes for diagonal, or NULL
- *   extra_diag_block_size  <-- block sizes for extra diagonal, or NULL
+ *   diag_block_size        <-- block sizes for diagonal
+ *   extra_diag_block_size  <-- block sizes for extra diagonal
  *   row_index              <-- MSR row index (0 to n-1)
  *   col_id                 <-- MSR column id (0 to n-1)
- *   d_val                  <-> diagonal values (NULL if zero)
- *   x_val                  <-> extradiagonal values (NULL if zero)
+ *   d_val                  <-> diagonal values (nullptr if zero)
+ *   x_val                  <-> extradiagonal values (nullptr if zero)
  *----------------------------------------------------------------------------*/
 
 void
 cs_matrix_transfer_coefficients_msr(cs_matrix_t         *matrix,
                                     bool                 symmetric,
-                                    const cs_lnum_t     *diag_block_size,
-                                    const cs_lnum_t     *extra_diag_block_size,
+                                    cs_lnum_t            diag_block_size,
+                                    cs_lnum_t            extra_diag_block_size,
                                     const cs_lnum_t      row_index[],
                                     const cs_lnum_t      col_id[],
                                     cs_real_t          **d_val,
                                     cs_real_t          **x_val);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Directly access matrix coefficients in an MSR format for writing.
+ *
+ * The matrix's fil type is also set by this function.
+ *
+ * The associated matrix must be in MSR format, and the associated row index
+ * and column ids known.
+ *
+ * \param[in, out]  matrix                 pointer to matrix structure
+ * \param[in]       symmetric              indicates if matrix coefficients
+ *                                         are symmetric
+ * \param[in]       diag_block_size        block sizes for diagonal
+ * \param[in]       extra_diag_block_size  block sizes for extra diagonal
+ * \param[in, out]  d_val                  diagonal values (nullptr if zero)
+ * \param[in, out]  e_val                  extradiagonal values (nullptr if zero)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_get_coefficients_msr_w(cs_matrix_t         *matrix,
+                                 bool                 symmetric,
+                                 cs_lnum_t            diag_block_size,
+                                 cs_lnum_t            extra_diag_block_size,
+                                 cs_real_t          **d_val,
+                                 cs_real_t          **x_val);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -575,28 +794,23 @@ cs_matrix_transfer_coefficients_msr(cs_matrix_t         *matrix,
  * The associated matrix's structure must have been created using
  * \ref cs_matrix_structure_create_from_assembler.
  *
- * Block sizes are defined by an optional array of 4 values:
- *   0: useful block size, 1: vector block extents,
- *   2: matrix line extents,  3: matrix line*column extents
- *
  * \param[in, out]  matrix                 pointer to matrix structure
- * \param[in]       diag_block_size        block sizes for diagonal, or NULL
- * \param[in]       extra_diag_block_size  block sizes for extra diagonal,
- *                                         or NULL
+ * \param[in]       diag_block_size        block sizes for diagonal
+ * \param[in]       extra_diag_block_size  block sizes for extra diagonal
  *
  * \return  pointer to initialized matrix assembler values structure;
  */
 /*----------------------------------------------------------------------------*/
 
 cs_matrix_assembler_values_t *
-cs_matrix_assembler_values_init(cs_matrix_t      *matrix,
-                                const cs_lnum_t  *diag_block_size,
-                                const cs_lnum_t  *extra_diag_block_size);
+cs_matrix_assembler_values_init(cs_matrix_t  *matrix,
+                                cs_lnum_t     diag_block_size,
+                                cs_lnum_t     extra_diag_block_size);
 
 /*----------------------------------------------------------------------------
  * Release shared matrix coefficients.
  *
- * Pointers to mapped coefficients are set to NULL, while
+ * Pointers to mapped coefficients are set to nullptr, while
  * coefficient copies owned by the matrix are not modified.
  *
  * This simply ensures the matrix does not maintain pointers
@@ -622,7 +836,7 @@ cs_matrix_release_coefficients(cs_matrix_t  *matrix);
 
 void
 cs_matrix_copy_diagonal(const cs_matrix_t  *matrix,
-                        cs_real_t          *restrict da);
+                        cs_real_t          *da);
 
 /*----------------------------------------------------------------------------
  * Query matrix coefficients symmetry
@@ -804,6 +1018,95 @@ cs_matrix_get_msr_arrays(const cs_matrix_t   *matrix,
                          const cs_real_t    **d_val,
                          const cs_real_t    **x_val);
 
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Release arrays describing a matrix in MSR format.
+ *
+ * Ownership is provided back to the caller, if pointers are provided.
+ * If the matrix does not own a given array, a nullptr value is returned
+ * for that array.
+ *
+ * This function only works for an MSR matrix (i.e. there is
+ * no automatic conversion from another matrix type).
+ *
+ * \param[in, out]   matrix     pointer to matrix structure
+ * \param[out]       row_index  MSR row index, or null
+ * \param[out]       col_id     MSR column id, or null
+ * \param[out]       d_val      diagonal values, or null
+ * \param[out]       x_val      extra-diagonal values, or null
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_release_msr_arrays(cs_matrix_t    *matrix,
+                             cs_lnum_t    **row_index,
+                             cs_lnum_t    **col_id,
+                             cs_real_t    **d_val,
+                             cs_real_t    **x_val);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Associate mesh information with a matrix.
+ *
+ * This may be useful for multigrid smoothing.
+ *
+ * At least cell centers and volumes are needed for relaxation, and face
+ * adjacency and normals are needed for the "classical" option.
+ *
+ * Note that cells and faces here do not need to be primary mesh elements,
+ * but could be dual mesh elements of some sort.
+ *
+ * The arrays passed to the matrix are shared, so should have a lifetime
+ * at least as long as the matrix.
+ *
+ * \param[in, out]   matrix         pointer to matrix structure
+ * \param[in]        c2f_idx        cell to faces index, or nullptr
+ * \param[in]        c2f            cell to faces adjacency, or nullptr
+ * \param[in]        c2f_sgn        cell to faces adjacency sign, or nullptr
+ * \param[in]        cell_cen       cell center coordinates
+ * \param[in]        cell_vol       cell volumes
+ * \param[in]        face_u_normal  face unit normal, or nullptr
+ * \param[in]        face_surf      face surface, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_set_mesh_association(cs_matrix_t         *matrix,
+                               const cs_lnum_t     *c2f_idx,
+                               const cs_lnum_t     *c2f,
+                               const short int     *c2f_sgn,
+                               const cs_real_3_t   *cell_cen,
+                               const cs_real_t     *cell_vol,
+                               const cs_nreal_3_t  *face_u_normal,
+                               const cs_real_t     *face_surf);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Query mesh information that me be associated with a matrix.
+ *
+ * This may be useful for multigrid smoothing.
+ *
+ * \param[in]   matrix         pointer to matrix structure
+ * \param[out]  c2f_idx        cell to faces index, or nullptr
+ * \param[out]  c2f            cell to faces adjacency, or nullptr
+ * \param[out]  c2f_sgn        cell to faces adjacency sign, or nullptr
+ * \param[out]  cell_cen       cell center coordinates, or nullptr
+ * \param[out]  cell_vol       cell volumes, or nullptr
+ * \param[out]  face_u_normal  face unit normal, or nullptr
+ * \param[out]  face_surf      face surface, or nullptr
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_get_mesh_association(const cs_matrix_t    *matrix,
+                               const cs_lnum_t     **c2f_idx,
+                               const cs_lnum_t     **c2f,
+                               const short int     **c2f_sgn,
+                               const cs_real_3_t   **cell_cen,
+                               const cs_real_t     **cell_vol,
+                               const cs_nreal_3_t  **face_normal,
+                               const cs_real_t     **face_surf);
+
 /*----------------------------------------------------------------------------
  * Assign functions based on a variant to a given matrix.
  *
@@ -828,17 +1131,37 @@ cs_matrix_apply_variant(cs_matrix_t                *m,
  * This function includes a halo update of x prior to multiplication by A.
  *
  * parameters:
- *   rotation_mode --> halo update option for rotational periodicity
  *   matrix        --> pointer to matrix structure
  *   x             <-> multipliying vector values (ghost values updated)
  *   y             --> resulting vector
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_vector_multiply(cs_halo_rotation_t   rotation_mode,
-                          const cs_matrix_t   *matrix,
-                          cs_real_t           *restrict x,
-                          cs_real_t           *restrict y);
+cs_matrix_vector_multiply(const cs_matrix_t   *matrix,
+                          cs_real_t           *x,
+                          cs_real_t           *y);
+
+#if defined(HAVE_ACCEL)
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Matrix.vector product y = A.x, on device
+ *
+ * This function includes a halo update of x prior to multiplication by A.
+ *
+ * \param[in]       matrix         pointer to matrix structure
+ * \param[in, out]  x              multiplying vector values, on device
+ *                                 (ghost values updated)
+ * \param[out]      y              resulting vector (on device)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_vector_multiply_d(const cs_matrix_t   *matrix,
+                            cs_real_t           *x,
+                            cs_real_t           *y);
+
+#endif /* defined(HAVE_ACCEL) */
 
 /*----------------------------------------------------------------------------
  * Matrix.vector product y = A.x with no prior halo update of x.
@@ -851,157 +1174,71 @@ cs_matrix_vector_multiply(cs_halo_rotation_t   rotation_mode,
  * parameters:
  *   matrix --> pointer to matrix structure
  *   x      --> multipliying vector values
- *   y      --> resulting vector
+ *   y      <-- resulting vector
  *----------------------------------------------------------------------------*/
 
 void
 cs_matrix_vector_multiply_nosync(const cs_matrix_t  *matrix,
-                                 const cs_real_t    *x,
-                                 cs_real_t          *restrict y);
+                                 cs_real_t          *x,
+                                 cs_real_t          *y);
 
 /*----------------------------------------------------------------------------
- * Matrix.vector product y = (A-D).x
+ * Partial matrix.vector product.
  *
- * This function includes a halo update of x prior to multiplication by A.
+ * This function includes a halo update of x prior to multiplication,
+ * except for the CS_MATRIX_SPMV_L operation type, which does not require it,
+ * as halo adjacencies are only present and useful in the upper-diagonal part..
  *
  * parameters:
- *   rotation_mode <-- halo update option for rotational periodicity
  *   matrix        <-- pointer to matrix structure
+ *   op_type       <-- SpMV operation type
  *   x             <-> multipliying vector values (ghost values updated)
  *   y             --> resulting vector
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_exdiag_vector_multiply(cs_halo_rotation_t   rotation_mode,
-                                 const cs_matrix_t   *matrix,
-                                 cs_real_t           *restrict x,
-                                 cs_real_t           *restrict y);
+cs_matrix_vector_multiply_partial(const cs_matrix_t      *matrix,
+                                  cs_matrix_spmv_type_t   op_type,
+                                  cs_real_t              *x,
+                                  cs_real_t              *y);
+
+#if defined(HAVE_ACCEL)
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Partial matrix.vector product, on device
+ *
+ * This function includes a halo update of x prior to multiplication,
+ * except for the CS_MATRIX_SPMV_L operation type, which does not require it,
+ * as halo adjacencies are only present and useful in the upper-diagonal part..
+ *
+ * \param[in]       matrix         pointer to matrix structure
+ * \param[in]       op_type        SpMV operation type
+ * \param[in, out]  x              multiplying vector values, on device
+ *                                 (ghost values updated)
+ * \param[out]      y              resulting vector, on device
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_vector_multiply_partial_d(const cs_matrix_t      *matrix,
+                                    cs_matrix_spmv_type_t   op_type,
+                                    cs_real_t              *x,
+                                    cs_real_t              *y);
+
+#endif /* defined(HAVE_ACCEL) */
 
 /*----------------------------------------------------------------------------
  * Synchronize ghost values prior to matrix.vector product
  *
  * parameters:
- *   rotation_mode <-- halo update option for rotational periodicity
  *   matrix        <-- pointer to matrix structure
  *   x             <-> multipliying vector values (ghost values updated)
  *----------------------------------------------------------------------------*/
 
 void
-cs_matrix_pre_vector_multiply_sync(cs_halo_rotation_t   rotation_mode,
-                                   const cs_matrix_t   *matrix,
+cs_matrix_pre_vector_multiply_sync(const cs_matrix_t   *matrix,
                                    cs_real_t           *x);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Function for initialization of CSR matrix coefficients using
- *        local row ids and column indexes.
- *
- * \warning  The matrix pointer must point to valid data when the selection
- *           function is called, so the life cycle of the data pointed to
- *           should be at least as long as that of the assembler values
- *           structure.
- *
- * \param[in, out]  matrix_p  untyped pointer to matrix description structure
- * \param[in]       db size   optional diagonal block sizes
- * \param[in]       eb size   optional extra-diagonal block sizes
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_matrix_csr_assembler_values_init(void              *matrix_p,
-                                    const cs_lnum_t    db_size[4],
-                                    const cs_lnum_t    eb_size[4]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Function pointer for addition to CSR matrix coefficients using
- *        local row ids and column indexes.
- *
- * Values whose associated row index is negative should be ignored;
- * Values whose column index is -1 are assumed to be assigned to a
- * separately stored diagonal. Other indexes shoudl be valid.
- *
- * \warning  The matrix pointer must point to valid data when the selection
- *           function is called, so the life cycle of the data pointed to
- *           should be at least as long as that of the assembler values
- *           structure.
- *
- * \remark  Note that we pass column indexes (not ids) here; as the
- *          caller is already assumed to have identified the index
- *          matching a given column id.
- *
- * \param[in, out]  matrix_p  untyped pointer to matrix description structure
- * \param[in]       n         number of values to add
- * \param[in]       stride    associated data block size
- * \param[in]       row_id    associated local row ids
- * \param[in]       col_idx   associated local column indexes
- * \param[in]       val       pointer to values (size: n*stride)
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_matrix_csr_assembler_values_add(void             *matrix_p,
-                                   cs_lnum_t         n,
-                                   cs_lnum_t         stride,
-                                   const cs_lnum_t   row_id[],
-                                   const cs_lnum_t   col_idx[],
-                                   const cs_real_t   vals[]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Function for initialization of MSR matrix coefficients using
- *        local row ids and column indexes.
- *
- * \warning  The matrix pointer must point to valid data when the selection
- *           function is called, so the life cycle of the data pointed to
- *           should be at least as long as that of the assembler values
- *           structure.
- *
- * \param[in, out]  matrix_p  untyped pointer to matrix description structure
- * \param[in]       db size   optional diagonal block sizes
- * \param[in]       eb size   optional extra-diagonal block sizes
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_matrix_msr_assembler_values_init(void              *matrix_p,
-                                    const cs_lnum_t    db_size[4],
-                                    const cs_lnum_t    eb_size[4]);
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Function pointer for addition to MSR matrix coefficients using
- *        local row ids and column indexes.
- *
- * Values whose associated row index is negative should be ignored;
- * Values whose column index is -1 are assumed to be assigned to a
- * separately stored diagonal. Other indexes shoudl be valid.
- *
- * \warning  The matrix pointer must point to valid data when the selection
- *           function is called, so the life cycle of the data pointed to
- *           should be at least as long as that of the assembler values
- *           structure.
- *
- * \remark  Note that we pass column indexes (not ids) here; as the
- *          caller is already assumed to have identified the index
- *          matching a given column id.
- *
- * \param[in, out]  matrix_p  untyped pointer to matrix description structure
- * \param[in]       n         number of values to add
- * \param[in]       stride    associated data block size
- * \param[in]       row_id    associated local row ids
- * \param[in]       col_idx   associated local column indexes
- * \param[in]       val       pointer to values (size: n*stride)
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_matrix_msr_assembler_values_add(void             *matrix_p,
-                                   cs_lnum_t         n,
-                                   cs_lnum_t         stride,
-                                   const cs_lnum_t   row_id[],
-                                   const cs_lnum_t   col_idx[],
-                                   const cs_real_t   vals[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -1058,6 +1295,19 @@ void
 cs_matrix_variant_apply(cs_matrix_t          *m,
                         cs_matrix_variant_t  *mv);
 
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Apply variants defined by tuning to a given matrix
+ *
+ * \param[in, out]  m   pointer to matrix
+ * \param[in]       mv  pointer to matrix variant pointer
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_matrix_variant_apply_tuned(cs_matrix_t          *m,
+                              cs_matrix_variant_t  *mv);
+
 /*----------------------------------------------------------------------------
  * Select the sparse matrix-vector product function to be used by a
  * matrix variant for a given fill type.
@@ -1066,53 +1316,49 @@ cs_matrix_variant_apply(cs_matrix_t          *m,
  *
  *   CS_MATRIX_NATIVE  (all fill types)
  *     default
- *     standard
+ *     baseline
  *     omp             (for OpenMP with compatible numbering)
+ *     omp_atomic      (for OpenMP with atomics)
  *     vector          (For vector machine with compatible numbering)
  *
  *   CS_MATRIX_CSR     (for CS_MATRIX_SCALAR or CS_MATRIX_SCALAR_SYM)
  *     default
- *     standard
  *     mkl             (with MKL)
  *
- *   CS_MATRIX_CSR_SYM (for CS_MATRIX_SCALAR_SYM)
+ *   CS_MATRIX_MSR     (all fill types)
  *     default
- *     standard
- *     mkl             (with MKL)
- *
- *   CS_MATRIX_MSR     (all fill types except CS_MATRIX_33_BLOCK)
- *     default
- *     standard
  *     mkl             (with MKL, for CS_MATRIX_SCALAR or CS_MATRIX_SCALAR_SYM)
  *     omp_sched       (For OpenMP with scheduling)
  *
  * parameters:
- *   mv        <-> pointer to matrix variant
- *   numbering <-- mesh numbering info, or NULL
- *   fill type <-- matrix fill type to merge from
- *   ed_flag   <-- 0: with diagonal only, 1 exclude only; 2; both
- *   func_name <-- function type name
+ *   mv         <->  pointer to matrix variant
+ *   numbering  <--  mesh numbering info, or nullptr
+ *   fill type  <--  matrix fill type to merge from
+ *   spmv_type  <--  SpMV operation type (full or sub-matrix)
+ *                   (all types if CS_MATRIX_SPMV_N_TYPES)
+ *   func_name  <--  function type name
  *----------------------------------------------------------------------------*/
 
 void
 cs_matrix_variant_set_func(cs_matrix_variant_t     *mv,
-                           const cs_numbering_t    *numbering,
                            cs_matrix_fill_type_t    fill_type,
-                           int                      ed_flag,
+                           cs_matrix_spmv_type_t    spmv_type,
+                           const cs_numbering_t    *numbering,
                            const char              *func_name);
 
-/*----------------------------------------------------------------------------
- * Get the type associated with a matrix variant.
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Get the type associated with a matrix variant.
  *
- * parameters:
- *   mv <-- pointer to matrix variant structure
- *----------------------------------------------------------------------------*/
+ * \param[in] mv  pointer to matrix variant structure
+ *
+ * \return the type of matrix
+ */
+/*----------------------------------------------------------------------------*/
 
 cs_matrix_type_t
 cs_matrix_variant_type(const cs_matrix_variant_t  *mv);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_MATRIX_H__ */
+#endif /* CS_MATRIX_H */

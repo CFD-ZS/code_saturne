@@ -1,14 +1,14 @@
-#ifndef __CS_MEASURES_H__
-#define __CS_MEASURES_H__
+#ifndef CS_MEASURES_H
+#define CS_MEASURES_H
 
 /*============================================================================
  * Field management.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -32,19 +32,16 @@
 #endif
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 /*----------------------------------------------------------------------------
  * Definition of the measures set structure
  *----------------------------------------------------------------------------*/
 
-typedef struct _cs_measures_set_t {
+typedef struct {
 
   const char         *name;                /* Name */
   int                 id;                  /* Measures set id */
@@ -57,7 +54,7 @@ typedef struct _cs_measures_set_t {
   cs_lnum_t           nb_measures_max;     /* Dynamic reallocation parameter */
   bool                interleaved;         /* Is measures set interleaved ? */
   int                *is_cressman;         /* Is measure cressman interpolated?
-                                                0: no
+                                               0: no
                                                 1: yes */
   int                *is_interpol;         /* Is measure taken into account for
                                               interpolation ?
@@ -69,7 +66,7 @@ typedef struct _cs_measures_set_t {
 
 } cs_measures_set_t;
 
-typedef struct _cs_interpol_grid_t {
+typedef struct {
 
   const char         *name;                /* Name */
   int                 id;                  /* Grid id */
@@ -80,6 +77,24 @@ typedef struct _cs_interpol_grid_t {
   int                *rank_connect;        /* Rank location */
 
 } cs_interpol_grid_t;
+
+/*----------------------------------------------------------------------------
+ * Interpolate mesh field on interpol grid structure.
+ *
+ * This function is deprecated because it take 1 value of the 3D field to
+ * the 1D grid...
+ *
+ * parameters:
+ *   ig                   <-- pointer to the interpolation grid structure
+ *   values_to_interpol   <-- field on mesh (size = n_cells)
+ *   interpolated_values  --> interpolated values on the interpolation grid
+ *                            structure (size = ig->nb_point)
+ *----------------------------------------------------------------------------*/
+
+[[deprecated]] void
+cs_interpol_field_on_grid_deprecated(cs_interpol_grid_t *ig,
+                                     const cs_real_t    *values_to_interpol,
+                                     cs_real_t          *interpoled_values);
 
 /*----------------------------------------------------------------------------
  * Interpolate mesh field on interpol grid structure.
@@ -116,7 +131,7 @@ cs_interpol_grid_create(const char   *name);
  * Create interpolation grid.
  *
  * parameters:
- *   ig        <-- pointer to an interpol grid strcuture
+ *   ig        <-- pointer to an interpol grid structure
  *   nb_points <-- number of considered points
  *   coord     <-- coordonates of considered points
  *----------------------------------------------------------------------------*/
@@ -161,7 +176,7 @@ cs_measures_set_create(const char   *name,
  *                          0: not taken into account
  *                          1: taken into account
  *   measures_coords  <-- measures spaces coordonates
- *   measures         <-- measures values (associated to coordonates)
+ *   measures         <-- measures values (associated to coordinates)
  *   influence_radius <-- influence radius for interpolation (xyz interleaved)
  *----------------------------------------------------------------------------*/
 
@@ -252,7 +267,7 @@ cs_interpol_grid_t  *
 cs_interpol_grid_by_id(int  id);
 
 /*----------------------------------------------------------------------------
- * Return a pointer to a measures set based on its name.
+ * Return a pointer to a measure set based on its name.
  *
  * This function requires that a measure set of the given name is defined.
  *
@@ -281,7 +296,6 @@ cs_measures_set_by_name(const char  *name);
 cs_interpol_grid_t  *
 cs_interpol_grid_by_name(const char  *name);
 
-
 /*----------------------------------------------------------------------------
  * Destroy all defined measures sets.
  *----------------------------------------------------------------------------*/
@@ -296,174 +310,6 @@ cs_measures_sets_destroy(void);
 void
 cs_interpol_grids_destroy(void);
 
+/*----------------------------------------------------------------------------*/
 
-/*============================================================================
- * Public function definitions for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Define a measures set.
- *
- * Fortran interface; use mestcr;
- *
- * subroutine mestcr (name, lname, idim, ilved, imeset)
- * *****************
- *
- * character*       name        : <-- : Measure set name
- * integer          lname       : <-- : Measure set name length
- * integer          idim        : <-- : Measures set dimension
- * integer          ilved       : <-- : 0: not intereaved; 1: interleaved
- * integer          imesset     : --> : id of defined measures set
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(mestcr, MESTCR)(const char          *name,
-                              const cs_int_t      *lname,
-                              const cs_int_t      *idim,
-                              const cs_int_t      *ilved,
-                              cs_int_t            *imeset);
-
-/*----------------------------------------------------------------------------
- * Define a grid.
- *
- * Fortran interface
- *
- * subroutine gridcr (name, lname, igrid)
- * *****************
- *
- * character*       name        : <-- : Measure set name
- * integer          lname       : <-- : Measure set name length
- * integer          igrid       : --> : id of defined grid
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(gridcr, GRIDCR)(const char          *name,
-                              const cs_int_t      *lname,
-                              cs_int_t            *igrid);
-
-/*----------------------------------------------------------------------------
- * (re)Allocate and map values to a measure set.
- *
- * Fortran interface
- *
- * subroutine mesmap (imeset, inbmes, meset, coords, cressm, interp)
- * *****************
- *
- * integer          imeset      : <-- : Measures set id
- * integer          inbmes      : <-- : Number of measures
- * cs_real_t*       meset       : <-- : Pointer to measures values array
- * cs_real_t*       coords      : <-- : Pointer to measures coordonates array
- * integer*         cressm      : <-- : Pointer to Cressman interpolation flag
- * integer*         interp      : <-- : Pointer to interpolation flag
- * integer*         infrad      : <-- : Influence radius for interpolation
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(mesmap, MESMAP)(const cs_int_t         *imeset,
-                              const cs_int_t         *inbmes,
-                              const cs_real_t        *meset,
-                              const cs_real_t        *coords,
-                              const cs_int_t         *cressm,
-                              const cs_int_t         *interp,
-                              const cs_real_t        *infrad);
-
-/*----------------------------------------------------------------------------
- * Map a grid grid.
- *
- * Fortran interface
- *
- * subroutine gridmap (name, lname, igrid)
- * *****************
- *
- * integer          igrid       : <-- : Measures set id
- * integer          inpts       : <-- : Number of measures
- * cs_real_t*       coords      : <-- : Pointer to measures coordonates array
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(grimap, GRIMAP)(const cs_int_t         *igrid,
-                              const cs_int_t         *inpts,
-                              const cs_real_t        *coords);
-
-/*----------------------------------------------------------------------------
- * Add values to a measure set.
- *
- * Fortran interface
- *
- * subroutine mesadd (imeset, inbmes, meset, coords, cressm, interp)
- * *****************
- *
- * integer          imeset      : <-- : Measures set id
- * integer          inbmes      : <-- : Number of measures to add
- * cs_real_t*       meset       : <-- : Pointer to measures values array
- * cs_real_t*       coords      : <-- : Pointer to measures coordonates array
- * integer*         cressm      : <-- : Pointer to Cressman interpolation flag
- * integer*         interp      : <-- : Pointer to interpolation flag
- * integer*         infrad      : <-- : Influence radius for interpolation
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(mesadd, MESADD)(const cs_int_t         *imeset,
-                              const cs_int_t         *inbmes,
-                              const cs_real_t        *meset,
-                              const cs_real_t        *coords,
-                              const cs_int_t         *cressm,
-                              const cs_int_t         *interp,
-                              const cs_real_t        *infrad);
-
-/*----------------------------------------------------------------------------
- * Compute a Cressman interpolation on the global mesh.
- *
- * Fortran interface
- *
- * subroutine mscrss (imeset, type, pldval)
- * *****************
- *
- * integer          imeset      : <-- : Measures set id
- * integer          type        : <-- : Parameter:
- *                                        1: interpolation on volumes
- *                                        2: interpolation on boundary faces
- * cs_real_t*       pldval      : --> : Interpolated values on the global mesh
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(mscrss, MSCRSS)(const cs_int_t         *imeset,
-                              const cs_int_t         *type,
-                              cs_real_t              *pldval);
-
-/*----------------------------------------------------------------------------
- * Interpolate calculed field on a grid.
- *
- * Fortran interface
- *
- * subroutine gripol (igrid, inval, pldval)
- * *****************
- *
- * integer          igrid       : <-- : Measures set id
- * cs_real_t*       inval       : <-- : Values to interpolate
- * cs_real_t*       pldval      : --> : Interpolated values on the grid
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(gripol, GRIPOL)(const cs_int_t         *igrid,
-                              const cs_real_t        *inval,
-                              cs_real_t              *pldval);
-
-/*----------------------------------------------------------------------------
- * Destroy measures sets.
- *
- * Fortran interface
- *
- * subroutine mestde (void)
- * *****************
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(mestde, MESTDE)(void);
-
-/*----------------------------------------------------------------------------
- * Destroy grids.
- *
- * Fortran interface
- *
- * subroutine grides (void)
- * *****************
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(grides, GRIDES)(void);
-
-END_C_DECLS
-
-#endif /* __CS_MEASURES_H__ */
+#endif /* CS_MEASURES_H */

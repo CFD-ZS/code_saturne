@@ -1,14 +1,14 @@
-#ifndef __CS_CDO_FIELD_INTERPOLATION_H__
-#define __CS_CDO_FIELD_INTERPOLATION_H__
+#ifndef CS_CDO_FIELD_INTERPOLATION_H
+#define CS_CDO_FIELD_INTERPOLATION_H
 
 /*============================================================================
- * Routines to handle field interpolation with CDO schemes
+ * Functions to handle field interpolation with CDO schemes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,21 +28,17 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_mesh.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
 
 /*!
- * @defgroup cdo_field_interpolation
+ * @defgroup cdo_field_interpolation Interpolation flags for CDO
  *   Flags specifying which kind of interpolation will be used
  *   This enables to activate/add equations at the setup stage
  * @{
@@ -70,10 +66,12 @@ BEGIN_C_DECLS
 
 /*----------------------------------------------------------------------------*/
 /*!
- * \brief  Interpolate an array defined at vertices from an array defined at
- *         cells
+ * \brief  Activate equation(s) used for the field interpolation
+ *         Two choices are available which can be combined:
+ *         CS_CDO_FIELD_INTERPOLATION_SCALAR_C2V
+ *         CS_CDO_FIELD_INTERPOLATION_SCALAR_C2F
  *
- * \param[in]     mode      activate which kind of interpolation operation
+ * \param[in]      mode            kind of interpolation to perform
  */
 /*----------------------------------------------------------------------------*/
 
@@ -112,8 +110,4 @@ cs_cdo_field_interpolation_cell_to_faces(const cs_mesh_t    *mesh,
                                          const cs_real_t    *cell_values,
                                          cs_real_t          *face_values);
 
-/*----------------------------------------------------------------------------*/
-
-END_C_DECLS
-
-#endif /* __CS_CDO_FIELD_INTERPOLATION_H__ */
+#endif /* CS_CDO_FIELD_INTERPOLATION_H */

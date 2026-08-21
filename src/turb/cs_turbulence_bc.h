@@ -1,14 +1,14 @@
-#ifndef __CS_TURBULENCE_BC_H__
-#define __CS_TURBULENCE_BC_H__
+#ifndef CS_TURBULENCE_BC_H
+#define CS_TURBULENCE_BC_H
 
 /*============================================================================
  * Base turbulence boundary conditions.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,14 +28,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -54,25 +50,25 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
- * Initialize turbulence model boundary condition ids.
+/*
+ * Initialize turbulence model boundary condition pointers.
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_turbulence_model_init_bc_ids(void);
+extern "C" void
+cs_turbulence_bc_init_pointers(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Free memory allocations for turbulence boundary conditions ids.
+/*
+ * \brief Free memory allocations for turbulence boundary condition pointers.
  */
 /*----------------------------------------------------------------------------*/
 
-void
-cs_turbulence_model_free_bc_ids(void);
+extern "C" void
+cs_turbulence_bc_free_pointers(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Calculation of \f$ u^\star \f$, \f$ k \f$ and \f$\varepsilon \f$
  *        from a diameter \f$ D_H \f$ and the reference velocity \f$ U_{ref} \f$
  *        for a circular duct flow with smooth wall
@@ -116,7 +112,7 @@ cs_turbulence_model_free_bc_ids(void);
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_ke_hyd_diam(double   uref2,
                              double   dh,
                              double   rho,
@@ -126,7 +122,7 @@ cs_turbulence_bc_ke_hyd_diam(double   uref2,
                              double  *eps);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Calculation of \f$ k \f$ and \f$\varepsilon\f$
  *        from a diameter \f$ D_H \f$, a turbulent intensity \f$ I \f$
  *        and the reference velocity \f$ U_{ref} \f$
@@ -145,7 +141,7 @@ cs_turbulence_bc_ke_hyd_diam(double   uref2,
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_ke_turb_intensity(double   uref2,
                                    double   t_intensity,
                                    double   dh,
@@ -153,7 +149,7 @@ cs_turbulence_bc_ke_turb_intensity(double   uref2,
                                    double  *eps);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set inlet boundary condition values for turbulence variables based
  *        on a diameter \f$ D_H \f$ and the reference velocity \f$ U_{ref} \f$
  *        for a circular duct flow with smooth wall
@@ -184,20 +180,18 @@ cs_turbulence_bc_ke_turb_intensity(double   uref2,
  * \param[in]     dh         hydraulic diameter \f$ D_H \f$
  * \param[in]     rho        mass density \f$ \rho \f$
  * \param[in]     mu         dynamic viscosity \f$ \nu \f$
- * \param[out]    rcodcl     boundary condition values
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_inlet_hyd_diam(cs_lnum_t   face_id,
                                 double      uref2,
                                 double      dh,
                                 double      rho,
-                                double      mu,
-                                double     *rcodcl);
+                                double      mu);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set inlet boundary condition values for turbulence variables based
  *        on a diameter \f$ D_H \f$, a turbulent intensity \f$ I \f$
  *        and the reference velocity \f$ U_{ref} \f$
@@ -207,55 +201,134 @@ cs_turbulence_bc_inlet_hyd_diam(cs_lnum_t   face_id,
  * \param[in]     uref2         square of the reference flow velocity
  * \param[in]     t_intensity   turbulent intensity \f$ I \f$
  * \param[in]     dh            hydraulic diameter \f$ D_H \f$
- * \param[out]    rcodcl        boundary condition values
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_inlet_turb_intensity(cs_lnum_t   face_id,
                                       double      uref2,
                                       double      t_intensity,
-                                      double      dh,
-                                      double     *rcodcl);
+                                      double      dh);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Set inlet boundary condition values for turbulence variables based
  *        on given k and epsilon values.
  *
  * \param[in]     face_id    boundary face id
  * \param[in]     k          turbulent kinetic energy
  * \param[in]     eps        turbulent dissipation
- * \param[out]    rcodcl     boundary condition values
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_inlet_k_eps(cs_lnum_t   face_id,
                              double      k,
-                             double      eps,
-                             double     *rcodcl);
+                             double      eps);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Set inlet boundary condition values for turbulence variables based
+ *        on given k and epsilon or Rij values.
+ *
+ * \param[in]     face_id    boundary face id
+ * \param[in]     k          turbulent kinetic energy
+ * \param[in]     eps        turbulent dissipation
+ */
+/*----------------------------------------------------------------------------*/
+
+extern "C" void
+cs_turbulence_bc_set_uninit_inlet(cs_lnum_t   face_num,
+                                  double      k,
+                                  double      rij[],
+                                  double      eps);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set inlet boundary condition values for turbulence variables based
+ *        on a diameter \f$ D_H \f$ and the reference velocity \f$ U_{ref} \f$
+ *        for a circular duct flow with smooth wall, only if not already set.
+ *
+ * Apart from assigning values where not already initialized, this function
+ * is similar to \ref cs_turbulence_bc_inlet_hyd_diam.
+ *
+ * \param[in]     face_id    boundary face id
+ * \param[in]     vel_dir    velocity direction (not normalized, or NULL)
+ * \param[in]     shear_dir  shear direction (or NULL), it also contains the
+ *                           level of anisotropy (Rnt = a_nt k)
+ * \param[in]     uref2      square of the reference flow velocity
+ * \param[in]     dh         hydraulic diameter \f$ D_H \f$
+ * \param[in]     rho        mass density \f$ \rho \f$
+ * \param[in]     mu         dynamic viscosity \f$ \nu \f$
+ */
+/*----------------------------------------------------------------------------*/
+
+extern "C" void
+cs_turbulence_bc_set_uninit_inlet_hyd_diam(cs_lnum_t   face_id,
+                                           double      vel_dir[],
+                                           double      shear_dir[],
+                                           double      uref2,
+                                           double      dh,
+                                           double      rho,
+                                           double      mu);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Set inlet boundary condition values for turbulence variables based
+ *        on a diameter \f$ D_H \f$, a turbulent intensity \f$ I \f$
+ *        and the reference velocity \f$ U_{ref} \f$
+ *        for a circular duct flow with smooth wall, only if not already set.
+ *
+ * Apart from assigning values where not already initialized, this function
+ * is similar to \ref cs_turbulence_bc_inlet_turb_intensity.
+ *
+ * \param[in]     face_id       boundary face id
+ * \param[in]     uref2         square of the reference flow velocity
+ * \param[in]     t_intensity   turbulent intensity \f$ I \f$
+ * \param[in]     dh            hydraulic diameter \f$ D_H \f$
+ */
+/*----------------------------------------------------------------------------*/
+
+extern "C" void
+cs_turbulence_bc_set_uninit_inlet_turb_intensity(cs_lnum_t   face_id,
+                                                 double      uref2,
+                                                 double      t_intensity,
+                                                 double      dh);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Set inlet boundary condition values for turbulence variables based
  *        on given k and epsilon values only if not already initialized.
  *
  * \param[in]     face_id    boundary face id
  * \param[in]     k          turbulent kinetic energy
  * \param[in]     eps        turbulent dissipation
- * \param[out]    rcodcl     boundary condition values
+ * \param[in]     vel_dir    velocity direction
+ * \param[in]     shear_dir  shear direction
  */
 /*----------------------------------------------------------------------------*/
 
-void
+extern "C" void
 cs_turbulence_bc_set_uninit_inlet_k_eps(cs_lnum_t   face_id,
                                         double      k,
                                         double      eps,
-                                        double     *rcodcl);
+                                        double      vel_dir[],
+                                        double      shear_dir[]);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
+ * \brief Assign homogeneous Neumann turbulent boundary conditions to
+ *        a given face.
+ *
+ * This is useful for outgoing flow.
+ */
+/*----------------------------------------------------------------------------*/
+
+extern "C" void
+cs_turbulence_bc_set_hmg_neumann(cs_lnum_t   face_id);
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Compute matrix \f$\tens{\alpha}\f$ used in the computation of the
  * Reynolds stress tensor boundary conditions.
  *
@@ -312,13 +385,96 @@ cs_turbulence_bc_set_uninit_inlet_k_eps(cs_lnum_t   face_id,
  */
 /*----------------------------------------------------------------------------*/
 
-void
+#ifdef __cplusplus
+
+CS_F_HOST_DEVICE inline void
 cs_turbulence_bc_rij_transform(int        is_sym,
                                cs_real_t  p_lg[3][3],
-                               cs_real_t  alpha[][6]);
+                               cs_real_t  alpha[6][6])
+{
+  cs_real_t p_lg2[3][3];
+  for (int ii = 0; ii < 3; ii++) {
+    for (int jj = 0; jj < 3; jj++)
+      p_lg2[ii][jj] = cs::pow2(p_lg[ii][jj]);
+  }
+
+  /* alpha(i,j)  for i in [1,3] and j in [1,3]: 9 terms */
+  for (int ii = 0; ii < 3; ii++) {
+    for (int jj = 0; jj < 3; jj++) {
+      alpha[jj][ii] =  p_lg2[0][ii] * p_lg2[0][jj]
+                     + p_lg2[1][ii] * p_lg2[1][jj]
+                     + p_lg2[2][ii] * p_lg2[2][jj]
+                     + 2. * is_sym * p_lg[0][ii] * p_lg[2][ii]
+                                   * p_lg[0][jj] * p_lg[2][jj];
+    }
+  }
+
+  /* alpha(i,j)  for i in [1,3] and j in [4,6]: 9 terms */
+
+  /* Correcponding line to j */
+  const int _jj_to_kk[3] = {0, 1, 0};
+  /* Corresponding column to j*/
+  const int _jj_to_pp[3] = {1, 2, 2};
+
+  for (int ii = 0; ii < 3; ii++) {
+    for (int jj = 0; jj < 3; jj++) {
+
+      int kk = _jj_to_kk[jj];
+      int pp = _jj_to_pp[jj];
+
+      alpha[jj + 3][ii] =
+        2. * (  p_lg2[0][ii] * p_lg[0][kk] * p_lg[0][pp]
+              + p_lg2[1][ii] * p_lg[1][kk] * p_lg[1][pp]
+              + p_lg2[2][ii] * p_lg[2][kk] * p_lg[2][pp]
+              + is_sym * p_lg[2][ii] * p_lg[0][ii]
+                       * (  p_lg[0][kk]*p_lg[2][pp]
+                          + p_lg[2][kk]*p_lg[0][pp]));
+    }
+  }
+
+  /* alpha(i,j)  for i in [4,6] and j in [1,3]: 9 terms */
+
+  for (int ii = 0; ii < 3; ii++) {
+    for (int jj = 0; jj < 3; jj++) {
+
+      int kk = _jj_to_kk[ii];
+      int pp = _jj_to_pp[ii];
+
+      /* Note: could be simplified because it is 0.5*alpha[jj+3][ii] */
+      alpha[jj][ii + 3] =
+          p_lg[0][kk] * p_lg[0][pp] * p_lg2[0][jj]
+        + p_lg[1][kk] * p_lg[1][pp] * p_lg2[1][jj]
+        + p_lg[2][kk] * p_lg[2][pp] * p_lg2[2][jj]
+        + is_sym * p_lg[2][jj] * p_lg[0][jj]
+                 * (  p_lg[0][kk]*p_lg[2][pp]
+                    + p_lg[2][kk]*p_lg[0][pp]);
+    }
+  }
+
+  /* alpha(i,j)  for i in [4,6] and j in [4,6]: 9 terms */
+  for (int ii = 0; ii < 3; ii++) {
+    for (int jj = 0; jj < 3; jj++) {
+
+      int kk = _jj_to_kk[ii];
+      int pp = _jj_to_pp[ii];
+
+      int jj1 = _jj_to_kk[jj];
+      int jj2 = _jj_to_pp[jj];
+
+      alpha[jj + 3][ii + 3] =
+        2. * (  p_lg[0][kk] * p_lg[0][pp] * p_lg[0][jj1] * p_lg[0][jj2]
+              + p_lg[1][kk] * p_lg[1][pp] * p_lg[1][jj1] * p_lg[1][jj2]
+              + p_lg[2][kk] * p_lg[2][pp] * p_lg[2][jj1] * p_lg[2][jj2])
+              + is_sym * (  p_lg[0][kk]*p_lg[2][pp]
+                          + p_lg[2][kk]*p_lg[0][pp])
+                       * (  p_lg[2][jj1]*p_lg[0][jj2]
+                          + p_lg[0][jj1]*p_lg[2][jj2]);
+    }
+  }
+}
+
+#endif
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_TURBULENCE_BC_H__ */
+#endif /* CS_TURBULENCE_BC_H */

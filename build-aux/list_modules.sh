@@ -21,8 +21,11 @@ if test "x$MODULESHOME" != "x" ; then
       if test -f "$LMOD_PKG"/init/profile ; then
         source "$LMOD_PKG"/init/profile
       fi
+    elif test -f "$MODULESHOME/init/profile.sh" ; then
+      source "$MODULESHOME/init/profile.sh"
     fi
 
+    export LMOD_PAGER=none
     module purge
 
     while test "x$try_modules" != "x$try_modules_p" ;

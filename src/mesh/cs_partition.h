@@ -1,14 +1,14 @@
-#ifndef __CS_PARTITION_H__
-#define __CS_PARTITION_H__
+#ifndef CS_PARTITION_H
+#define CS_PARTITION_H
 
 /*============================================================================
  * Define cs_mesh_t fields from cs_mesh_builder_t fields.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,16 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_base.h"
+#include "base/cs_base.h"
+#include "base/cs_log.h"
 
-#include "cs_mesh.h"
-#include "cs_mesh_builder.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_builder.h"
 
 /*=============================================================================
  * Macro definitions
@@ -83,7 +80,10 @@ BEGIN_C_DECLS
 typedef enum {
 
   CS_PARTITION_FOR_PREPROCESS,  /* Partitioning for preprocessing stage */
-  CS_PARTITION_MAIN             /* Partitioning for computation stage */
+  CS_PARTITION_MAIN,            /* Partitioning for computation stage */
+  CS_PARTITION_P2P,             /* Part-to-part partitioning */
+
+  CS_PARTITION_STAGE_COUNT
 
 } cs_partition_stage_t;
 
@@ -125,10 +125,13 @@ typedef enum {
 
 /*----------------------------------------------------------------------------
  * Print information on external libraries
+ *
+ * parameters:
+ *   log_type  <--  log type
  *----------------------------------------------------------------------------*/
 
 void
-cs_partition_external_library_info(void);
+cs_partition_external_library_info(cs_log_t  log_type);
 
 /*----------------------------------------------------------------------------
  * Set algorithm for domain partitioning for a given partitioning stage.
@@ -224,22 +227,28 @@ void
 cs_partition_add_partitions(int  n_extra_partitions,
                             int  extra_partitions_list[]);
 
-/*----------------------------------------------------------------------------
- * Compute partitioning for a given mesh.
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Partition mesh based on current options.
  *
- * parameters:
- *   mesh         <-- pointer to mesh structure
- *   mesh_builder <-> pointer to mesh builder structure
- *   stage        <-- associated partitioning stage
- *----------------------------------------------------------------------------*/
+ * If a mesh builder structure mb is provided, the computed partitioning
+ * is stored in mb->cell_rank.
+ * Else, the computed partitioning is copied to cell_dest, which must be
+ * preallocated.
+ *
+ * \param[in]       mesh       pointer to mesh structure
+ * \param[in, out]  mb         pointer to mesh builder structure
+ * \param[in]       stage      associated partitioning stage
+ * \param[out]      cell_dest  pointer to partitioning array
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 cs_partition(cs_mesh_t             *mesh,
-             cs_mesh_builder_t     *mesh_builder,
-             cs_partition_stage_t   stage);
+             cs_mesh_builder_t     *mb,
+             cs_partition_stage_t   stage,
+             int                    cell_dest[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PARTITION_H__ */
+#endif /* CS_PARTITION_H */

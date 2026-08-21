@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,65 +22,71 @@
 
 #-------------------------------------------------------------------------------
 
+# PLE dependency
+
+if HAVE_INTERNAL_PLE
+  CPPFLAGS_PLE = -I$(top_srcdir)/libple/src -I$(top_builddir)/libple
+else
+  CPPFLAGS_PLE = $(PLE_CPPFLAGS)
+endif
+
 # Main part
 
-AM_FCFLAGS = \
-$(FCMODINCLUDE)$(top_builddir)/src \
-$(FCMODINCLUDE)$(top_builddir)/src/alge \
-$(FCMODINCLUDE)$(top_builddir)/src/base \
-$(FCMODINCLUDE)$(top_builddir)/src/atmo \
-$(FCMODINCLUDE)$(top_builddir)/src/cfbl \
-$(FCMODINCLUDE)$(top_builddir)/src/cogz \
-$(FCMODINCLUDE)$(top_builddir)/src/comb \
-$(FCMODINCLUDE)$(top_builddir)/src/ctwr \
-$(FCMODINCLUDE)$(top_builddir)/src/elec \
-$(FCMODINCLUDE)$(top_builddir)/src/lagr \
-$(FCMODINCLUDE)$(top_builddir)/src/pprt \
-$(FCMODINCLUDE)$(top_builddir)/src/rayt \
-$(FCMODINCLUDE)$(top_builddir)/src/turb \
-$(FCMODINCLUDE)$(top_builddir)/src/user \
-$(FCFLAGS_DBG) $(FCFLAGS_OPT)
+AM_CPPFLAGS = \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
+$(MPI_CPPFLAGS)
+
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS =
+cscogz_includedir=$(pkgincludedir)/cogz
+cscogz_include_HEADERS = \
+cs_combustion_boundary_conditions.h \
+cs_combustion_bsh.h \
+cs_combustion_d3p.h \
+cs_combustion_ebu.h \
+cs_combustion_slfm.h \
+cs_combustion_gas.h \
+cs_combustion_ht_convert.h \
+cs_combustion_lw.h \
+cs_combustion_physical_properties.h \
+cs_combustion_read_data.h \
+cs_soot_model.h \
+cs_cogz_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcscogz.la
-libcscogz_la_SOURCES = \
-coini1.f90 \
-colecd.f90 \
-coprop.f90 \
-cothht.f90 \
-covarp.f90 \
-d3phst.f90 \
-d3pini.f90 \
-d3pint.f90 \
-d3pphy.f90 \
-d3ptcl.f90 \
-d3pver.f90 \
-ebuini.f90 \
-ebuphy.f90 \
-ebutcl.f90 \
-ebutss.f90 \
-ebuver.f90 \
-gauss.f90 \
-lwcgfu.f90 \
-lwcini.f90 \
-lwcphy.f90 \
-lwctcl.f90 \
-lwctss.f90 \
-lwcurl.f90 \
-lwcver.f90 \
-pdflwc.f90 \
-pdfpp3.f90 \
-pdfpp4.f90 \
-sootsc.f90 \
-yg2xye.f90
-libcscogz_la_LDFLAGS = -no-undefined
+noinst_LIBRARIES = libcscogz.a
+libcscogz_a_SOURCES = \
+cs_combustion_boundary_conditions.cpp \
+cs_combustion_bsh.cpp \
+cs_combustion_d3p.cpp \
+cs_combustion_ebu.cpp \
+cs_combustion_slfm.cpp \
+cs_combustion_gas.cpp \
+cs_combustion_ht_convert.cpp \
+cs_combustion_lw.cpp \
+cs_combustion_physical_properties.cpp \
+cs_combustion_read_data.cpp \
+cs_soot_model.cpp
+
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
 
 clean-local:
-	-rm -f *__genmod.f90 *.mod
+	-rm -rf .deps

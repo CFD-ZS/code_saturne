@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_SPECIFIC_PHYSICS_H__
-#define __CS_GUI_SPECIFIC_PHYSICS_H__
+#ifndef CS_GUI_SPECIFIC_PHYSICS_H
+#define CS_GUI_SPECIFIC_PHYSICS_H
 
 /*============================================================================
  * Management of the GUI parameters file: specific physics
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,163 +31,11 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * Type definitions
  *============================================================================*/
-
-/*============================================================================
- * Public Fortran function prototypes
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Density under relaxation
- *
- * Fortran Interface:
- *
- * SUBROUTINE UICPI1 (SRROM)
- * *****************
- * DOUBLE PRECISION SRROM   <--   density relaxation
- * DOUBLE PRECISION DIFTL0  <--   dynamic diffusion
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uicpi1, UICPI1) (double *const srrom,
-                                double *const diftl0);
-
-/*----------------------------------------------------------------------------
- * Temperature for D3P Gas Combustion
- *
- * Fortran Interface:
- *
- * SUBROUTINE UICPI2 (SRROM)
- * *****************
- * DOUBLE PRECISION Toxy   <--   Oxydant temperature
- * DOUBLE PRECISION Tfuel  <--   Fuel temperature
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uicpi2, UICPI2) (double *const toxy,
-                                double *const tfuel);
-
-/*----------------------------------------------------------------------------
- * Atmospheric flows: read of meteorological file of data
- *
- * Fortran Interface:
- *
- * subroutine uiati1
- * *****************
- * integer         imeteo   <--   on/off index
- * char(*)         fmeteo   <--   meteo file name
- * int             len      <--   meteo file name destination string length
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uiati1, UIATI1) (int           *imeteo,
-                                char          *fmeteo,
-                                int           *len
-                                CS_ARGF_SUPP_CHAINE);
-
-/*----------------------------------------------------------------------------
- * Indirection between the solver numbering and the XML one
- * for physical properties of the activated specific physics
- * (pulverized solid fuels)
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uisofu, UISOFU) (const int    *iirayo,
-                                const int    *ncharm,
-                                int          *ncharb,
-                                int          *nclpch,
-                                int          *nclacp,
-                                const int    *ncpcmx,
-                                int          *ichcor,
-                                double       *diam20,
-                                double       *cch,
-                                double       *hch,
-                                double       *och,
-                                double       *nch,
-                                double       *sch,
-                                int          *ipci,
-                                double       *pcich,
-                                double       *cp2ch,
-                                double       *rho0ch,
-                                double       *thcdch,
-                                double       *cck,
-                                double       *hck,
-                                double       *ock,
-                                double       *nck,
-                                double       *sck,
-                                double       *xashch,
-                                double       *xashsec,
-                                double       *xwatch,
-                                double       *h0ashc,
-                                double       *cpashc,
-                                int          *iy1ch,
-                                double       *y1ch,
-                                int          *iy2ch,
-                                double       *y2ch,
-                                double       *a1ch,
-                                double       *a2ch,
-                                double       *e1ch,
-                                double       *e2ch,
-                                double       *crepn1,
-                                double       *crepn2,
-                                double       *ahetch,
-                                double       *ehetch,
-                                int          *iochet,
-                                double       *ahetc2,
-                                double       *ehetc2,
-                                int          *ioetc2,
-                                double       *ahetwt,
-                                double       *ehetwt,
-                                int          *ioetwt,
-                                int          *ieqnox,
-                                int          *ieqco2,
-                                int          *imdnox,
-                                int          *irb,
-                                int          *ihtco2,
-                                int          *ihth2o,
-                                double       *qpr,
-                                double       *fn,
-                                double       *ckabs1,
-                                int          *noxyd,
-                                double       *oxyo2,
-                                double       *oxyn2,
-                                double       *oxyh2o,
-                                double       *oxyco2,
-                                double       *repnck,
-                                double       *repnle,
-                                double       *repnlo);
-
-/*----------------------------------------------------------------------------
- * Copy name of thermophysical data file from C to Fortran
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF(cfnmtd, CFNMTD) (char          *fstr,    /* --> Fortran string */
-                               int           *len      /* --> String Length  */
-                               CS_ARGF_SUPP_CHAINE);
-
-/*----------------------------------------------------------------------------
- * groundwater model : read parameters
- *
- * Fortran Interface:
- *
- * subroutine uidai1
- * *****************
- * integer         permeability    <--   permeability type
- * integer         dispersion      <--   dispersion type
- * integer         unsteady        <--   steady flow
- * integer         gravity         <--   check if gravity is taken into account
- * integer         unsaturated     <--   take into account unsaturated zone
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (uidai1, UIDAI1) (int    *permeability,
-                                int    *dispersion,
-                                int    *unsteady,
-                                int    *gravity,
-                                int    *unsaturated);
 
 /*=============================================================================
  * Public function prototypes
@@ -199,6 +47,29 @@ void CS_PROCF (uidai1, UIDAI1) (int    *permeability,
 
 void
 cs_gui_physical_model_select(void);
+
+/*----------------------------------------------------------------------------
+ * Indirection between the solver numbering and the XML one
+ * for physical properties of the activated specific physics
+ * (pulverized solid fuels)
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_coal_model(void);
+
+/*----------------------------------------------------------------------------
+ * Gas combustion model parameters
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_combustion_gas_model(void);
+
+/*----------------------------------------------------------------------------
+ * Temperatures for D3P Gas Combustion
+ *----------------------------------------------------------------------------*/
+
+void
+cs_gui_combustion_gas_model_temperatures(void);
 
 /*----------------------------------------------------------------------------
  * Electrical model: read parameters
@@ -224,17 +95,20 @@ cs_gui_elec_model_rec(void);
 const char *
 cs_gui_get_thermophysical_model(const char  *model_thermo);
 
-/*-----------------------------------------------------------------------------
- * Return 1 if a specific physics model is activated, 0 othewise.
+/*----------------------------------------------------------------------------
+ * groundwater model : read parameters
  *
- * Updates the cs_glob_vars global structure.
+ * parameters:
+ *   permeability    <--   permeability type
+ *   unsteady        <--   steady flow
+ *   unsaturated     <--   take into account unsaturated zone
  *----------------------------------------------------------------------------*/
 
-int
-cs_gui_get_activ_thermophysical_model(void);
+void
+cs_gui_gwf_model(int  *permeability,
+                 int  *unsteady,
+                 int  *unsaturated);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_GUI_SPECIFIC_PHYSICS_H__ */
+#endif /* CS_GUI_SPECIFIC_PHYSICS_H */

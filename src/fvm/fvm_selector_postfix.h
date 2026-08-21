@@ -1,14 +1,14 @@
-#ifndef __FVM_SELECTOR_POSTFIX_H__
-#define __FVM_SELECTOR_POSTFIX_H__
+#ifndef FVM_SELECTOR_POSTFIX_H
+#define FVM_SELECTOR_POSTFIX_H
 
 /*============================================================================
  * Expression handling for entity selection based on groups or attributes
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,18 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_group.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_group.h"
 
 /*=============================================================================
  * Macro definitions
@@ -161,10 +157,11 @@ fvm_selector_postfix_get_missing(const fvm_selector_postfix_t  *pf,
  *   pf           <-- pointer to postfix structure
  *   n_groups     <-- number of groups associated with group class
  *   n_attributes <-- number of attributes associated with group class
+ *   group_name   <-- array of group names (ordered)
  *   group_id     <-- array group ids associated with group class
  *   attribute_id <-- array of attribute ids associated with group class
- *   coords       <-- coordinates associated with evaluation, or NULL
- *   normal       <-- normal associated with evaluation, or NULL
+ *   coords       <-- coordinates associated with evaluation, or null
+ *   u_normal     <-- unit normal associated with evaluation, or null
  *
  * returns:
  *   true or false base on expression evaluation
@@ -174,10 +171,11 @@ bool
 fvm_selector_postfix_eval(const fvm_selector_postfix_t  *pf,
                           int                            n_groups,
                           int                            n_attributes,
+                          const char                    *group_name[],
                           const int                      group_id[],
                           const int                      attribute_id[],
-                          const double                   coords[],
-                          const double                   normal[]);
+                          const cs_real_t                coords[],
+                          const cs_nreal_t               u_normal[]);
 
 /*----------------------------------------------------------------------------
  * Dump the contents of a postfix structure in human readable form
@@ -199,6 +197,4 @@ fvm_selector_postfix_dump(const fvm_selector_postfix_t  *pf,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_SELECTOR_POSTFIX_H__ */
+#endif /* FVM_SELECTOR_POSTFIX_H */

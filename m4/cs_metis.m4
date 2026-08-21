@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,12 @@ AC_ARG_WITH(metis,
                             [specify prefix directory for METIS])],
             [if test "x$withval" = "x"; then
                with_metis=yes
+             elif test "x$withval" = "xsalome"; then
+               if test -z "$METIS_ROOT_DIR"; then
+                 AC_MSG_FAILURE([no SALOME path information for METIS (needed by --with-metis=salome)!])
+               else
+                 with_metis=$METIS_ROOT_DIR
+               fi
              fi],
             [with_metis=no])
 
@@ -59,14 +65,10 @@ AC_ARG_WITH(metis-lib,
             [if test "x$with_metis" = "xcheck" -o "x$with_metis" = "xno"; then
                with_metis=yes
              fi
-             METIS_LDFLAGS="-L$with_metis_lib"
-             # Add the libdir to the runpath as METIS is not libtoolized
-             METISRUNPATH="-R$with_metis_lib"],
+             METIS_LDFLAGS="-L$with_metis_lib"],
             [if test "x$with_metis" != "xno" -a "x$with_metis" != "xyes" \
 	          -a "x$with_metis" != "xcheck"; then
                METIS_LDFLAGS="-L$with_metis/lib"
-               # Add the libdir to the runpath as METIS is not libtoolized
-               METISRUNPATH="-R$with_metis/lib"
              fi])
 
 
@@ -160,7 +162,6 @@ AC_SUBST(metis_prefix, [${metis_prefix}])
 AC_SUBST(METIS_CPPFLAGS)
 AC_SUBST(METIS_LDFLAGS)
 AC_SUBST(METIS_LIBS)
-AC_SUBST(METISRUNPATH)
 
 ])dnl
 

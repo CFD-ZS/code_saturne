@@ -1,14 +1,14 @@
-#ifndef __CS_RAD_TRANSFER_PUN_H__
-#define __CS_RAD_TRANSFER_PUN_H__
+#ifndef CS_RAD_TRANSFER_PUN_H
+#define CS_RAD_TRANSFER_PUN_H
 
 /*============================================================================
  * Radiation solver boundary conditions treatment.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,12 +28,8 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
 
 /*=============================================================================
  * Local Macro definitions
@@ -44,7 +40,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
 
 /*============================================================================
@@ -61,14 +57,7 @@ BEGIN_C_DECLS
  *
  * \param[in]       iband     number of the i-th gray gas
  * \param[in]       bc_type   boundary face types
- * \param[in, out]  coefap    boundary condition work array for the luminance
- *                             (explicit part)
- * \param[in, out]  coefbp    boundary condition work array for the luminance
- *                             (implicit part)
- * \param[in, out]  cofafp    boundary condition work array for the diffusion
- *                             of the luminance (explicit part)
- * \param[in, out]  cofbfp    boundary condition work array for the diffusion
- *                             of the luminance (implicit part)
+ * \param[in]       bc_coeffs boundary condition structure for the radiance
  * \param[in, out]  flurds    pseudo mass flux work array (interior faces)
  * \param[in, out]  flurdb    pseudo mass flux work array (boundary faces)
  * \param[in, out]  viscf     visc*surface/dist work array at interior faces
@@ -85,27 +74,22 @@ BEGIN_C_DECLS
 /*----------------------------------------------------------------------------*/
 
 void
-cs_rad_transfer_pun(int              iband,
-                    int              bc_type[],
-                    cs_real_t        coefap[],
-                    cs_real_t        coefbp[],
-                    cs_real_t        cofafp[],
-                    cs_real_t        cofbfp[],
-                    cs_real_t        flurds[],
-                    cs_real_t        flurdb[],
-                    cs_real_t        viscf[],
-                    cs_real_t        viscb[],
-                    cs_real_t        smbrs[],
-                    cs_real_t        rovsdt[],
-                    cs_real_t        twall[],
-                    cs_real_t        ckmel[],
-                    cs_real_3_t      q[],
-                    const cs_real_t  abo[],
-                    cs_real_t        int_rad_domega[],
-                    cs_real_t        theta4[]);
+cs_rad_transfer_pun(int                          iband,
+                    int                          bc_type[],
+                    cs_field_bc_coeffs_t        *bc_coeffs,
+                    cs_real_t                    flurds[],
+                    cs_real_t                    flurdb[],
+                    cs_real_t                    viscf[],
+                    cs_real_t                    viscb[],
+                    cs_real_t                    smbrs[],
+                    cs_real_t                    rovsdt[],
+                    cs_real_t                    twall[],
+                    cs_real_t                    ckmel[],
+                    cs_real_3_t                  q[],
+                    const cs_real_t              abo[],
+                    cs_real_t                    int_rad_domega[],
+                    cs_real_t                    theta4[]);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RAD_TRANSFER_PUN_H__ */
+#endif /* CS_RAD_TRANSFER_PUN_H */

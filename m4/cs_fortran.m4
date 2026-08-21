@@ -1,8 +1,8 @@
 dnl--------------------------------------------------------------------------------
 dnl
-dnl This file is part of Code_Saturne, a general-purpose CFD tool.
+dnl This file is part of code_saturne, a general-purpose CFD tool.
 dnl
-dnl Copyright (C) 1998-2020 EDF S.A.
+dnl Copyright (C) 1998-2026 EDF S.A.
 dnl
 dnl This program is free software; you can redistribute it and/or modify it under
 dnl the terms of the GNU General Public License as published by the Free Software
@@ -85,10 +85,7 @@ done
 rm -fr tmpdir_$i
 AC_LANG_POP(Fortran)
 
-FCMODEXT=$cs_fc_modext
 FCMODINCLUDE=$cs_fc_modflag
-
-AC_SUBST(FCMODEXT)
 AC_SUBST(FCMODINCLUDE)
 
 ])dnl

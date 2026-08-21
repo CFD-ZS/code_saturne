@@ -1,5 +1,5 @@
-#ifndef __FVM_IO_NUM_H__
-#define __FVM_IO_NUM_H__
+#ifndef FVM_IO_NUM_H
+#define FVM_IO_NUM_H
 
 /*============================================================================
  * Main structure for an I/O numbering scheme associated with mesh entities
@@ -19,9 +19,9 @@
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -40,17 +40,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "fvm/fvm_defs.h"
 
 /*=============================================================================
  * Macro definitions
@@ -117,8 +113,7 @@ extern const char  *fvm_io_num_sfc_type_name[];
 fvm_io_num_t *
 fvm_io_num_create(const cs_lnum_t   parent_entity_number[],
                   const cs_gnum_t   parent_global_number[],
-                  const size_t      n_entities,
-                  const int         share_parent_global);
+                  const size_t      n_entities);
 
 /*----------------------------------------------------------------------------
  * Creation of an I/O numbering structure based on a selection of entities.
@@ -130,8 +125,6 @@ fvm_io_num_create(const cs_lnum_t   parent_entity_number[],
  *   parent_global_number <-- pointer to list of global (i.e. domain splitting
  *                            independent) parent entity numbers
  *   n_entities           <-- number of entities considered
- *   share_parent_global  <-- if non zero, try to share parent_global_number
- *                            instead of using a local copy
  *
  * returns:
  *  pointer to I/O numbering structure
@@ -140,8 +133,7 @@ fvm_io_num_create(const cs_lnum_t   parent_entity_number[],
 fvm_io_num_t *
 fvm_io_num_create_from_select(const cs_lnum_t   parent_entity_id[],
                               const cs_gnum_t   parent_global_number[],
-                              size_t            n_entities,
-                              int               share_parent_global);
+                              size_t            n_entities);
 
 /*----------------------------------------------------------------------------
  * Creation of an I/O numbering structure,
@@ -183,8 +175,6 @@ fvm_io_num_create_from_sub(const fvm_io_num_t  *base_io_num,
 
 /*----------------------------------------------------------------------------
  * Creation of an I/O numbering structure based on a strided adjacency.
- *
- * The corresponding entities must be locally ordered.
  *
  * parameters:
  *   parent_entity_id <-- pointer to list of selected entitie's parent's ids,
@@ -289,7 +279,7 @@ fvm_io_num_create_from_scan(size_t  n_entities);
  *   this_io_num <-- pointer to structure that should be destroyed
  *
  * returns:
- *   NULL pointer
+ *   null pointer
  *----------------------------------------------------------------------------*/
 
 fvm_io_num_t *
@@ -380,6 +370,4 @@ fvm_io_num_dump(const fvm_io_num_t  *const this_io_num);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __FVM_IO_NUM_H__ */
+#endif /* FVM_IO_NUM_H */

@@ -1,14 +1,14 @@
-#ifndef __CS_RESOURCE_H__
-#define __CS_RESOURCE_H__
+#ifndef CS_RESOURCE_H
+#define CS_RESOURCE_H
 
 /*============================================================================
  * Resource allocation management (available time).
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,23 +27,17 @@
 
 /*----------------------------------------------------------------------------*/
 
-#if defined(HAVE_CONFIG_H)
-#include "cs_config.h"
-#endif
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*=============================================================================
  * Macro Definitions
@@ -54,35 +48,24 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
-
-/*============================================================================
- *  Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Limit number of remaining time steps if the remaining allocated time is
- * too small to attain the requested number of steps.
- *
- * Fortran interface:
- *
- * subroutine armtsp (ntcabs, ntmabs)
- * *****************
- *
- * integer          ntcabs      : <-- : current time step number
- * integer          ntmabs      : <-> : maximum time step number
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (armtps, ARMTPS)
-(
- const cs_int_t  *ntcabs,
-       cs_int_t  *ntmabs
-);
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*--------------------------------------------------------------------------*/
+/*!
+ * \brief Set wall time limit check to false or true.
+ */
+/*--------------------------------------------------------------------------*/
+
+void
+cs_resource_wt_limit_check_set_status
+(
+  const bool status /*!<[in] status to set (activation or deactivation) */
+);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -122,6 +105,4 @@ cs_resource_get_max_timestep(int   ts_cur,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RESOURCE_H__ */
+#endif /* CS_RESOURCE_H */

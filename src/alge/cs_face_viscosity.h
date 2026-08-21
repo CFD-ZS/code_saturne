@@ -1,14 +1,14 @@
-#ifndef __CS_FACE_VISCOSITY_H__
-#define __CS_FACE_VISCOSITY_H__
+#ifndef CS_FACE_VISCOSITY_H
+#define CS_FACE_VISCOSITY_H
 
 /*============================================================================
  * Face viscosity
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,17 +28,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_halo.h"
-#include "cs_mesh.h"
-#include "cs_mesh_quantities.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_halo.h"
+#include "mesh/cs_mesh.h"
+#include "mesh/cs_mesh_quantities.h"
 
 /*=============================================================================
  * Local Macro definitions
@@ -49,54 +45,47 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*============================================================================
- *  Global variables
+ * Global variables
  *============================================================================*/
-
-/*============================================================================
- * Public function prototypes for Fortran API
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_face_viscosity
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (viscfa, VISCFA)
-(
- const cs_int_t  *const   visc_mean_type,
- cs_real_t                c_visc[],
- cs_real_t                i_visc[],
- cs_real_t                b_visc[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_face_anisotropic_viscosity_vector
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (vistnv, VISTNV)
-(
- const cs_int_t  *const   visc_mean_type,
- cs_real_6_t              c_visc[],
- cs_real_33_t             i_visc[],
- cs_real_t                b_visc[]
-);
-
-/*----------------------------------------------------------------------------
- * Wrapper to cs_face_anisotropic_viscosity_scalar
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (vitens, VITENS)
-(
- cs_real_6_t              c_visc[],
- const cs_int_t  *const   iwarnp,
- cs_real_2_t              weighf[],
- cs_real_t                weighb[],
- cs_real_t                i_visc[],
- cs_real_t                b_visc[]
-);
 
 /*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Computes the secondary viscosity contribution \f$\kappa
+ * -\dfrac{2}{3} \mu\f$ in order to compute:
+ * \f[
+ * \grad\left( (\kappa -\dfrac{2}{3} \mu) \trace( \gradt(\vect{u})) \right)
+ * \f]
+ * with:
+ *   - \f$ \mu = \mu_{laminar} + \mu_{turbulent} \f$
+ *   - \f$ \kappa \f$ is the volume viscosity (generally zero)
+ *
+ * \remark
+ * In LES, the tensor
+ * \f$\overline{\left(\vect{u}-\overline{\vect{u}}\right)\otimes\left(\vect{u}
+ *-\overline{\vect{u}}\right)}\f$
+ * is modeled by \f$\mu_t \overline{\tens{S}}\f$
+ * and not by
+ * \f$\mu_t\overline{\tens{S}}-\dfrac{2}{3}\mu_t
+ * \trace\left(\overline{\tens{S}}\right)\tens{1}+\dfrac{2}{3}k\tens{1}\f$
+ * so that no term
+ * \f$\mu_t \dive \left(\overline{\vect{u}}\right)\f$ is needed.
+ *
+ * Please refer to the
+ * <a href="../../theory.pdf#visecv"><b>visecv</b></a> section
+ * of the theory guide for more informations.
+ *
+ * \param[in,out] secvif        lambda*surface at interior faces
+ * \param[in,out] secvib        lambda*surface at boundary faces
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_face_viscosity_secondary(cs_real_t  secvif[],
+                            cs_real_t  secvib[]);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -124,9 +113,9 @@ void
 cs_face_viscosity(const cs_mesh_t               *m,
                   const cs_mesh_quantities_t    *fvq,
                   const int                      visc_mean_type,
-                  cs_real_t            *restrict c_visc,
-                  cs_real_t            *restrict i_visc,
-                  cs_real_t            *restrict b_visc);
+                  cs_real_t                     *c_visc,
+                  cs_real_t                     *i_visc,
+                  cs_real_t                     *b_visc);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -150,9 +139,9 @@ void
 cs_face_anisotropic_viscosity_vector(const cs_mesh_t             *m,
                                      const cs_mesh_quantities_t  *fvq,
                                      const int                    visc_mean_type,
-                                     cs_real_6_t        *restrict c_visc,
-                                     cs_real_33_t       *restrict i_visc,
-                                     cs_real_t          *restrict b_visc);
+                                     cs_real_6_t                 *c_visc,
+                                     cs_real_33_t                *i_visc,
+                                     cs_real_t                   *b_visc);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -182,15 +171,13 @@ cs_face_anisotropic_viscosity_vector(const cs_mesh_t             *m,
 void
 cs_face_anisotropic_viscosity_scalar(const cs_mesh_t               *m,
                                      const cs_mesh_quantities_t    *fvq,
-                                     cs_real_6_t          *restrict c_visc,
+                                     cs_real_6_t                   *c_visc,
                                      const int                      iwarnp,
-                                     cs_real_2_t          *restrict weighf,
-                                     cs_real_t            *restrict weighb,
-                                     cs_real_t            *restrict i_visc,
-                                     cs_real_t            *restrict b_visc);
+                                     cs_real_2_t                   *weighf,
+                                     cs_real_t                     *weighb,
+                                     cs_real_t                     *i_visc,
+                                     cs_real_t                     *b_visc);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FACE_VISCOSITY_H__ */
+#endif /* CS_FACE_VISCOSITY_H */

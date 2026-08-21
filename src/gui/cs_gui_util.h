@@ -1,14 +1,14 @@
-#ifndef __CS_GUI_UTIL_H__
-#define __CS_GUI_UTIL_H__
+#ifndef CS_GUI_UTIL_H
+#define CS_GUI_UTIL_H
 
 /*============================================================================
  * Management of the GUI parameters file: xpath request and utilities
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -31,12 +31,8 @@
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_tree.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_tree.h"
 
 /*=============================================================================
  * Public function prototypes
@@ -233,7 +229,7 @@ cs_gui_node_get_child_real(cs_tree_node_t  *node,
  *
  * \param[in]       node        node whose value is queried
  * \param[in]       child_name  name of child node
- * \param[in, out]  value       queried value
+ * \param[in, out]  status      queried value
  */
 /*----------------------------------------------------------------------------*/
 
@@ -252,7 +248,7 @@ cs_gui_node_get_child_status_int(cs_tree_node_t  *node,
  *
  * \param[in]       node        node whose value is queried
  * \param[in]       child_name  name of child node
- * \param[in, out]  value       queried value
+ * \param[in, out]  status      queried value
  */
 /*----------------------------------------------------------------------------*/
 
@@ -261,28 +257,6 @@ cs_gui_node_get_child_status_bool(cs_tree_node_t  *node,
                                   const char      *child_name,
                                   bool            *status);
 
-/*-----------------------------------------------------------------------------
- * Add timing increment to global MEI time counter.
- *
- * parameters:
- *   t <-- timing increment to add
- *----------------------------------------------------------------------------*/
-
-void
-cs_gui_add_mei_time(double t);
-
-/*-----------------------------------------------------------------------------
- * Get cumulative global MEI time counter.
- *
- * returns:
- *   cumulative global MEI time counter
- *----------------------------------------------------------------------------*/
-
-double
-cs_gui_get_mei_times(void);
-
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_GUI_UTIL_H__ */
+#endif /* CS_GUI_UTIL_H */

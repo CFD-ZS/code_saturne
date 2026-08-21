@@ -1,14 +1,14 @@
-#ifndef __CS_FLAG_CHECK_H__
-#define __CS_FLAG_CHECK_H__
+#ifndef CS_FLAG_CHECK_H
+#define CS_FLAG_CHECK_H
 
 /*============================================================================
  * Mesh element flag checking and error handling.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,19 +28,15 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-#include "cs_mesh_location.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "mesh/cs_mesh_location.h"
 
 /*============================================================================
  * Macro definitions
@@ -80,7 +76,7 @@ BEGIN_C_DECLS
  * Currently supported locations are CS_MESH_LOCATION_CELLS and
  * CS_MESH_LOCATION_BOUNDARY_FACES.
  *
- * \param[in]  err_elt_descr    description fro first element with error
+ * \param[in]  err_elt_descr    description for the first element with error
  * \param[in]  flag_descr       flag type description
  * \param[in]  flag_label       field label for flag postprocessing
  * \param[in]  error_mesh_name  postprocessing mesh name for elements with error
@@ -125,7 +121,7 @@ cs_flag_check(const char   *err_elt_descr,
  * Currently supported locations are CS_MESH_LOCATION_CELLS and
  * CS_MESH_LOCATION_BOUNDARY_FACES.
  *
- * \param[in]  err_elt_descr    description fro first element with error
+ * \param[in]  err_elt_descr    description for the first element with error
  * \param[in]  flag_descr       flag type description
  * \param[in]  flag_label       field label for flag postprocessing
  * \param[in]  error_mesh_name  postprocessing mesh name for elements with error
@@ -148,6 +144,4 @@ cs_flag_check_error_info(const char   *err_elt_descr,
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_FLAG_CHECK_H__ */
+#endif /* CS_FLAG_CHECK_H */

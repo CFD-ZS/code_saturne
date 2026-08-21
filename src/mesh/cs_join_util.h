@@ -1,14 +1,14 @@
-#ifndef __CS_JOIN_UTIL_H__
-#define __CS_JOIN_UTIL_H__
+#ifndef CS_JOIN_UTIL_H
+#define CS_JOIN_UTIL_H
 
 /*============================================================================
  * Manipulation of low-level structures for joining operations
  *===========================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -37,16 +37,12 @@
  * Local headers
  *---------------------------------------------------------------------------*/
 
-#include "fvm_defs.h"
-#include "fvm_periodicity.h"
+#include "fvm/fvm_defs.h"
+#include "fvm/fvm_periodicity.h"
 
-#include "cs_base.h"
-#include "cs_selector.h"
-#include "cs_timer.h"
-
-/*---------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
+#include "base/cs_selector.h"
+#include "base/cs_timer.h"
 
 /*============================================================================
  * Macro and type definitions
@@ -88,8 +84,8 @@ typedef struct {
   cs_gnum_t  n_boxes[3];             /* number of boxes */
   cs_gnum_t  n_th_leaves[3];         /* number leaves over threshold */
   cs_gnum_t  n_leaf_boxes[3];        /* number of boxes per leaf */
-  cs_gnum_t  box_mem_final[3];       /* final box memory required */
-  cs_gnum_t  box_mem_required[3];    /* memory required */
+  uint64_t   box_mem_final[3];       /* final box memory required */
+  uint64_t   box_mem_required[3];    /* memory required */
 
   cs_timer_counter_t  t_box_build;   /* box build times */
   cs_timer_counter_t  t_box_query;   /* box query times */
@@ -242,7 +238,7 @@ typedef struct {
                                 for the joining operation */
   cs_gnum_t     n_g_faces;   /* Global number of border faces selected
                                 for the joining operation */
-  cs_lnum_t    *faces;       /* List of selected border faces */
+  cs_lnum_t    *faces;       /* List of selected border faces (1-based) */
 
   cs_gnum_t    *compact_face_gnum;    /* Global face numbering defined
                                          on the selected faces */
@@ -396,6 +392,9 @@ cs_join_select_destroy(cs_join_param_t     param,
 /*----------------------------------------------------------------------------
  * Extract vertices from a selection of faces.
  *
+ * This function uses 1-based selection lists
+ * (select_faces and select_vertices)
+ *
  * parameters:
  *   n_select_faces <-- number of selected faces
  *   select_faces   <-- list of faces selected
@@ -479,6 +478,4 @@ cs_join_build_edges_lst(cs_lnum_t        n_faces,
 
 /*---------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_JOIN_UTIL_H__ */
+#endif /* CS_JOIN_UTIL_H */

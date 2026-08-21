@@ -1,14 +1,14 @@
-#ifndef __CS_LAGR_QUERY_H__
-#define __CS_LAGR_QUERY_H__
+#ifndef CS_LAGR_QUERY_H
+#define CS_LAGR_QUERY_H
 
 /*============================================================================
  * Caller interaction with Lagrangian module.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,13 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*============================================================================
  * Type definitions
@@ -48,7 +42,7 @@ BEGIN_C_DECLS
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return Lagranian module status.
  *
  * \return 0 if module is not active, > 0 if active
@@ -59,7 +53,7 @@ int
 cs_lagr_model_type(void);
 
 /*----------------------------------------------------------------------------*/
-/*!
+/*
  * \brief Return Lagranian particle restart status.
  *
  * \return 1 if particles restart is available, 0 otherwise
@@ -71,6 +65,4 @@ cs_lagr_particle_restart(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_LAGR_QUERY_H__ */
+#endif /* CS_LAGR_QUERY_H */

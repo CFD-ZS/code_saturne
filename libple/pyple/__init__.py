@@ -1,8 +1,8 @@
-# ==============================================================================
+#===============================================================================
 #  This file is part of the "Parallel Location and Exchange" library,
 #  intended to provide mesh or particle-based code coupling services.
 #
-#  Copyright (C) 2005-2020  EDF S.A.
+#  Copyright (C) 2005-2023  EDF S.A.
 #
 #  This library is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU Lesser General Public
@@ -17,9 +17,10 @@
 #  You should have received a copy of the GNU Lesser General Public
 #  License along with this library; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# ==============================================================================
+#===============================================================================
 
 # Ensure that all correct paths are available in python
+
 import sys, os
 
 _p = os.path.split(os.path.abspath(__file__))[0]
@@ -28,3 +29,5 @@ if _p not in sys.path:
 
 del _p
 __all__ = []
+
+#-------------------------------------------------------------------------------

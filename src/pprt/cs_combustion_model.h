@@ -1,14 +1,14 @@
-#ifndef __CS_COMBUSTION_MODEL_H__
-#define __CS_COMBUSTION_MODEL_H__
+#ifndef CS_COMBUSTION_MODEL_H
+#define CS_COMBUSTION_MODEL_H
 
 /*============================================================================
  * Combustion model parameters.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,151 +28,103 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
-#include "cs_field.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_defs.h"
 
 /*=============================================================================
  * Macro definitions
  *============================================================================*/
 
-/*! Maximum number of globals species */
-#define  CS_COMBUSTION_GAS_MAX_GLOBAL_SPECIES  25
-
-/*! Maximum number of elementary gas components */
-#define  CS_COMBUSTION_GAS_MAX_ELEMENTARY_COMPONENTS  20
-
-/*! Maximum number of coals */
-#define  CS_COMBUSTION_MAX_COALS  5
-
-/*! Maximum number of coal classes */
-#define  CS_COMBUSTION_MAX_CLASSES_PER_COAL  20
-
-/*! Maximum number of coal classes */
-#define  CS_COMBUSTION_MAX_COAL_CLASSES    CS_COMBUSTION_MAX_COALS \
-                                         * CS_COMBUSTION_MAX_CLASSES_PER_COAL
-
 /*============================================================================
  * Type definitions
  *============================================================================*/
 
-/*! Gas combustion model parameters structure */
-/*--------------------------------------------*/
-
-typedef struct {
-
-  int     iic;                     /*!< rank of C in gas composition (base 1) */
-
-  double  xsoot;                   /*!< soot fraction production (isoot = 0) */
-  double  rosoot;                  /*!< soot density */
-
-  /*! molar mass of global species */
-  double  wmolg[CS_COMBUSTION_GAS_MAX_GLOBAL_SPECIES];
-
-  /*! mass fraction conversion coefficients from global species to
-      elementary species */
-  double  coefeg[CS_COMBUSTION_GAS_MAX_GLOBAL_SPECIES]
-                [CS_COMBUSTION_GAS_MAX_ELEMENTARY_COMPONENTS];
-
-  /*! mole fraction conversion coefficients from global species to
-      elementary species */
-  double  compog[CS_COMBUSTION_GAS_MAX_GLOBAL_SPECIES]
-                [CS_COMBUSTION_GAS_MAX_ELEMENTARY_COMPONENTS];
-
-} cs_combustion_gas_model_t;
-
-/*! Coal combustion model parameters structure */
-/*---------------------------------------------*/
-
-typedef struct {
-
-  int     nclacp;                   /*< number of coal classes */
-
-  /*! ashes concentration (kg/kg) */
-  double  xashch[CS_COMBUSTION_MAX_COALS];
-
-  /*! coal id if considered class belongs to coal ich[1, 2, ...] */
-  int     ichcor[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! initial diameter (m) */
-  double  diam20[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! minimum diameter (m) */
-  double  dia2mn[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! initial density (kg/m^3) */
-  double  rho20[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! minimal density (kg/m^3) */
-  double  rho2mn[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! initial particle mass (kg) */
-  double  xmp0[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-  /*! particle char mass (kg) */
-  double  xmasch[CS_COMBUSTION_MAX_COAL_CLASSES];
-
-} cs_combustion_coal_model_t;
-
-/*! Coal combustion model parameters structure */
-/*---------------------------------------------*/
-
-typedef struct {
-
-  int     nclafu;                   /*< number of fuel classes */
-
-} cs_combustion_fuel_model_t;
-
-/*! Combustion model parameters structure */
-/*----------------------------------------*/
-
-typedef struct {
-
-  cs_combustion_gas_model_t   gas;   /*!< gas combustion model parameters */
-  cs_combustion_coal_model_t  coal;  /*!< coal combustion model parameters */
-  cs_combustion_fuel_model_t  fuel;  /*!< fuel combustion model parameters */
-
-  int     isoot;                     /*!< soot production modeling flag */
-
-  int     ico2;                      /*!< index of co2 in wmole */
-  int     ih2o;                      /*!< index of h2o in wmole */
-
-  double  ckabs0;                    /*!< absorption coefficient of gas mix */
-
-  double  xco2;                      /*!< molar coefficient of CO2 */
-  double  xh2o;                      /*!< molar coefficient of H2O */
-
-  /*! molar mass of an elementary gas component */
-  double  wmole[CS_COMBUSTION_GAS_MAX_ELEMENTARY_COMPONENTS];
-
-} cs_combustion_model_t;
-
 /*============================================================================
  * Global variables
  *============================================================================*/
-
-/*! Combustion model parameters structure */
-
-extern cs_combustion_model_t  *cs_glob_combustion_model;
 
 /*=============================================================================
  * Public function prototypes
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute Enthalpy and Cp based on the JANAF band.
+ *
+ * \param[in]   ncoel        number of elementary constituents
+ * \param[in]   ngazem       number of elementary constituents
+ * \param[in]   npo          number of interpolation points
+ * \param[in]   nomcoel      names of elementary constituants
+ * \param[out]  ehcoel       enthalpy for each elementary species
+ *                           (for point i and species j, ehcoel[i*ngazem + j])
+ * \param[out]  cpcoel       cp for each elementary species
+ *                           (for point i and species j, cpcoel[i*ngazem + j])
+ * \param[out]  coeff_therm  coefficients for the Burke-Scumann model,
+ *                           or null otherwise
+ * \param[in]   wmolce       molar mass of each species
+ * \param[in]   th           temperature in K
+ */
+/*----------------------------------------------------------------------------*/
 
-END_C_DECLS
+void
+cs_combustion_enthalpy_and_cp_from_janaf(int           ncoel,
+                                         int           ngazem,
+                                         int           npo,
+                                         const char    nomcoel[][13],
+                                         double        ehcoel[],
+                                         double        cpcoel[],
+                                         double        coeff_therm[][2][5],
+                                         const double  wmolce[],
+                                         const double  th[]);
 
-#endif /* __CS_COMBUSTION_MODEL_H__ */
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Compute rectangle-Dirac pdf parameters.
+ *
+ * From P. Plion & A. Escaich
+ *
+ * \param[in]       n_cells       number of cells
+ * \param[out]      indpdf        indicator for pdf integration or mean value
+ * \param[out]      tpdf          indicator for pdf shape:
+ *                               - 0: Dirac at mean value
+ *                               - 1: rectangle
+ *                               - 2: Dirac's peak at \f$ f_{min} \f$
+ *                               - 3: Dirac's peak at \f$ f_{max} \f$
+ *                               - 4: rectangle and 2 Dirac's pics
+ * \param[in]       fm            mean mixture fraction at cell centers
+ * \param[in, out]  fp2m          mean mixture fraction variance at cell centers
+ * \param[in, out]  fmini         mixture fraction low boundary
+ * \param[in]       fmaxi         mixture fraction high boundary
+ * \param[out]      dirmin        Dirac's peak value at \f$ f_{min} \f$
+ * \param[out]      dirmax        Dirac's peak value at \f$ f_{max} \f$
+ * \param[out]      fdeb          abscissa of rectangle low boundary
+ * \param[out]      ffin          abscissa of rectangle high boundary
+ * \param[out]      hrec          rectangle height
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_combustion_dirac_pdf(cs_lnum_t         n_cells,
+                        int               indpdf[],
+                        cs_real_t         tpdf[],
+                        const cs_real_t   fm[],
+                        cs_real_t         fp2m[],
+                        const cs_real_t   fmini[],
+                        const cs_real_t   fmaxi[],
+                        cs_real_t         dirmin[],
+                        cs_real_t         dirmax[],
+                        cs_real_t         fdeb[],
+                        cs_real_t         ffin[],
+                        cs_real_t         hrec[]);
+
+/*----------------------------------------------------------------------------*/
+
+#endif /* CS_COMBUSTION_MODEL_H */

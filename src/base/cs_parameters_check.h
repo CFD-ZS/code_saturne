@@ -1,14 +1,14 @@
-#ifndef __CS_PARAMETERS_CHECK_H__
-#define __CS_PARAMETERS_CHECK_H__
+#ifndef CS_PARAMETERS_CHECK_H
+#define CS_PARAMETERS_CHECK_H
 
 /*============================================================================
  * Log field and other array statistics at relevant time steps.
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,30 +28,28 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*============================================================================
  * type definitions
  *============================================================================*/
 
-/* Parameter check behavior when an error is detected */
+/*----------------------------------------------------------------------------*/
 
+/*! Parameter check behavior when an error is detected */
 typedef enum {
 
-  CS_WARNING,
-  CS_ABORT_DELAYED,
-  CS_ABORT_IMMEDIATE
+  CS_WARNING,                  /*!< Warn only */
+  CS_ABORT_DELAYED,            /*!< Abort when \ref cs_parameters_error_barrier
+                                 is called. */
+  CS_ABORT_IMMEDIATE           /*!< Abort immediately */
 
 } cs_parameter_error_behavior_t;
 
@@ -89,24 +87,6 @@ cs_parameters_error(cs_parameter_error_behavior_t   err_behavior,
                     ...);
 
 #endif
-
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief Print general parameters error or warning info.
- *
- * \param[in]  err_behavior  warn or abort ?
- * \param[in]  section_desc  optional description of code section
- *                           containing this parameter, or NULL
- * \param [in] format        format string, as printf() and family.
- * \param [in] ...           variable arguments based on format string.
- */
-/*----------------------------------------------------------------------------*/
-
-void
-cs_parameters_error(cs_parameter_error_behavior_t   err_behavior,
-                    const char                     *section_desc,
-                    const char                     *format,
-                    ...);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -413,6 +393,4 @@ cs_parameters_check(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_PARAMETERS_CHECK_H__ */
+#endif /* CS_PARAMETERS_CHECK_H */

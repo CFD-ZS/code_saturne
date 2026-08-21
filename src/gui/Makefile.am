@@ -2,9 +2,9 @@
 
 #-------------------------------------------------------------------------------
 
-# This file is part of Code_Saturne, a general-purpose CFD tool.
+# This file is part of code_saturne, a general-purpose CFD tool.
 #
-# Copyright (C) 1998-2020 EDF S.A.
+# Copyright (C) 1998-2026 EDF S.A.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,31 +33,18 @@ endif
 # Main part
 
 AM_CPPFLAGS = \
--I$(top_srcdir)/src/bft \
--I$(top_srcdir)/src/cdo \
--I$(top_srcdir)/src/elec \
--I$(top_srcdir)/src/fvm \
--I$(top_srcdir)/src/mei \
--I$(top_srcdir)/src/alge \
--I$(top_srcdir)/src/base \
--I$(top_srcdir)/src/cfbl \
--I$(top_srcdir)/src/mesh \
--I$(top_srcdir)/src/pprt \
--I$(top_srcdir)/src/turb \
--I$(top_srcdir)/src/lagr \
--I$(top_srcdir)/src/rayt \
--I$(top_srcdir)/src/darc \
--I$(top_srcdir)/src/meg \
-$(CPPFLAGS_PLE) \
+-I$(top_srcdir)/src -I$(top_builddir)/src \
+$(CPPFLAGS) $(CPPFLAGS_PLE) \
 $(MPI_CPPFLAGS)
 
-AM_CFLAGS = $(CFLAGS_DBG) $(CFLAGS_OPT)
+AM_CXXFLAGS = $(CXXFLAGS_SYCL) $(CXXFLAGS_DBG) $(CXXFLAGS_OPT) $(CXXFLAGS_SHARED)
 
 AM_LDFLAGS =
 
 # Public header files (to be installed)
 
-pkginclude_HEADERS = \
+csgui_includedir=$(pkgincludedir)/gui
+csgui_include_HEADERS = \
 cs_gui.h \
 cs_gui_boundary_conditions.h \
 cs_gui_conjugate_heat_transfer.h \
@@ -68,25 +55,41 @@ cs_gui_particles.h \
 cs_gui_radiative_transfer.h \
 cs_gui_specific_physics.h \
 cs_gui_util.h \
-cs_gui_variables.h \
 cs_tree_xml.h \
 cs_gui_headers.h
 
 # Library source files
 
-noinst_LTLIBRARIES = libcsgui.la
+noinst_LIBRARIES = libcsgui.a
 
 ###
 
-libcsgui_la_SOURCES = \
-cs_gui.c \
-cs_gui_boundary_conditions.c \
-cs_gui_conjugate_heat_transfer.c \
-cs_gui_mesh.c \
-cs_gui_mobile_mesh.c \
-cs_gui_output.c \
-cs_gui_particles.c \
-cs_gui_radiative_transfer.c \
-cs_gui_specific_physics.c \
-cs_gui_util.c \
-cs_tree_xml.c
+libcsgui_a_SOURCES = \
+cs_gui.cpp \
+cs_gui_boundary_conditions.cpp \
+cs_gui_conjugate_heat_transfer.cpp \
+cs_gui_mesh.cpp \
+cs_gui_mobile_mesh.cpp \
+cs_gui_output.cpp \
+cs_gui_particles.cpp \
+cs_gui_radiative_transfer.cpp \
+cs_gui_specific_physics.cpp \
+cs_gui_util.cpp \
+cs_tree_xml.cpp
+
+# Rules for CUDA (not known by Automake)
+
+if HAVE_CUDA_CPP
+.cpp.$(OBJEXT):
+	$(NVCC) $(DEFS) $(AM_CPPFLAGS) $(NVCCFLAGS) $(NVCCFLAGS_DBG) $(NVCCFLAGS_OPT) $(NVCCFLAGS_CPP) -c -o $@ $<
+endif
+
+if HAVE_HIP_CPP
+.cpp.$(OBJEXT):
+	$(HIPCC) $(DEFS) $(AM_CPPFLAGS) $(HIPCCFLAGS) $(HIPCCFLAGS_DBG) $(HIPCCFLAGS_OPT) $(HIPCCFLAGS_CPP) -c -o $@ $<
+endif
+
+# Additional rules
+
+clean-local:
+	-rm -rf .deps

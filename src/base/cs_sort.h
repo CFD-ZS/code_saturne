@@ -1,14 +1,14 @@
-#ifndef __CS_SORT_H__
-#define __CS_SORT_H__
+#ifndef CS_SORT_H
+#define CS_SORT_H
 
 /*============================================================================
  * Functions related to in-place sorting of arrays.
  *===========================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -27,17 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
 /*----------------------------------------------------------------------------
- *  Local headers
+ * Local headers
  *---------------------------------------------------------------------------*/
 
-#include "cs_base.h"
-
-/*---------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_base.h"
 
 /*=============================================================================
  * Macro definitions
@@ -54,6 +50,60 @@ BEGIN_C_DECLS
 /*=============================================================================
  * Public function prototypes
  *===========================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Sort an array "a" and apply the sort to its associated array "b"
+ *
+ * Sort is realized thanks to a shell sort (Knuth algorithm).
+ *
+ * \tparam T input value type
+ * \tparam U input value type
+ *
+ * \param[in]        l  left bound
+ * \param[in]        r  right bound
+ * \param[in, out]   a  array to sort
+ * \param[in, out]   b  associated array
+ */
+/*----------------------------------------------------------------------------*/
+
+template <typename T, typename U>
+void
+cs_sort_coupled_shell(cs_lnum_t   l,
+                      cs_lnum_t   r,
+                      T           a[],
+                      U           b[])
+{
+  cs_lnum_t  size = r - l;
+
+  if (size == 0)
+    return;
+
+  /* Compute stride */
+  cs_lnum_t  h;
+  for (h = 1; h <= size/9; h = 3*h+1) ;
+
+  /* Sort array */
+  for ( ; h > 0; h /= 3) {
+
+    for (cs_lnum_t i = l+h; i < r; i++) {
+
+      T  va = a[i];
+      U  vb = b[i];
+
+      cs_lnum_t j = i;
+      while ( (j >= l+h) && (va < a[j-h]) ) {
+        a[j] = a[j-h];
+        b[j] = b[j-h];
+        j -= h;
+      }
+      a[j] = va;
+      b[j] = vb;
+
+    } /* Loop on array elements */
+
+  } /* End of loop on stride */
+}
 
 /*----------------------------------------------------------------------------
  * Sort an array "a" between its left bound "l" and its right bound "r"
@@ -87,6 +137,21 @@ void
 cs_sort_shell(cs_lnum_t  l,
               cs_lnum_t  r,
               cs_lnum_t  a[]);
+
+/*----------------------------------------------------------------------------
+ * Sort an array of integers "a" between its left bound "l" and its
+ * right bound "r" using a shell sort (Knuth algorithm).
+ *
+ * parameters:
+ *   l <-- left bound
+ *   r <-- right bound
+ *   a <-> array to sort
+ *---------------------------------------------------------------------------*/
+
+void
+cs_sort_int_shell(cs_lnum_t  l,
+                  cs_lnum_t  r,
+                  int        a[]);
 
 /*----------------------------------------------------------------------------
  * Sort a global array "a" between its left bound "l" and its right bound "r"
@@ -154,7 +219,7 @@ cs_sort_dcoupled_shell(int     l,
 void
 cs_sort_sicoupled_shell(int        l,
                         int        r,
-                        int        a[],
+                        cs_lnum_t  a[],
                         short int  b[]);
 
 /*----------------------------------------------------------------------------
@@ -265,6 +330,4 @@ cs_sort_and_compact_gnum_2(cs_lnum_t  n_elts,
 
 /*---------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_SORT_H__ */
+#endif /* CS_SORT_H */

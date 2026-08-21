@@ -1,14 +1,14 @@
-#ifndef __CS_RESTART_H__
-#define __CS_RESTART_H__
+#ifndef CS_RESTART_H
+#define CS_RESTART_H
 
 /*============================================================================
  * Manage checkpoint / restart files
  *============================================================================*/
 
 /*
-  This file is part of Code_Saturne, a general-purpose CFD tool.
+  This file is part of code_saturne, a general-purpose CFD tool.
 
-  Copyright (C) 1998-2020 EDF S.A.
+  Copyright (C) 1998-2026 EDF S.A.
 
   This program is free software; you can redistribute it and/or modify it under
   the terms of the GNU General Public License as published by the Free Software
@@ -28,24 +28,26 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
- * Standard C library headers
+ * Standard library headers
  *----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
  * Local headers
  *----------------------------------------------------------------------------*/
 
-#include "cs_defs.h"
+#include "base/cs_defs.h"
 
-#include "cs_time_step.h"
-
-/*----------------------------------------------------------------------------*/
-
-BEGIN_C_DECLS
+#include "base/cs_time_step.h"
 
 /*============================================================================
  * Macro definitions
  *============================================================================*/
+
+/* Predefined checkpoint interval */
+
+#define CS_RESTART_INTERVAL_NONE         -2
+#define CS_RESTART_INTERVAL_ONLY_AT_END  -1
+#define CS_RESTART_INTERVAL_DEFAULT       0
 
 /* Error codes */
 
@@ -56,6 +58,8 @@ BEGIN_C_DECLS
 #define CS_RESTART_ERR_N_VALS    -4 /*!< Number of values does not match */
 #define CS_RESTART_ERR_MODE      -5 /*!< Incompatible access mode */
 #define CS_RESTART_ERR_EXISTS    -6 /*!< Section not available */
+#define CS_RESTART_ERR_NO_MAP    -7 /*!< Mapping from previous to current
+                                     *   mesh not available */
 
 /*============================================================================
  * Local type definitions
@@ -74,7 +78,7 @@ typedef enum {
 
 typedef enum {
   CS_TYPE_char,
-  CS_TYPE_cs_int_t,
+  CS_TYPE_int,
   CS_TYPE_cs_gnum_t,
   CS_TYPE_cs_real_t,
 } cs_restart_val_type_t;
@@ -91,7 +95,7 @@ typedef struct _cs_restart_t cs_restart_t;
  * \brief Function pointer for modifying behavior when checking a section's
  *        presence.
  *
- * Note: if the context pointer is non-NULL, it must point to valid data
+ * Note: if the context pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * in general not be temporary.
  *
@@ -120,7 +124,7 @@ typedef int
 /*!
  * \brief Function pointer for modifying behavior when reading a section.
  *
- * Note: if the context pointer is non-NULL, it must point to valid data
+ * Note: if the context pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * in general not be temporary.
  *
@@ -151,7 +155,7 @@ typedef int
 /*!
  * \brief Function pointer for modifying behavior when writing a section.
  *
- * Note: if the context pointer is non-NULL, it must point to valid data
+ * Note: if the context pointer is non-null, it must point to valid data
  * when the selection function is called, so that value or structure should
  * in general not be temporary.
  *
@@ -180,98 +184,29 @@ typedef void
  *============================================================================*/
 
 /*============================================================================
- * Public Fortran function prototypes
- *============================================================================*/
-
-/*----------------------------------------------------------------------------
- * Indicate if a restart directory is present.
- *
- * Fortran interface
- *
- * subroutine dflsui (ntsuit, ttsuit, wtsuit)
- * *****************
- *
- * integer          ntsuit      : <-- : > 0: checkpoint time step interval
- *                              :     : 0: default interval
- *                              :     : -1: checkpoint at end
- *                              :     : -2: no checkpoint
- * double precision ttsuit      : <-- : if> 0, checkpoint time interval
- * double precision wtsuit      : <-- : if> 0, checkpoint wall time interval
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (dflsui, DFLSUI)
-(
- cs_int_t   *ntsuit,
- cs_real_t  *ttsuit,
- cs_real_t  *wtsuit
-);
-
-/*----------------------------------------------------------------------------
- * Check if checkpointing is recommended at a given time.
- *
- * Fortran interface
- *
- * subroutine reqsui (iisuit)
- * *****************
- *
- * integer          iisuit      : --> : 0 if no restart required, 1 otherwise
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (reqsui, REQSUI)
-(
- cs_int_t   *iisuit
-);
-
-/*----------------------------------------------------------------------------
- * Indicate checkpointing has been done at a given time.
- *
- * This updates the status for future checks to determine
- * if checkpointing is recommended at a given time.
- *
- * Fortran interface
- *
- * subroutine stusui
- * *****************
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (stusui, STUSUI)
-(
- void
-);
-
-/*----------------------------------------------------------------------------
- * Save output mesh for turbomachinery if needed
- *
- * Fortran interface
- *
- * subroutine trbsui
- * *****************
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (trbsui, TRBSUI)
-(
- void
-);
-
-/*----------------------------------------------------------------------------
- * Indicate if a restart directory is present.
- *
- * Fortran interface
- *
- * subroutine indsui (isuite)
- * *****************
- *
- * integer          isuite      : --> : 1 for restart, 0 otherwise
- *----------------------------------------------------------------------------*/
-
-void CS_PROCF (indsui, INDSUI)
-(
- cs_int_t   *isuite
-);
-
-/*============================================================================
  * Public function prototypes
  *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Query checkpoint intervals.
+ *
+ * \param[out]  nt_interval  if non-null, time-step interval for checkpoint
+ *                             if > 0 time step interval for checkpoint
+ *                             if 0, default of 4 checkpoints per run
+ *                             if -1, checkpoint at end
+ *                             if -2, no checkpointing
+ * \param[out]  t_interval   if non-null, time value checkpoint interval;
+ *                           has priority over nt_interval if > -1
+ * \param[out]  wt_interval  if non-null, wall-clock interval for checkpoints;
+ *                           has priority over nt_interval if > -1
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_checkpoint_get_intervals(int     *nt_interval,
+                                    double  *t_interval,
+                                    double  *wt_interval);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -287,7 +222,7 @@ void CS_PROCF (indsui, INDSUI)
 /*----------------------------------------------------------------------------*/
 
 void
-cs_restart_checkpoint_set_defaults(int     nt_interval,
+cs_restart_checkpoint_set_interval(int     nt_interval,
                                    double  t_interval,
                                    double  wt_interval);
 
@@ -313,6 +248,19 @@ cs_restart_checkpoint_set_defaults(int     nt_interval,
 
 void
 cs_restart_checkpoint_set_mesh_mode(int  mode);
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief  Update checkpoint directory with mesh.
+ *
+ * The mesh_output file is moved to restart/mesh_input if present.
+ * Otherwise, if mesh_input is present and a file (not a directory),
+ * is linked to restart/mesh_input (using a hard link if possible)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_update_mesh_checkpoint(void);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -386,6 +334,49 @@ void
 cs_restart_checkpoint_done(const cs_time_step_t  *ts);
 
 /*----------------------------------------------------------------------------*/
+/*
+ * \brief  Access raw restart data serialized in memory.
+ *
+ * If called previously, reinitialize memory data structure.
+ *
+ * \param[out]  nb    size of data
+ * \param[out]  data  pointer to data
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_get_from_memory_serialized(size_t   *nb,
+                                      void    **data);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Indicate restart will be done based on a serialized data in memory.
+ *
+ * The restart subsystem takes ownership of the given data
+ *
+ * \param[in]  nb    number of matching bytes for data
+ * \param[in]  data  data buffer (ownership is relinquished by caller)
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_set_from_memory_serialized(size_t   nb,
+                                      void    *data);
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief  Indicate checkpoint will be done to serialized data in memory.
+ *
+ * If called previously, reinitialize memory data structure.
+ *
+ * \param[in]  status  checkpoint to memory if true, to file otherwise.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_checkpoint_set_to_memory_serialized(bool  status);
+
+/*----------------------------------------------------------------------------*/
 /*!
  * \brief  Check if we have a restart directory.
  *
@@ -401,7 +392,7 @@ cs_restart_present(void);
  * \brief  Initialize a restart file.
  *
  * \param[in]  name  file name
- * \param[in]  path  optional directory name for output, or NULL for default
+ * \param[in]  path  optional directory name for output, or null for default
  *                   (directory automatically created if necessary)
  * \param[in]  mode  read or write
  *
@@ -456,7 +447,7 @@ cs_restart_check_base_location(const cs_restart_t  *restart,
  * \param[in]  location_name   name associated with the location
  * \param[in]  n_glob_ents     global number of entities
  * \param[in]  n_ents          local number of entities
- * \param[in]  ent_global_num  global entity numbers, or NULL
+ * \param[in]  ent_global_num  global entity numbers, or null
  *
  * \return  the location id assigned, or -1 in case of error
  */
@@ -476,7 +467,7 @@ cs_restart_add_location(cs_restart_t      *restart,
  * \param[in]  location_name   name associated with the location
  * \param[in]  n_glob_ents     global number of entities
  * \param[in]  n_ents          local number of entities
- * \param[in]  ent_global_num  global entity numbers, or NULL
+ * \param[in]  ent_global_num  global entity numbers, or null
  *
  * \return  the location id assigned, or -1 in case of error
  */
@@ -509,7 +500,7 @@ cs_restart_clear_locations_ref(void);
  * (and the pointer must remain valid until the matching restart structure
  * is destroyed.
  *
- * \param[in]  context  pointer to associated data, or NULL
+ * \param[in]  context  pointer to associated data, or null
  */
 /*----------------------------------------------------------------------------*/
 
@@ -678,7 +669,7 @@ cs_restart_write_section(cs_restart_t           *restart,
  *
  * \param[in]   restart      associated restart file pointer
  * \param[in]   name         name of particles set
- * \param[out]  n_particles  number of particles, or NULL
+ * \param[out]  n_particles  number of particles, or null
  *
  * \return  the location id assigned to the particles, or -1 in case of error
  */
@@ -803,6 +794,7 @@ cs_restart_write_ids(cs_restart_t           *restart,
  *
  * \param[in]   restart          associated restart file pointer
  * \param[in]   sec_name         section name
+ * \param[in]   old_name         old name
  * \param[in]   location_id      id of corresponding location
  * \param[in]   n_location_vals  number of values per location (interlaced)
  * \param[in]   val_type         value type
@@ -834,7 +826,7 @@ cs_restart_read_section_compat(cs_restart_t           *restart,
  * \param[in]   sec_name         section name
  * \param[in]   old_name_x       old name, x component
  * \param[in]   old_name_y       old name, y component
- * \param[in]   old_name_y       old name, z component
+ * \param[in]   old_name_z       old name, z component
  * \param[in]   location_id      id of corresponding location
  * \param[out]  val              array of values
  *
@@ -926,6 +918,15 @@ cs_restart_read_real_66_t_compat(cs_restart_t  *restart,
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief  Log checkpoint/restart setup.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_log_setup(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief  Print statistics associated with restart files
  */
 /*----------------------------------------------------------------------------*/
@@ -975,6 +976,15 @@ cs_restart_set_n_max_checkpoints(int  n_checkpoints);
 
 /*----------------------------------------------------------------------------*/
 /*!
+ * \brief Remove all previous checkpoints which are not to be retained.
+ */
+/*----------------------------------------------------------------------------*/
+
+void
+cs_restart_clean_multiwriters_history(void);
+
+/*----------------------------------------------------------------------------*/
+/*!
  * \brief Destroy the multiwriter structure at the end of the computation.
  */
 /*----------------------------------------------------------------------------*/
@@ -984,6 +994,4 @@ cs_restart_multiwriters_destroy_all(void);
 
 /*----------------------------------------------------------------------------*/
 
-END_C_DECLS
-
-#endif /* __CS_RESTART_H__ */
+#endif /* CS_RESTART_H */
